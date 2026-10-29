@@ -1,5 +1,9 @@
 # Session state
 
+Publication checkpoint: public repository https://github.com/QRun-IO/qbit-printing is live. Main f1c6f56 fixes Guava at 33.7.2-jre and release-workflow caching; 16 tests, Checkstyle, actionlint, zizmor and local Trivy HIGH/CRITICAL scan passed. Remote security dependency resolution is being repaired after repeated Maven Central rate limiting. The prerelease tag is still pending that check.
+
+Live frontend RC.37 acceptance: dashboard links and the six operational printer columns were inspected; selected-printer Print a test label review/submit completed successfully against synthetic data; record actions were verified. Safe screenshots and instructions are in UI-WALKTHROUGH.md. No additional physical print was sent by this UI demo. Current local preview is running at http://127.0.0.1:18084 (override of default 18082).
+
 2026-10-29: Initial QQQ 4.1 printing QBit and durable protocol server prepared for 0.1.0-rc.1 publication. QQQ baseline 4.1.0-RC.20. Server scope includes JDBC storage, scoped device credentials, inventory approval, queue submission, replay-safe events, metadata, native enrollment/enable/test-print processes and durable enqueue target. Root owns commits/publication; this checkpoint does not assert remote publication.
 
 Build: `mvnw.cmd verify` (offline only after dependencies are cached). Tests cover native metadata/processes, persistence/idempotency/isolation/status rules, local printer withdrawal and the real HTTP fixture round trip. Checkstyle is copied unchanged from qbit-jobs. Machine Maven 3.10 cannot consume the locally cached parent POM; use wrapper 3.9.11. Runtime classpath is generated at target/runtime-classpath.txt.

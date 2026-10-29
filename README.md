@@ -14,7 +14,7 @@ flowchart LR
   D --> E[Local laser / Zebra]
 ```
 
-See [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
+See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
 
 ## Build and verify
 
