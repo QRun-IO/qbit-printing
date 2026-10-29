@@ -88,6 +88,7 @@ class PrintingHomeTest
          assertEquals(1, ((TableData) render(instance, "printingHomeWork")).getRows().size());
          assertEquals(viewer, QContext.getQSession());
          assertEquals(List.of("tenant-a"), viewer.getSecurityKeyValues("printing_tenant"));
+         assertTrue(JsonUtils.toJson(render(instance, "printingHomeHeader")).contains("/app/printingEnrollDevice/?returnTo=%2Fapp%2Fprinting%2F"));
       }
       finally
       {
@@ -107,7 +108,11 @@ class PrintingHomeTest
       QContext.init(instance, viewer("tenant-empty", true));
       try
       {
-         assertTrue(JsonUtils.toJson(render(instance, "printingHomeHeader")).contains("No print devices are connected"));
+         String header = JsonUtils.toJson(render(instance, "printingHomeHeader"));
+         assertTrue(header.contains("No print devices are connected"));
+         assertTrue(header.contains("/app/printingEnrollDevice/?returnTo=%2Fapp%2Fprinting%2F"));
+         assertEquals(PrintingTables.DEVICE, instance.getProcess("printingEnrollDevice").getTableName());
+         assertEquals(0, instance.getProcess("printingEnrollDevice").getMinInputRecords());
          TableData attention = (TableData) render(instance, "printingHomeAttention");
          assertTrue(attention.getRows().isEmpty());
          assertTrue(attention.getNoRowsFoundHTML().contains("No issues"));

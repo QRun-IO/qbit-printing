@@ -148,6 +148,7 @@ public class PrintingHome extends AbstractWidgetRenderer
    {
       CompositeWidgetData data = column().withBlock(text("Keep packing slips and shipping labels moving by resolving disconnected devices, printer issues and print failures."))
          .withBlock(text("Scope: current tenant. Devices/printers: now. Job exceptions/recent work: last 24 hours."))
+         .withBlock(text("Enroll a print device").withLink(new BlockLink("/app/printingEnrollDevice/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing setup and help").withLink(new BlockLink("https://github.com/QRun-IO/qbit-printing/blob/main/docs/OPERATIONS.md")));
       if(count(DEVICE, new QQueryFilter()) == 0)
       {
