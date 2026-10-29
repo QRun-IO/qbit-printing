@@ -1,0 +1,14 @@
+target/
+.local/
+log/
+logs/
+dist/
+.env
+*.log
+*.mv.db
+*.trace.db
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

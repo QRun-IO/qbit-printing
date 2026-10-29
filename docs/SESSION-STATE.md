@@ -1,0 +1,20 @@
+# Session state
+
+2026-10-29: Initial QQQ 4.1 printing QBit and durable protocol server prepared for 0.1.0-rc.1 publication. QQQ baseline 4.1.0-RC.20. Server scope includes JDBC storage, scoped device credentials, inventory approval, queue submission, replay-safe events, metadata, native enrollment/enable/test-print processes and durable enqueue target. Root owns commits/publication; this checkpoint does not assert remote publication.
+
+Build: `mvnw.cmd verify` (offline only after dependencies are cached). Tests cover native metadata/processes, persistence/idempotency/isolation/status rules, local printer withdrawal and the real HTTP fixture round trip. Checkstyle is copied unchanged from qbit-jobs. Machine Maven 3.10 cannot consume the locally cached parent POM; use wrapper 3.9.11. Runtime classpath is generated at target/runtime-classpath.txt.
+
+Hardware integration is owned by the root agent under cloud-printing-integration. No service-side change sends a print without an explicit submitted job. Local protocol demo listens on 127.0.0.1:18081 by default and requires QQQ_PRINT_ADMIN_TOKEN from environment.
+
+Both the development connector and installed LocalSystem service printed laser test pages confirmed by the user. Temporary MSI install/start/uninstall passed. Zebra hardware remains deferred. The synthetic native QQQ UI demo is a separate loopback host on port 18082 and registers no device transport routes.
+
+Printer availability now tracks the full locally selected exposure snapshot separately from server approval. Omission sets available=0; new submissions and claims require available=1 and enabled=1. Protocol CI fixture pin: f977bd01b62ceb7539190fd2861809537fcf504c.
+
+Publication files include Apache-2.0 license/notice, README integration and operations guidance, contribution/security policies, issue/PR templates, changelog and SHA-pinned GitHub verify/tag-release workflow. Artifacts are GitHub JAR/POM/checksums, not Maven Central publication. Runtime .local/log/target data is ignored.
+
+PrintingHome adds permission-guarded native widgets with tenant-scoped QueryAction/CountAction reads, native record/filter links, explicit scope/threshold/freshness text and guided setup. Dashboard standard gaps are recorded in README. PrintingHomeTest exercises real H2 reads, tenant isolation, unprivileged/unscoped rejection and native links; fixture backend names are unique because QQQ ConnectionManager caches providers by backend name.
+
+Final QBit UI pass: metadata uses printing_* table/data-source names, printing-prefixed processes/widgets, named dependent device/printer selectors, explicit enum choices and operational default table columns. Printer table and record actions use native streamed ETL review/result screens; multi-selection queues one job per selected printer. Native management actions require the configured service tenant in the current session printing_tenant key, including enrollment. Fourteen tests and Checkstyle passed with `mvnw.cmd -o verify` after these changes. Root owns final demo restart/browser acceptance and publication.
+
+Durable target correction: core DurableJobsRuntime.effectLoop constructs a system session without user tenant keys. PrintEnqueueEffectTarget now has a private trusted resolver for that system-only outbox path, bound to the current instance PrintingQBitConfig service and its fixed tenant. Inline users retain scope checks; native process authorization is unchanged. Registered-target tests cover system deliver/reconcile, idempotent replay, foreign-tenant device rejection, cached target reuse across instances, and inline wrong/missing-tenant denial.
+`mvnw.cmd -o verify -Pui-demo dependency:build-classpath` passed all 16 tests and zero Checkstyle violations after the durable target correction, explicit disabled table writes, final dashboard timestamps, and frontend RC.37 profile update. UI runtime classpath regenerated at target/ui-runtime-classpath.txt. Primary identifiers remain non-hidden because QQQ excludes hidden fields from ordinary query results; explicit frontend column hints keep them out of the default operational grid.

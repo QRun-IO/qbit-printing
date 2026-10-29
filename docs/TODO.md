@@ -1,0 +1,21 @@
+# Follow-up
+
+- [x] Versioned shared contract and HTTP happy-path test.
+- [x] Durable enrollment, device-scoped authentication, inventory and printer approval.
+- [x] PDF/ZPL queue, idempotency, content integrity and status events.
+- [x] QQQ metadata and native enrollment/enable/test-print processes.
+- [x] Durable enqueue EffectTarget for QQQ workflows.
+- [x] Verify local laser output from connector and installed LocalSystem service; user confirmed both pages.
+- [ ] Verify Zebra hardware when connected.
+- [x] Add separate synthetic native QQQ frontend preview host.
+- [x] Replace identifier text inputs with tenant-scoped, device-dependent selectors and add table/record actions.
+- [ ] Qualify deployed QQQ host integration.
+- [x] Separate local printer availability from server approval and block withdrawn queues.
+- [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
+- [ ] Verify remote CI and release after maintainer publication.
+- [ ] Logical destinations, profile management and object-storage document backend.
+- [ ] Cancellation/reprint review, expiry/retention and alerts.
+- [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
+- [ ] Resolve upstream/cached qbit-build-parent interpolation warning for Maven 3.10.
+- [x] Add native Printing home with scoped operational widgets and actionable links.
+- [ ] Complete dashboard-standard live attention, URL scope, stale/retry and responsive/accessibility acceptance.

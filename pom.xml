@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent><groupId>com.kingsrook</groupId><artifactId>qbit-build-parent</artifactId><version>2.0.0</version><relativePath/></parent>
+   <groupId>com.kingsrook.qbits</groupId>
+   <artifactId>qbit-printing</artifactId>
+   <version>0.1.0-rc.1</version>
+   <name>QQQ Printing</name>
+   <licenses><license><name>Apache License, Version 2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0</url></license></licenses>
+   <properties>
+      <maven.compiler.release>21</maven.compiler.release>
+      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+      <qqq.version>4.1.0-RC.20</qqq.version>
+      <maven.compiler.proc>none</maven.compiler.proc>
+   </properties>
+   <dependencyManagement><dependencies>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-bom-pom</artifactId><version>${qqq.version}</version><type>pom</type><scope>import</scope></dependency>
+      <dependency><groupId>org.junit</groupId><artifactId>junit-bom</artifactId><version>6.0.1</version><type>pom</type><scope>import</scope></dependency>
+   </dependencies></dependencyManagement>
+   <dependencies>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-core</artifactId><version>${qqq.version}</version></dependency>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-module-rdbms</artifactId><version>${qqq.version}</version></dependency>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-middleware-javalin</artifactId><version>${qqq.version}</version></dependency>
+      <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><version>2.3.232</version><scope>runtime</scope></dependency>
+      <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>6.0.1</version><scope>test</scope></dependency>
+   </dependencies>
+   <profiles><profile><id>ui-demo</id><dependencies>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-frontend-next</artifactId><version>1.0.0-RC.37</version><scope>runtime</scope></dependency>
+   </dependencies></profile></profiles>
+   <build><plugins>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><version>3.3.1</version>
+         <dependencies><dependency><groupId>com.puppycrawl.tools</groupId><artifactId>checkstyle</artifactId><version>10.12.6</version></dependency></dependencies>
+         <configuration><configLocation>checkstyle/config.xml</configLocation><includeTestSourceDirectory>true</includeTestSourceDirectory><consoleOutput>true</consoleOutput><violationSeverity>warning</violationSeverity><failOnViolation>true</failOnViolation></configuration>
+         <executions><execution><phase>validate</phase><goals><goal>check</goal></goals></execution></executions>
+      </plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.4</version></plugin>
+      <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.6.3</version><configuration><mainClass>com.kingsrook.qbits.printing.PrintingDemo</mainClass></configuration></plugin>
+   </plugins></build>
+</project>
+
+
+

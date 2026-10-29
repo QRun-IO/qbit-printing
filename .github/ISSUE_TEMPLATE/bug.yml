@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible printing QBit issue.
+title: 'bug: '
+body:
+  - type: markdown
+    attributes:
+      value: 'Use synthetic documents and redact credentials, customer data and private machine information.'
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: QBit, QQQ, Java and Windows connector versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal steps and whether this is the protocol demo, UI demo or an integrated host.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Distinguish job state, Windows spooler state and physical output.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Relevant errors, test output or synthetic request/response samples.
