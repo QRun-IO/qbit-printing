@@ -1,6 +1,6 @@
 # Session state
 
-Publication checkpoint: public repository https://github.com/QRun-IO/qbit-printing is live. Main f1c6f56 fixes Guava at 33.7.2-jre and release-workflow caching; 16 tests, Checkstyle, actionlint, zizmor and local Trivy HIGH/CRITICAL scan passed. Remote security dependency resolution is being repaired after repeated Maven Central rate limiting. The prerelease tag is still pending that check.
+Published: https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.0-rc.1 at f7f451a. Tagged build/test/Checkstyle, secrets, workflow, dependency and malicious-package checks all passed before publication. JAR, POM and SHA256SUMS assets are public. Guava is fixed at 33.7.2-jre. The security workflow resolves Maven dependencies first, verifies the scanned graph and feeds the resulting CycloneDX inventory to OSV; this avoids Maven throttling and the upstream parent-POM placeholder parsing issue without skipping checks. Main protection requires verify and all three security jobs. Release JAR SHA-256: fefce42496a534f3227f496a0e5f9a6f8e9209e7175ddf14b18166968a6ad4d6.
 
 Live frontend RC.37 acceptance: dashboard links and the six operational printer columns were inspected; selected-printer Print a test label review/submit completed successfully against synthetic data; record actions were verified. Safe screenshots and instructions are in UI-WALKTHROUGH.md. No additional physical print was sent by this UI demo. Current local preview is running at http://127.0.0.1:18084 (override of default 18082).
 

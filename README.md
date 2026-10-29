@@ -124,7 +124,7 @@ On 2026-10-29, both the development Windows connector and the installed LocalSys
 
 ## CI and releases
 
-Pull requests and `main` pushes run Java 21/Maven wrapper verification with the immutable sibling protocol checkout. A tag matching the POM version runs the same gates, then publishes the tested JAR, POM and `SHA256SUMS` as GitHub release assets. Hyphenated versions create prereleases. The workflow does not publish to Maven Central, deploy a QQQ application or print to hardware. GitHub CI results must be checked after publication; local test success is not a claim that remote CI has run.
+Pull requests and `main` pushes run Java 21/Maven wrapper verification with the immutable sibling protocol checkout. A tag matching the POM version runs build/tests and the secrets, workflow, dependency and malicious-package security gates before publishing the tested JAR, POM and `SHA256SUMS` as GitHub release assets. Maven resolves the dependency graph before Trivy scans it; OSV consumes that same graph as CycloneDX. Empty dependency analysis fails. Hyphenated versions create prereleases. The workflow does not publish to Maven Central, deploy a QQQ application or print to hardware. The [0.1.0-rc.1 release](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.0-rc.1) passed these hosted gates.
 
 ## Printing home
 

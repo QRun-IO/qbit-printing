@@ -12,7 +12,7 @@
 - [ ] Qualify deployed QQQ host integration.
 - [x] Separate local printer availability from server approval and block withdrawn queues.
 - [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
-- [ ] Verify remote CI and release after maintainer publication.
+- [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
 - [ ] Logical destinations, profile management and object-storage document backend.
 - [ ] Cancellation/reprint review, expiry/retention and alerts.
 - [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
