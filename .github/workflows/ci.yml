@@ -62,9 +62,16 @@ jobs:
             qbit-printing/target/checkstyle-result.xml
           if-no-files-found: ignore
 
+  release-security:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: verify
+    needs: [verify, release-security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

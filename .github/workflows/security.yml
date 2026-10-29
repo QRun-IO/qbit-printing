@@ -86,6 +86,9 @@ jobs:
             any(.Results[]?.Packages[]?; .Name == "com.google.guava:guava")' trivy.json > /dev/null
           docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
             convert --format sarif --output /src/trivy.sarif /src/trivy.json
+          docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
+            convert --format cyclonedx --output /src/printing.cdx.json /src/trivy.json
+          jq -e '.components | length > 0' printing.cdx.json > /dev/null
 
       - name: Upload SARIF to code scanning
         # Fork pull requests get a read-only token, so only same-repository runs upload.
@@ -97,17 +100,19 @@ jobs:
 
       # Malicious packages (OpenSSF malicious-packages feed, OSV `MAL-` IDs) are a
       # different threat from CVEs and are not in Trivy's database, so OSV-Scanner
-      # checks the same lock files for them. Any MAL- finding fails the job.
+      # checks the same resolved graph as a CycloneDX SBOM. This avoids re-parsing
+      # the upstream Maven parent whose published revision placeholder OSV rejects.
+      # Any MAL- finding fails the job; an empty SBOM is also a failure.
       - name: OSV-Scanner (malicious packages)
         env:
           OSV_IMAGE: ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa
         run: |
           set -euo pipefail
           status=0
-          docker run --rm -v "$PWD:/src:ro" "$OSV_IMAGE" scan source --recursive --format json /src > osv.json || status=$?
-          # 0: nothing found, 1: vulnerabilities found, 128: no packages found.
+          docker run --rm -v "$PWD:/src:ro" "$OSV_IMAGE" scan source --lockfile /src/printing.cdx.json --format json > osv.json || status=$?
+          # 0: nothing found, 1: vulnerabilities found. Other statuses fail closed.
           case "$status" in
-            0|1|128) ;;
+            0|1) ;;
             *) echo "::error title=OSV-Scanner failed::exit code $status"; exit 1 ;;
           esac
           malicious=$(jq -r '
