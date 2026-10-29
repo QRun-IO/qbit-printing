@@ -73,6 +73,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    public static void register(QInstance instance, QAppMetaData app)
    {
+      PrintingJobProcesses.register(instance);
       add(instance, "printingEnrollDevice", "Enroll a print device", List.of(field("facilityId", "Facility"), field("deviceName", "Device name")));
       add(instance, "printingEnablePrinter", "Set printer approval", List.of(deviceField(), printerField(null), new QFieldMetaData("enabled", QFieldType.BOOLEAN).withLabel("Approved for printing").withIsRequired(true)));
       add(instance, "printingTestZpl", "Print a test label", List.of(deviceField(), printerField("ZPL")));
@@ -375,7 +376,7 @@ public class PrintingProcesses implements BackendStep
    /***************************************************************************
     ** Generate a small valid PDF test page using the existing QQQ PDF dependency.
     ***************************************************************************/
-   private static byte[] testPdf() throws QException
+   static byte[] testPdf() throws QException
    {
       try(org.apache.pdfbox.pdmodel.PDDocument document = new org.apache.pdfbox.pdmodel.PDDocument())
       {

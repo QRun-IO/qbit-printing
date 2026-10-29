@@ -206,6 +206,46 @@ class PrintingServiceTest
 
 
    /***************************************************************************
+    ** Operator actions retain approval, device isolation, and uncertain receipts.
+    ***************************************************************************/
+   @Test
+   void operatorActionsAreScopedExplicitAndIdempotent() throws Exception
+   {
+      PrintingService service = new PrintingService(source(), "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      String other = enroll(service);
+      configure(service, device);
+      JSONObject action = new JSONObject().put("printerId", "zebra").put("format", "ZPL").put("requestId", "test-1");
+      String job = service.testPrint(device, action).getString("jobId");
+      assertEquals(1, service.queuedJobs(device).length());
+      assertEquals(0, service.queuedJobs(other).length());
+      assertEquals(job, service.testPrint(device, action).getString("jobId"));
+      assertEquals(404, assertThrows(PrintingException.class, () -> service.cancel(other, job)).getStatus());
+      service.cancel(device, job);
+      assertTrue(service.claim(device).isNull("job"));
+      assertEquals("FAILED", service.getJob(job).getString("status"));
+      JSONObject retry = new JSONObject().put("requestId", "retry-1");
+      String newJob = service.retry(device, job, retry).getString("jobId");
+      assertFalse(job.equals(newJob));
+      assertEquals(newJob, service.retry(device, job, retry).getString("jobId"));
+      assertEquals(newJob, service.claim(device).getJSONObject("job").getString("jobId"));
+      assertEquals(409, assertThrows(PrintingException.class, () -> service.cancel(device, newJob)).getStatus());
+      service.event(device, newJob, new JSONObject().put("eventId", "received").put("status", "RECEIVED"));
+      service.event(device, newJob, new JSONObject().put("eventId", "submitting").put("status", "SUBMITTING"));
+      service.event(device, newJob, new JSONObject().put("eventId", "unknown").put("status", "OUTCOME_UNKNOWN"));
+      JSONObject uncertainRetry = new JSONObject().put("requestId", "retry-2");
+      assertEquals(409, assertThrows(PrintingException.class, () -> service.retry(device, newJob, uncertainRetry)).getStatus());
+      assertEquals(404, assertThrows(PrintingException.class, () -> service.retry(other, newJob, uncertainRetry)).getStatus());
+      service.retry(device, newJob, uncertainRetry.put("confirmDuplicateRisk", true));
+      assertEquals("OUTCOME_UNKNOWN", service.getJob(newJob).getString("status"));
+      service.enablePrinter(device, "zebra", false);
+      assertThrows(PrintingException.class, () -> service.testPrint(device, action.put("requestId", "test-disabled")));
+   }
+
+
+
+   /***************************************************************************
     ** Enroll a new device using a single-use code.
     ***************************************************************************/
    private static String enroll(PrintingService service) throws Exception

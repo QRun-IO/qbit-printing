@@ -14,8 +14,20 @@
 - [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
 - [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
 - [ ] Logical destinations, profile management and object-storage document backend.
-- [ ] Cancellation/reprint review, expiry/retention and alerts.
+- [x] Device-scoped test/retry/cancel/queued-job routes and native record/table cancellation/reprint review, explicit duplicate-risk consent and retry idempotency.
+- [ ] Server-side job expiry/document retention and operational alerts.
 - [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
 - [ ] Resolve upstream/cached qbit-build-parent interpolation warning for Maven 3.10.
 - [x] Add native Printing home with scoped operational widgets and actionable links.
 - [ ] Complete dashboard-standard live attention, URL scope, stale/retry and responsive/accessibility acceptance.
+
+## 0.1.1-rc.1 integration checkpoint
+
+- [x] Verify current Java source: 19 tests passed, zero Checkstyle violations.
+- [x] Preserve job outcome while retry creates a new job; reject cancellation after claim.
+- [x] Expose cloud-queued jobs to the companion for visibility/cancellation before local receipt.
+- [ ] Record the pending latest Windows changed-tree gate, including independent heartbeat during slow printing.
+- [ ] Complete final MSI rebuild and actual elevated upgrade/UI acceptance after the user's pending UAC approval.
+- [ ] Record final package hashes, signing status and applicable integration evidence before replacement release.
+- [ ] Run a fresh explicitly authorized physical acceptance job for the final package; Zebra remains deferred.
+- [ ] Qualify reboot/sign-in/service recovery and deployed-host behavior; no source-only or synthetic result substitutes for those checks.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1-rc.1 — 2026-10-29
+
+- Device-scoped test print, explicit reprint and pre-dispatch cancellation routes.
+- New-job reprints with stable action idempotency and duplicate-risk consent for spooled/uncertain originals.
+- Native job table and record actions with review screens, readable selections, tenant/permission checks and state revalidation.
+- Nineteen tests and zero Checkstyle violations, including authenticated HTTP operator actions and native multi-selection workflows.
+
 ## 0.1.0-rc.1 — 2026-10-29
 
 Initial prerelease for QQQ 4.1+, verified against QQQ 4.1.0-RC.20.

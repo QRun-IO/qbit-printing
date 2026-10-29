@@ -377,6 +377,102 @@ public class PrintingService
    /***************************************************************************
     ** Claim one job; replay the same assignment until the device advances it.
     ***************************************************************************/
+   public JSONObject testPrint(String deviceId, JSONObject request) throws Exception
+   {
+      String format = required(request.optString("format"), "format");
+      if(!Set.of("PDF", "ZPL").contains(format))
+      {
+         throw new PrintingException(400, "Only PDF and ZPL are supported");
+      }
+      byte[] bytes = "PDF".equals(format) ? PrintingProcesses.testPdf() : "^XA^FO30,30^A0N,35,35^FDQQQ cloud printing test^FS^FO30,85^A0N,25,25^FDTest label - not for shipping^FS^XZ".getBytes(StandardCharsets.UTF_8);
+      return (submit(new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
+         .put("title", "QQQ print test").put("format", format).put("contentBase64", Base64.getEncoder().encodeToString(bytes))
+         .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId"))));
+   }
+
+
+
+   /***************************************************************************
+    ** Bounded device-scoped pending work for local inspection and cancellation.
+    ***************************************************************************/
+   public JSONArray queuedJobs(String deviceId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, deviceId);
+         JSONArray result = new JSONArray();
+         for(JSONObject row : query(connection, "SELECT * FROM printing_job WHERE tenant_id=? AND device_id=? AND status='QUEUED' ORDER BY created_at, id LIMIT 50", tenantId, deviceId))
+         {
+            result.put(job(row));
+         }
+         return (result);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Explicitly create a new job; never reset an ambiguous original receipt.
+    ***************************************************************************/
+   public JSONObject retry(String deviceId, String jobId, JSONObject request) throws SQLException
+   {
+      JSONObject row;
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, deviceId);
+         row = deviceJob(connection, deviceId, jobId);
+      }
+      String state = row.getString("status");
+      if(!Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
+      {
+         throw new PrintingException(409, "Only a finished or uncertain job can be reprinted");
+      }
+      if(!"FAILED".equals(state) && !request.optBoolean("confirmDuplicateRisk", false))
+      {
+         throw new PrintingException(409, "Inspect the printer and confirm the risk of duplicate output before reprinting");
+      }
+      return (submit(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
+         .put("title", row.getString("title")).put("format", row.getString("format")).put("contentBase64", row.getString("content_base64"))
+         .put("options", new JSONObject(row.getString("options_json")))
+         .put("idempotencyKey", "device-retry:" + deviceId + ":" + jobId + ":" + required(request.optString("requestId"), "requestId"))));
+   }
+
+
+
+   /***************************************************************************
+    ** Cancel only work that has never been claimed, serialized against claim.
+    ***************************************************************************/
+   public JSONObject cancel(String deviceId, String jobId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         connection.setAutoCommit(false);
+         try
+         {
+            requireDevice(connection, deviceId);
+            query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+            JSONObject row = deviceJob(connection, deviceId, jobId);
+            if(!"QUEUED".equals(row.getString("status")))
+            {
+               throw new PrintingException(409, "Job already reached the device; inspect or cancel its Windows spooler job");
+            }
+            update(connection, "UPDATE printing_job SET status='FAILED', message='Canceled by operator before dispatch' WHERE id=?", jobId);
+            connection.commit();
+            return (new JSONObject().put("accepted", true));
+         }
+         catch(Exception exception)
+         {
+            connection.rollback();
+            throw exception;
+         }
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Claim one job; replay the same assignment until the device advances it.
+    ***************************************************************************/
    public JSONObject claim(String deviceId) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())

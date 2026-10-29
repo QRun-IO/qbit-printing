@@ -59,6 +59,74 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrintingProcessesTest
 {
    /***************************************************************************
+    ** Native record selection requires duplicate consent and preserves the source.
+    ***************************************************************************/
+   @Test
+   void selectedJobRetryReviewsRiskRequiresConsentAndDeduplicatesReplay() throws Exception
+   {
+      Fixture fixture = fixture();
+      String original = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()), true);
+      fixture.service().claim(fixture.device());
+      for(String status : List.of("RECEIVED", "SUBMITTING", "SPOOLED"))
+      {
+         fixture.service().event(fixture.device(), original, new JSONObject().put("eventId", UUID.randomUUID().toString()).put("status", status));
+      }
+      var process = fixture.instance().getProcess(PrintingJobProcesses.RETRY);
+      assertEquals(PrintingTables.JOB, process.getTableName());
+      assertEquals(1, process.getMinInputRecords());
+      assertTrue(process.getStep("confirmDuplicateRisk") instanceof QFrontendStepMetaData);
+      RunBackendStepInput selection = new RunBackendStepInput().withProcessName(PrintingJobProcesses.RETRY)
+         .withRecords(List.of(new QRecord().withValue("id", original))).addValue("printingRetryRequestId", "process-retry");
+      RunBackendStepOutput preview = new RunBackendStepOutput();
+      new PrintingJobProcesses.Transform().runOnePage(selection, preview);
+      assertEquals("QQQ print test", preview.getRecords().getFirst().getValueString("title"));
+      assertTrue(fixture.service().claim(fixture.device()).isNull("job"));
+      assertThrows(QException.class, () -> new PrintingJobProcesses.Load().runOnePage(selection, new RunBackendStepOutput()));
+      for(int replay = 0; replay < 2; replay++)
+      {
+         var result = new RunProcessAction().execute(new RunProcessInput().withProcessName(PrintingJobProcesses.RETRY)
+            .withValue("recordIds", original).withValue("printingRetryRequestId", "process-retry").withValue("confirmDuplicateRisk", true)
+            .withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+         assertFalse(result.getException().isPresent(), () -> result.getException().toString());
+      }
+      QueryInput query = new QueryInput();
+      query.setTableName(PrintingTables.JOB);
+      List<QRecord> jobs = new QueryAction().execute(query).getRecords();
+      assertEquals(2, jobs.size());
+      assertEquals("SPOOLED", jobs.stream().filter(job -> original.equals(job.getValueString("id"))).findFirst().orElseThrow().getValueString("status"));
+   }
+
+
+
+   /***************************************************************************
+    ** Cancel supports table selections but cannot cancel work already claimed.
+    ***************************************************************************/
+   @Test
+   void selectedJobCancellationRechecksStateAndTenant() throws Exception
+   {
+      Fixture fixture = fixture();
+      String first = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()), true);
+      String second = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.otherPrinterId(), fixture.otherDevice()), true);
+      var result = new RunProcessAction().execute(new RunProcessInput().withProcessName(PrintingJobProcesses.CANCEL)
+         .withValue("recordIds", first + "," + second).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+      assertFalse(result.getException().isPresent(), () -> result.getException().toString());
+      assertTrue(fixture.service().claim(fixture.device()).isNull("job"));
+      assertTrue(fixture.service().claim(fixture.otherDevice()).isNull("job"));
+      String claimed = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()), true);
+      fixture.service().claim(fixture.device());
+      RunBackendStepInput selection = new RunBackendStepInput().withProcessName(PrintingJobProcesses.CANCEL)
+         .withRecords(List.of(new QRecord().withValue("id", claimed).withValue("status", "QUEUED")));
+      assertThrows(QException.class, () -> new PrintingJobProcesses.Load().runOnePage(selection, new RunBackendStepOutput()));
+      QContext.getQSession().setSecurityKeyValues(Map.of("printing_tenant", List.of("tenant-b")));
+      assertThrows(QException.class, () -> new PrintingJobProcesses.Transform().runOnePage(selection, new RunBackendStepOutput()));
+      QContext.getQSession().setSecurityKeyValues(Map.of("printing_tenant", List.of("tenant-a")));
+      QContext.getQSession().setPermissions(java.util.Set.of());
+      assertThrows(QException.class, () -> new PrintingJobProcesses.Load().runOnePage(selection, new RunBackendStepOutput()));
+   }
+
+
+
+   /***************************************************************************
     ** Do not carry identity into another test.
     ***************************************************************************/
    @AfterEach

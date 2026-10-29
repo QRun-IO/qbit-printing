@@ -96,7 +96,7 @@ public class PrintingQBitProducer implements QBitProducer
       binaryValues(instance, "printing_approved", "Not approved", "Approved");
       binaryValues(instance, "printing_available", "Not exposed", "Exposed");
       enumValues(instance, "printing_format", List.of("PDF", "ZPL"));
-      enumValues(instance, "printing_jobStatus", List.of("QUEUED", "CLAIMED", "RECEIVED", "SUBMITTING", "SPOOLED", "FAILED", "OUTCOME_UNKNOWN"));
+      enumValues(instance, "printing_jobStatus", List.of("QUEUED", "CLAIMED", "RECEIVED", "SUBMITTING", "SPOOLED", "SPOOLER_COMPLETED", "FAILED", "OUTCOME_UNKNOWN"));
       enumValues(instance, "printing_printerStatus", List.of("READY", "OFFLINE", "PAUSED", "ERROR", "UNKNOWN"));
       devices.withRecordLabelFormatAndFields("%s (%s)", "name", "facility_id");
       printers.withRecordLabelFormatAndFields("%s", "name");

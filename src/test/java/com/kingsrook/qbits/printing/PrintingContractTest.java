@@ -106,6 +106,7 @@ class PrintingContractTest
          assertEquals("SPOOLED", completed.getString("status"));
          assertEquals("42", completed.getString("spoolerJobId"));
          assertTrue(json(send(client, base, "POST", "/device/jobs/claim", token, new JSONObject()), 200).isNull("job"));
+         verifyOperatorRoutes(client, base, token, printer, jobPath);
 
          HttpResponse<byte[]> denied = send(client, base, "GET", "/admin/jobs", token, null);
          JSONObject error = json(denied, 403);
@@ -127,6 +128,27 @@ class PrintingContractTest
    private static JSONObject fixture(String name) throws Exception
    {
       return (new JSONObject(Files.readString(FIXTURES.resolve(name))));
+   }
+
+
+
+   /***************************************************************************
+    ** Device actions use authenticated routes and preserve operator intent.
+    ***************************************************************************/
+   private static void verifyOperatorRoutes(HttpClient client, String base, String token, String printer, String jobPath) throws Exception
+   {
+      JSONObject request = fixture("device-retry.request.json");
+      json(send(client, base, "POST", jobPath + "/retry", null, request), 401);
+      json(send(client, base, "POST", jobPath + "/retry", token, new JSONObject().put("requestId", "no-confirm")), 409);
+      JSONObject retry = json(send(client, base, "POST", jobPath + "/retry", token, request), 200);
+      assertEquals("QUEUED", retry.getString("status"));
+      assertEquals(retry.getString("jobId"), json(send(client, base, "GET", "/device/jobs/queued", token, null), 200).getJSONArray("jobs").getJSONObject(0).getString("jobId"));
+      assertTrue(json(send(client, base, "POST", "/device/jobs/" + retry.getString("jobId") + "/cancel", token, new JSONObject()), 200).getBoolean("accepted"));
+      assertEquals(0, json(send(client, base, "GET", "/device/jobs/queued", token, null), 200).getJSONArray("jobs").length());
+      JSONObject test = fixture("device-test.request.json").put("printerId", printer);
+      JSONObject queued = json(send(client, base, "POST", "/device/test-print", token, test), 200);
+      assertEquals("QUEUED", queued.getString("status"));
+      assertEquals(queued.getString("jobId"), json(send(client, base, "POST", "/device/test-print", token, test), 200).getString("jobId"));
    }
 
 

@@ -131,3 +131,9 @@ Pull requests and `main` pushes run Java 21/Maven wrapper verification with the 
 The admin-only Printing home uses stock QQQ widgets: a purpose/scope/help header, actionable exceptions, four health tiles, and a full-width pending/recent work list. Counts and record links use QQQ queries under the viewer's tenant. Device disconnection means no heartbeat for 90 seconds; job failure tiles cover jobs created in the past 24 hours. Older failures remain in Print jobs. An empty installation explains enrollment and printer setup.
 
 This RC implements the happy path of the [QQQ dashboard standard](https://github.com/QRun-IO/qqq/blob/main/docs/DASHBOARD-STANDARD.md), with explicit remaining gaps: RC.20 carries role/priority hints in widget default values; attention uses scoped database queries and 60-second refresh rather than the core live attention feed; dismiss/snooze, interactive URL-backed page scope, and stale/retry presentation depend on further core/frontend integration. It has not passed the standard's full responsive/accessibility audit. No custom frontend or HTML dashboard is used.
+
+### Operator actions (0.1.1-rc.1)
+
+The Windows companion can request test prints and explicit reprints through device-scoped authenticated routes. The same printer approval/exposure rules apply. Upgrade the QBit and connector together for these additive protocol features. Reprints create a new job; uncertain/spooled originals require duplicate-output consent and remain unchanged.
+
+QQQ's **Print jobs** table and records expose **Print again** and **Cancel queued jobs** using native selection/review/result screens. Cancellation is allowed only before dispatch; later work must be inspected in the Windows queue. The actions require printing administration permission and the configured tenant context.
