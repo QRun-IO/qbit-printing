@@ -33,8 +33,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-          cache: maven
-          cache-dependency-path: qbit-printing/pom.xml
       - name: Checkstyle, unit tests and HTTP contract tests
         run: bash ./mvnw --batch-mode --no-transfer-progress verify
       - name: Prepare JAR, POM and checksums

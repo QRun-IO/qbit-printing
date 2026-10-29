@@ -14,6 +14,8 @@
       <maven.compiler.proc>none</maven.compiler.proc>
    </properties>
    <dependencyManagement><dependencies>
+      <!-- Guava 33.7.2 fixes CVE-2026-102554 while retaining the QQQ 4.1 baseline. -->
+      <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>33.7.2-jre</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-bom-pom</artifactId><version>${qqq.version}</version><type>pom</type><scope>import</scope></dependency>
       <dependency><groupId>org.junit</groupId><artifactId>junit-bom</artifactId><version>6.0.1</version><type>pom</type><scope>import</scope></dependency>
    </dependencies></dependencyManagement>
