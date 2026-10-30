@@ -6,7 +6,7 @@
 - [x] QQQ metadata and native enrollment/enable/test-print processes.
 - [x] Durable enqueue EffectTarget for QQQ workflows.
 - [x] Verify local laser output from connector and installed LocalSystem service; user confirmed both pages.
-- [ ] Confirm physical output and barcode scanning on the connected Zebra; built-in PDF/ZPL spool acceptance is recorded below.
+- [x] Confirm physical built-in ZPL and PDF output on the connected Zebra; scanning and measured alignment remain separate checks below.
 - [x] Add separate synthetic native QQQ frontend preview host.
 - [x] Replace identifier text inputs with tenant-scoped, device-dependent selectors and add table/record actions.
 - [ ] Qualify deployed QQQ host integration.
@@ -29,10 +29,9 @@
 - [x] Verify current Java source: 19 tests passed, zero Checkstyle violations.
 - [x] Preserve job outcome while retry creates a new job; reject cancellation after claim.
 - [x] Expose cloud-queued jobs to the companion for visibility/cancellation before local receipt.
-- [ ] Record the pending latest Windows changed-tree gate, including independent heartbeat during slow printing.
-- [ ] Complete final MSI rebuild and actual elevated upgrade/UI acceptance after the user's pending UAC approval.
-- [ ] Record final package hashes, signing status and applicable integration evidence before replacement release.
-- [ ] Run a fresh explicitly authorized physical acceptance job for the final package; Zebra remains deferred.
+
+The Windows gate, MSI rebuild, installed UI acceptance, release evidence and fresh hardware submissions pending at this historical checkpoint are superseded by the newer records below and the Windows acceptance notes. Zebra is connected and both label format paths are physically confirmed.
+
 - [ ] Qualify reboot/sign-in/service recovery and deployed-host behavior; no source-only or synthetic result substitutes for those checks.
 
 ## v0.1.3-rc.1 diagnostic documents
@@ -42,4 +41,7 @@
 - [x] Publish v0.1.3-rc.1 and verify its public JAR, POM and SHA256SUMS assets.
 - [x] Installed Windows 0.1.7 passed all 16 UI checks; reviewed built-in preview bytes matched the three submitted documents.
 - [x] Submit one Letter PDF to the laser, one 4 × 6-inch 300 dpi ZPL and one matching PDF to the Zebra through the installed pipe/device API/shared generator; all reached SPOOLED with the original paired database retained.
-- [ ] Obtain user confirmation of all three physical outputs and barcode scanning; successful spooling is not physical acceptance.
+- [x] User confirmed the Letter laser page and the Zebra label containing the barcode, identifying the latter as the built-in ZPL output.
+- [x] Correct the Zebra machine driver defaults from 4.09 × 2-inch Thermal Transfer to 4 × 6-inch Thermal Direct, restore/resume the printer, and confirm one fresh built-in PDF printed correctly. No application code fix was needed.
+- [x] Verify published Windows 0.1.7 assets; all three built-in physical paths are confirmed: laser PDF, Zebra ZPL and Zebra PDF.
+- [ ] Obtain explicit barcode scan and measured alignment confirmation; successful spooling is not physical acceptance.
