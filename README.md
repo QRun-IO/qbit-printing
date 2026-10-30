@@ -2,7 +2,7 @@
 
 Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector initiates outbound HTTPS polling; the cloud needs no inbound route into the facility.
 
-**0.1.0-rc.1 is an initial prerelease**, tested against QQQ **4.1.0-RC.20** and Java 21. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
+**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. Audit source targets **0.1.4-rc.1**; the published baseline remains **0.1.3-rc.1** until the audit and release gates complete. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
@@ -14,11 +14,11 @@ flowchart LR
   D --> E[Local laser / Zebra]
 ```
 
-See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
+See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. CI pins protocol commit `f977bd01b62ceb7539190fd2861809537fcf504c`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. CI pins protocol commit `f4f977ca4aa6b749e6a52760eed5e53c99a7704d`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
@@ -58,7 +58,7 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.0-rc.1.jar' '-DpomFile=qbit-printing-0.1.0-rc.1.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.3-rc.1.jar' '-DpomFile=qbit-printing-0.1.3-rc.1.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -67,7 +67,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.0-rc.1</version>
+   <version>0.1.3-rc.1</version>
 </dependency>
 ```
 
@@ -77,18 +77,24 @@ Device and printer names, descriptions and locations are edited in the Windows c
 
 `initialize()` adds profile columns, backfills physical names, widens existing name/title columns and creates dispatch/history indexes without deleting records. The existing `name` column becomes the effective display label; `computer_name`/`queue_name` retain technical names and `display_name` holds the optional override. Back up the database and run schema initialization during a maintenance/deployment window; column widening and index creation can lock populated tables.
 
-Job history uses `GET /printing/v1/admin/jobs?limit=200&before=<nextCursor>` with opaque keyset cursors and a maximum 200 rows per page. Claims read one candidate, pending inspection reads 50, and all these queries project metadata without fetching stored documents. Native dashboard lists already cap attention rows at 10 per category and recent work at 25. Dispatch/history indexes support growing histories; the synthetic 10,000-row regression test checks bounded pages and claim correctness, **not** a certified 10,000-print/day throughput measurement. Driver speed, document size, database hardware and retention policy still determine capacity. Documents remain stored until the host supplies a retention policy; this change does not silently delete jobs or documents.
+Job history uses `GET /printing/v1/admin/jobs?limit=200&before=<nextCursor>` with opaque keyset cursors and a maximum 200 rows per page. Claims read one candidate, pending inspection reads 50, and all these queries project metadata without fetching stored documents. Native dashboard lists already cap attention rows at 10 per category and recent work at 25. Dispatch/history indexes support growing histories; the synthetic 10,000-row regression test checks bounded pages and claim correctness, **not** a certified 10,000-print/day throughput measurement. Driver speed, document size, database hardware and retention policy still determine capacity. Document cleanup follows the configured retention policy and host schedule; the audit does not run a live purge or delete job history.
 
 ```java
 PrintingService printing = new PrintingService(dataSource, tenantId);
 printing.initialize();
 new PrintingQBitProducer().withConfig(new PrintingQBitConfig()
    .withBackendName("appRdbms")
+   .withStorageTableName("printing_documents") // existing dedicated S3 storage table
+   .withSchedulerName("appScheduler")          // existing host scheduler
    .withService(printing)).produce(qInstance, "printing");
 server.addRouteProvider(new PrintingRoutes(printing, context -> hostPrintingAdminGuard(context)));
 ```
 
 `hostPrintingAdminGuard` is the host's own authenticated administrator policy, not a supplied library method. The service is bound to one tenant; use a separate host service instance for each tenant. Device token verification and job ownership are enforced on every device operation. Management service methods are intended for trusted application code; enforce user/facility authorization before calling them.
+
+The storage/scheduler options above are new in the pending 0.1.4 source. Configure a dedicated private printing bucket for the customer/environment through existing QQQ S3 metadata; no bucket credentials belong in printing forms. Admin retention defaults to 365 days after successful completion. Scheduled cleanup handles bounded batches every five minutes and preserves active, failed and uncertain work plus all receipts/history. Without a configured storage binding, legacy database documents remain supported; without a host scheduler, automatic cleanup does not run. Review [storage configuration, bucket isolation and S3 versioning](docs/STORAGE-AND-RETENTION.md) before deployment.
+
+Enrollment uses a named facility selector. Set `withFacilityPossibleValueSourceName("your_existing_facility_source")` to reuse an already registered host source and its record security. Without it, the standalone choice is **Default facility**. The backend validates the selection under the current user's permissions before issuing an enrollment code; typing or forging an unknown/foreign-tenant ID cannot bypass that check. Existing stored facility IDs are preserved; configure their original source to resolve their names.
 
 For native QQQ screens, grant `printing_admin` and populate the session's `printing_tenant` security key with the tenant ID. The Printing home shows device health, queue status and work needing attention, with Devices, Printers and Print jobs beneath it. It nests under an existing `admin` app when available. Processes are dashboard/table/record actions, not navigation entries. Secret/token and document columns are excluded from metadata. Table mutations are rejected; use the service/processes instead.
 

@@ -79,10 +79,13 @@ public class PrintingQBitProducer implements QBitProducer
       {
          throw new QException("The initial printing QBit supports the printing namespace only");
       }
-      instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion("0.1.0-rc.1").withNamespace("printing").withConfig(config));
+      config.getService().withRetentionPolicy(config.getRetentionPolicy());
+      config.getService().configureStorage(instance, config.getStorageTableName());
+      instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion(version()).withNamespace("printing").withConfig(config));
       instance.addSecurityKeyType(new QSecurityKeyType().withName("printing_tenant"));
       QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "display_name", "computer_name", "description", "location", "agent_version", "last_seen_at"));
       devices.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Enabled").withPossibleValueSourceName("printing_enabled"));
+      devices.getField("facility_id").withLabel("Facility").withPossibleValueSourceName(PrintingFacilities.register(instance, config));
       QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at"));
       printers.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Approved for printing").withPossibleValueSourceName("printing_approved"));
       printers.withField(new QFieldMetaData("available", QFieldType.INTEGER).withLabel("Exposed by device").withPossibleValueSourceName("printing_available"));
@@ -125,6 +128,7 @@ public class PrintingQBitProducer implements QBitProducer
       QAppMetaData app = new QAppMetaData().withName("printing").withLabel("Printing").withIcon(new QIcon("print")).withChild(devices).withChild(printers).withChild(jobs);
       app.withPermissionRules(PrintingProcesses.permissionRules());
       PrintingProcesses.register(instance, app);
+      PrintingRetentionProcesses.register(instance, config);
       PrintingHome.register(instance, app);
       instance.addApp(app);
       QAppMetaData parent = instance.getApp("admin");
@@ -132,6 +136,17 @@ public class PrintingQBitProducer implements QBitProducer
       {
          parent.withChild(app);
       }
+   }
+
+
+
+   /***************************************************************************
+    ** Read the build-produced JAR manifest; IDE/test class directories identify themselves honestly.
+    ***************************************************************************/
+   private static String version()
+   {
+      String version = PrintingQBitProducer.class.getPackage().getImplementationVersion();
+      return (version == null || version.isBlank() ? "development" : version);
    }
 
 

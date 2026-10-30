@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4-rc.1 — unreleased
+
+- Make native enrollment and test-print execution replay-safe and retain known duplicate-output risk after later failures.
+- Strictly validate print options, inventory formats/status and event bounds before persistence; recheck current queue format support at claim time.
+- Add dedicated S3 document storage through the host's QQQ storage API, tenant object namespaces and immutable destination/reference checks.
+- Add admin retention settings with a 365-day default, reviewed cleanup and bounded scheduled maintenance; preserve job history and uncertain work.
+- Use named facility choices during enrollment and revalidate them under the current user's tenant/record permissions.
+- Require release security/CodeQL gates, verified artifact promotion and build provenance; report the real packaged QBit version.
+- Full local verification passed 53 tests with zero failures/errors and Checkstyle violations. Hosted checks remain pending; this entry does not claim release or live storage migration.
+
 ## 0.1.3-rc.1 — 2026-10-30
 
 - Shared QQQ-branded warehouse test pages and labels across native record/table actions and device requests.

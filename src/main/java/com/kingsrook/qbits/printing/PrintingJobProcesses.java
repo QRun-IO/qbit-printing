@@ -132,7 +132,8 @@ public class PrintingJobProcesses
          throw new QException("Choose an accessible print job");
       }
       String state = job.getValueString("status");
-      if(CANCEL.equals(input.getProcessName()) ? !"QUEUED".equals(state) : !Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
+      boolean alreadyCanceled = "FAILED".equals(state) && PrintingService.CANCELED_BEFORE_DISPATCH.equals(job.getValueString("message"));
+      if(CANCEL.equals(input.getProcessName()) ? (!"QUEUED".equals(state) && !alreadyCanceled) : !Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
       {
          throw new QException("Job " + job.getValueString("title") + " is " + state + " and cannot be processed by this action");
       }

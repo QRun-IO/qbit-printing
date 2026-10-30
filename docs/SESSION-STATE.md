@@ -1,5 +1,13 @@
 # Session state — current checkpoint 2026-10-30
 
+## Deep audit in progress — pending 0.1.4-rc.1
+
+Final local server verification passed **53 tests, zero failures/errors and zero Checkstyle violations**, including named facility selectors and current-user tenant authorization. The JAR manifest reports 0.1.4-rc.1. See [audit evidence](AUDIT-2026-10-30.md). Root is preparing the draft PR; no merge, release or live migration. All three printing repositories now enforce required checks even for administrators, explicitly approved by the user. Master coordination is in `R:\agent-comms\qqq-cloud-printing.md`; Record Files owns originals, printing owns delivery copies. The shared immutable-version reader/async source-authorization contract remains pending. Legacy durable outbox byte payloads are outside printing's S3 retention scope.
+
+Source fixes address native process replay, strict print options/inventory validation, duplicate-risk preservation and event bounds. The user requires admin-configurable document retention, default **365 days**, scheduled cleanup and proper S3 bucket separation. Implementation uses existing QQQ StorageAction/S3 configuration with a dedicated printing bucket, tenant namespaces and immutable per-job storage bindings; exact cleanup scope and cross-tenant isolation require regression evidence before release. Active/uncertain jobs and history/receipts remain protected. Existing inline documents remain readable. No live storage configuration, purge or database migration has run.
+
+Root owns publication and build/release gates; server/native-metadata agents own source and tests. Source, hosted provenance and independent security results remain pending. The installed Windows baseline is still 0.1.7; unsigned prereleases are explicitly accepted by the user. Do not infer deployed-cloud or new hardware acceptance from these source changes.
+
 ## Branded diagnostic documents — v0.1.3-rc.1 verified and published
 
 Built-in test paths now share PrintingTestDocuments and TestPrintProfile. Native QQQ forms and device test requests choose Letter, A4 or 4 × 6-inch label profiles at 203/300/600 dpi; omitted profiles retain PDF Letter/ZPL 203 defaults. ZPL rejects page profiles. Documents use the QQQ logo and wordmark, bundled OFL JetBrains Mono Bold, character-pair checks and a 25.4 mm reference. PDF embeds vector text; ZPL carries a monochrome bitmap in whole-row graphic strips of at most 99,999 bytes each and native Code 128. No persistent font download is required. Identical PDF generation uses stable document IDs for idempotency; changed request content still conflicts.

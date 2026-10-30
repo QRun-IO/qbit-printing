@@ -1,5 +1,10 @@
 # Follow-up
 
+- [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
+- [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
+- [ ] Integrate Record Files' authorized immutable-version reader after its contract is implemented; define async source revocation/correlation and eliminate host-outbox byte copies for that path.
+- [ ] Verify audit release gates and provenance; complete independent security scan and deployed-host qualification.
+
 - [x] Versioned shared contract and HTTP happy-path test.
 - [x] Durable enrollment, device-scoped authentication, inventory and printer approval.
 - [x] PDF/ZPL queue, idempotency, content integrity and status events.

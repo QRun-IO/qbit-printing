@@ -69,21 +69,37 @@ jobs:
       contents: read
       security-events: write
 
+  release-codeql:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [verify, release-security]
+    needs: [verify, release-security, release-codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: qbit-printing-package
           path: dist
+      - name: Verify packaged checksums
+        working-directory: dist
+        run: sha256sum --check --strict SHA256SUMS
+      - name: Attest verified release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
       - name: Publish tested GitHub release artifacts
         env:
           GH_TOKEN: ${{ github.token }}

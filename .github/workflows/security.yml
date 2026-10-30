@@ -83,6 +83,7 @@ jobs:
             --list-all-pkgs --format json --output /src/trivy.json --exit-code 0 /src
           # Fail closed if Maven analysis did not include the actual dependency graph.
           jq -e 'any(.Results[]?.Packages[]?; .Name == "com.kingsrook.qqq:qqq-backend-core") and
+            any(.Results[]?.Packages[]?; .Name == "com.kingsrook.qqq:qqq-backend-module-filesystem") and
             any(.Results[]?.Packages[]?; .Name == "com.google.guava:guava")' trivy.json > /dev/null
           docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
             convert --format sarif --output /src/trivy.sarif /src/trivy.json

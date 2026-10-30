@@ -24,7 +24,7 @@ Normal progression is QUEUED → CLAIMED → RECEIVED → SUBMITTING → SPOOLED
 
 Use a stable business idempotency key for retries of the same request. A changed target/document/options with the same key is a conflict. A deliberately new print requires a new key. The initial implementation does not automatically reclaim RECEIVED/SUBMITTING jobs or resend ambiguous output; inspect the queue and physical result before deciding to print again.
 
-Documents are stored as base64 in the database. Set a host-specific retention and access policy before deploying sensitive packing slips or shipping labels. The first release has no retention scheduler or object-storage backend.
+The pending 0.1.4 implementation stores new documents through the host's configured dedicated QQQ S3 storage table; existing inline database content remains readable. Administration defaults to 365 days after server-observed successful completion, with bounded scheduled cleanup when a host scheduler is configured. Active, failed, uncertain and unknown-completion legacy jobs remain protected. See [storage and retention](STORAGE-AND-RETENTION.md) for bucket separation, recovery and versioning details. No live storage migration or cleanup is implied by a source upgrade.
 
 ## Common failures
 
@@ -42,4 +42,4 @@ Documents are stored as base64 in the database. Set a host-specific retention an
 
 ## Release qualification
 
-Initial checks cover H2/native/HTTP tests and user-confirmed laser output from the development connector and installed Windows service. Follow-up qualification includes Zebra hardware, PostgreSQL, production host authentication, upgrade/migration paths, multiple QQQ nodes, prolonged disconnects and a broader printer/driver set. Current prerelease artifacts must not be described as certifying those scenarios.
+Prior released checks include user-confirmed laser PDF and Zebra ZPL/PDF output with correct machine driver settings. Audit source checks cover H2, native processes, host HTTP registration, synthetic storage and small real connection pools. Follow-up qualification includes live S3/IAM, PostgreSQL, production host authentication, upgrade/migration paths, multiple QQQ nodes, prolonged disconnects and a broader printer/driver set. Current prerelease artifacts must not be described as certifying those scenarios.
