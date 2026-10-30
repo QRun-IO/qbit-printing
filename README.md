@@ -143,3 +143,11 @@ This RC implements the happy path of the [QQQ dashboard standard](https://github
 The Windows companion can request test prints and explicit reprints through device-scoped authenticated routes. The same printer approval/exposure rules apply. Upgrade the QBit and connector together for these additive protocol features. Reprints create a new job; uncertain/spooled originals require duplicate-output consent and remain unchanged.
 
 QQQ's **Print jobs** table and records expose **Print again** and **Cancel queued jobs** using native selection/review/result screens. Cancellation is allowed only before dispatch; later work must be inspected in the Windows queue. The actions require printing administration permission and the configured tenant context.
+
+## Warehouse diagnostic pages
+
+All built-in printer test actions share `PrintingTestDocuments`: QQQ branding, the existing QQQ logo, large warehouse-style identifiers and embedded JetBrains Mono Bold with a dotted zero and distinct 1/I/l. The font is included under SIL OFL 1.1; its license and provenance ship in the JAR. PDF embeds a font subset. ZPL renders the same glyphs into document-local, row-aligned graphics below Zebra's 99,999-byte per-field limit; it does not download or save a printer font.
+
+Native record and selected-table actions expose a possible-value stock/resolution selector. Letter and A4 are PDF-only. Label profiles are 4 × 6 inches at 203, 300 or 600 dpi; PDF label output is always 101.6 × 152.4 mm. Select matching stock and printer resolution. Bulk actions apply the chosen profile to every selected destination, so group compatible printers. The document does not reconfigure Windows stock, calibrate the printer or save device configuration; ZPL width/length are transient format settings.
+
+The device test-print API accepts optional `testProfile` with the same choices. Existing clients default to Letter PDF or 203-dpi 4 × 6 ZPL. Invalid profiles fail before enqueueing. Test actions use the ordinary durable queue and existing printer exposure/approval rules; discovery never automatically prints. A ZPL barcode, glyph comparisons and size/alignment marks support physical inspection. Rendering previews and spool acceptance do not prove paper or scanner quality.

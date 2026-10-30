@@ -453,11 +453,8 @@ public class PrintingService
    public JSONObject testPrint(String deviceId, JSONObject request) throws Exception
    {
       String format = required(request.optString("format"), "format");
-      if(!Set.of("PDF", "ZPL").contains(format))
-      {
-         throw new PrintingException(400, "Only PDF and ZPL are supported");
-      }
-      byte[] bytes = "PDF".equals(format) ? PrintingProcesses.testPdf() : "^XA^FO30,30^A0N,35,35^FDQQQ cloud printing test^FS^FO30,85^A0N,25,25^FDTest label - not for shipping^FS^XZ".getBytes(StandardCharsets.UTF_8);
+      TestPrintProfile profile = TestPrintProfile.resolve(format, request.has("testProfile") ? request.optString("testProfile") : null);
+      byte[] bytes = "PDF".equals(format) ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
       return (submit(new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
          .put("title", "QQQ print test").put("format", format).put("contentBase64", Base64.getEncoder().encodeToString(bytes))
          .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId"))));

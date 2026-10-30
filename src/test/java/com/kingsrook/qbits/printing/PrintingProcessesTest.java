@@ -47,6 +47,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -58,6 +59,52 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *******************************************************************************/
 class PrintingProcessesTest
 {
+   /***************************************************************************
+    ** Native actions and device requests use identical bundled label documents.
+    ***************************************************************************/
+   @Test
+   void builtInTestEntryPointsShareProfilesAndRejectChangedIdempotentRequests() throws Exception
+   {
+      Fixture fixture = fixture();
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser")
+         .put("name", "Packing test printer").put("formats", new JSONArray(List.of("PDF", "ZPL")))));
+      QRecord printer = PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device());
+      String nativeJob = PrintingProcesses.submitTest(printer, false, "LABEL_4X6_300");
+      JSONObject request = new JSONObject().put("printerId", "laser").put("format", "ZPL").put("testProfile", "LABEL_4X6_300").put("requestId", "label-profile-test");
+      String deviceJob = fixture.service().testPrint(fixture.device(), request).getString("jobId");
+      assertEquals(fixture.service().getJob(nativeJob).getString("contentSha256"), fixture.service().getJob(deviceJob).getString("contentSha256"));
+      assertEquals(deviceJob, fixture.service().testPrint(fixture.device(), request).getString("jobId"));
+      assertEquals(409, assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", "LABEL_4X6_203"))).getStatus());
+      assertEquals(nativeJob, fixture.service().claim(fixture.device()).getJSONObject("job").getString("jobId"));
+      assertArrayEquals(PrintingTestDocuments.zpl(300), fixture.service().content(fixture.device(), nativeJob));
+      assertEquals(400, assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", "LETTER"))).getStatus());
+      assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", JSONObject.NULL)));
+      assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("format", "RAW")));
+      assertThrows(QException.class, () -> PrintingProcesses.submitTest(printer, false, "A4"));
+      assertEquals(1, fixture.service().queuedJobs(fixture.device()).length());
+   }
+
+
+
+   /***************************************************************************
+    ** Stock/resolution choices are present before both native review flows.
+    ***************************************************************************/
+   @Test
+   void nativeFormsOfferStockAndResolutionBeforeSelectedPrinterReview() throws Exception
+   {
+      Fixture fixture = fixture();
+      QFrontendStepMetaData single = (QFrontendStepMetaData) fixture.instance().getProcess("printingTestZpl").getStep("details");
+      assertEquals("printing_testProfileZpl", single.getFormField("testProfile").getPossibleValueSourceName());
+      var selected = fixture.instance().getProcess("printingTestSelectedPdf");
+      assertEquals("testProfile", selected.getStepList().getFirst().getName());
+      QFrontendStepMetaData form = (QFrontendStepMetaData) selected.getStep("testProfile");
+      assertEquals("printing_testProfilePdf", form.getFormField("testProfile").getPossibleValueSourceName());
+      assertEquals(3, fixture.instance().getPossibleValueSource("printing_testProfileZpl").getEnumValues().size());
+      assertEquals(5, fixture.instance().getPossibleValueSource("printing_testProfilePdf").getEnumValues().size());
+   }
+
+
+
    /***************************************************************************
     ** Native record selection requires duplicate consent and preserves the source.
     ***************************************************************************/

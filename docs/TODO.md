@@ -33,3 +33,6 @@
 - [ ] Record final package hashes, signing status and applicable integration evidence before replacement release.
 - [ ] Run a fresh explicitly authorized physical acceptance job for the final package; Zebra remains deferred.
 - [ ] Qualify reboot/sign-in/service recovery and deployed-host behavior; no source-only or synthetic result substitutes for those checks.
+
+- [x] Share branded diagnostic generators and explicit stock/resolution profiles across native QQQ and device test-print entrypoints.
+- [ ] Run coordinated branded-document tests, inspect exported layouts and confirm physical output/scanning; no new template print is yet qualified.

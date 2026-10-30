@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3-rc.1 — 2026-10-30
+
+- Shared QQQ-branded warehouse test pages and labels across native record/table actions and device requests.
+- Bundle licensed JetBrains Mono Bold; embed PDF glyphs and use bounded ZPL graphics for consistent identifier readability.
+- Add Letter/A4 and 4 × 6 profile options with explicit 203/300/600-dpi label resolution, compatible defaults and validation.
+- Add font/media, deterministic generation, ZPL bitmap reconstruction and operator action regression coverage.
+
+
 ## 0.1.2-rc.1 — 2026-10-30
 
 - Synchronize client-managed device/printer display names, descriptions and locations; preserve physical computer/queue names and stable identifiers.
