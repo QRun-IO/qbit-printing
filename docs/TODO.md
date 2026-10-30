@@ -6,7 +6,7 @@
 - [x] QQQ metadata and native enrollment/enable/test-print processes.
 - [x] Durable enqueue EffectTarget for QQQ workflows.
 - [x] Verify local laser output from connector and installed LocalSystem service; user confirmed both pages.
-- [ ] Verify Zebra hardware when connected.
+- [ ] Confirm physical output and barcode scanning on the connected Zebra; built-in PDF/ZPL spool acceptance is recorded below.
 - [x] Add separate synthetic native QQQ frontend preview host.
 - [x] Replace identifier text inputs with tenant-scoped, device-dependent selectors and add table/record actions.
 - [ ] Qualify deployed QQQ host integration.
@@ -15,7 +15,8 @@
 - [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
 - [x] Client-owned device/printer name, description and location synchronized into native QQQ metadata.
 - [ ] Logical destinations and object-storage document backend.
-- [ ] Run the coordinated Java gate for profile migration, long text and 10,000-row bounded-history regressions; qualify sustained throughput separately.
+- [x] Run the coordinated Java gate for profile migration, long text and 10,000-row bounded-history regressions; included in the passing 28-test v0.1.3-rc.1 gate.
+- [ ] Qualify sustained throughput separately from synthetic bounded-history tests.
 - [x] Device-scoped test/retry/cancel/queued-job routes and native record/table cancellation/reprint review, explicit duplicate-risk consent and retry idempotency.
 - [ ] Server-side job expiry/document retention and operational alerts.
 - [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
@@ -23,7 +24,7 @@
 - [x] Add native Printing home with scoped operational widgets and actionable links.
 - [ ] Complete dashboard-standard live attention, URL scope, stale/retry and responsive/accessibility acceptance.
 
-## 0.1.1-rc.1 integration checkpoint
+## Historical 0.1.1-rc.1 integration checkpoint
 
 - [x] Verify current Java source: 19 tests passed, zero Checkstyle violations.
 - [x] Preserve job outcome while retry creates a new job; reject cancellation after claim.
@@ -34,5 +35,11 @@
 - [ ] Run a fresh explicitly authorized physical acceptance job for the final package; Zebra remains deferred.
 - [ ] Qualify reboot/sign-in/service recovery and deployed-host behavior; no source-only or synthetic result substitutes for those checks.
 
+## v0.1.3-rc.1 diagnostic documents
+
 - [x] Share branded diagnostic generators and explicit stock/resolution profiles across native QQQ and device test-print entrypoints.
-- [ ] Run coordinated branded-document tests, inspect exported layouts and confirm physical output/scanning; no new template print is yet qualified.
+- [x] Verify source a6266fe: full Maven gate passed 28 tests with zero Checkstyle violations; exact-source build, CodeQL and security workflows passed.
+- [x] Publish v0.1.3-rc.1 and verify its public JAR, POM and SHA256SUMS assets.
+- [x] Installed Windows 0.1.7 passed all 16 UI checks; reviewed built-in preview bytes matched the three submitted documents.
+- [x] Submit one Letter PDF to the laser, one 4 × 6-inch 300 dpi ZPL and one matching PDF to the Zebra through the installed pipe/device API/shared generator; all reached SPOOLED with the original paired database retained.
+- [ ] Obtain user confirmation of all three physical outputs and barcode scanning; successful spooling is not physical acceptance.
