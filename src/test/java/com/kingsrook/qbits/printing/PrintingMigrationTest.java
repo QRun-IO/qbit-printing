@@ -61,6 +61,16 @@ class PrintingMigrationTest
          {
             statement.execute();
          }
+         for(String table : List.of("printing_device", "printing_printer"))
+         {
+            for(String column : List.of("display_name", "description", "location", table.equals("printing_device") ? "computer_name" : "queue_name"))
+            {
+               try(PreparedStatement statement = connection.prepareStatement("ALTER TABLE " + table + " DROP COLUMN " + column))
+               {
+                  statement.execute();
+               }
+            }
+         }
          for(String suffix : List.of("enrollment", "device", "printer", "job", "event"))
          {
             try(PreparedStatement statement = connection.prepareStatement("ALTER TABLE printing_" + suffix + " RENAME TO print_" + suffix))
@@ -74,6 +84,8 @@ class PrintingMigrationTest
       restarted.initialize();
       assertEquals(device.getString("deviceId"), restarted.authenticate(device.getString("deviceToken")));
       assertEquals(1, restarted.devices().length());
+      assertEquals("station", restarted.devices().getJSONObject(0).getString("computerName"));
+      assertEquals("Labels", restarted.printers(deviceId).getJSONObject(0).getString("name"));
       assertEquals(jobId, restarted.claim(deviceId).getJSONObject("job").getString("jobId"));
       try(Connection connection = source.getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) FROM printing_job j JOIN printing_printer p ON j.printer_row_id=p.id WHERE j.id=?"))
       {

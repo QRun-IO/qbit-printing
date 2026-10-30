@@ -165,6 +165,14 @@ class PrintingProcessesTest
       assertEquals(PrintingTables.DEVICE, fixture.instance().getProcess("printingEnrollDevice").getTableName());
       var columns = (PrintingQBitProducer.DefaultColumns) fixture.instance().getTable(PrintingTables.PRINTER).getSupplementalMetaData("nextUi");
       assertTrue(columns.getDefaultColumns().containsAll(List.of("status", "enabled", "available")));
+      assertTrue(columns.getDefaultColumns().contains("location"));
+      assertFalse(columns.getDefaultColumns().contains("description"));
+      assertEquals(4096, fixture.instance().getTable(PrintingTables.PRINTER).getField("description").getMaxLength());
+      assertEquals(1024, fixture.instance().getTable(PrintingTables.PRINTER).getField("queue_name").getMaxLength());
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser").put("name", "Packing laser").put("displayName", "Shipping desk").put("description", "Shared dispatch printer").put("location", "Dock 2").put("formats", new JSONArray(List.of("PDF")))));
+      var labeledChoices = new SearchPossibleValueSourceAction().execute(new SearchPossibleValueSourceInput()
+         .withPossibleValueSourceName(PrintingTables.PRINTER).withDefaultQueryFilter(filter)).getResults();
+      assertTrue(labeledChoices.stream().anyMatch(value -> value.getLabel().equals("Shipping desk")));
       assertTrue(fixture.instance().getTable(PrintingTables.PRINTER).getDisabledCapabilities().containsAll(com.kingsrook.qqq.backend.core.model.metadata.tables.Capability.allWriteCapabilities()));
       assertTrue(fixture.instance().getTable(PrintingTables.PRINTER).getField("tenant_id").getIsHidden());
    }

@@ -166,7 +166,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData field(String name, String label)
    {
-      return (new QFieldMetaData(name, QFieldType.STRING).withLabel(label).withIsRequired(true));
+      return (new QFieldMetaData(name, QFieldType.STRING).withLabel(label).withIsRequired(true).withMaxLength("deviceName".equals(name) ? 1024 : 200));
    }
 
 

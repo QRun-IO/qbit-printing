@@ -73,6 +73,12 @@ After the artifact is available in your configured repository, add:
 
 Supply an existing JDBC DataSource/pool and a QQQ RDBMS backend pointing to that same database. Initial schema is created by `initialize()`; the implementation uses portable H2/PostgreSQL SQL, but only H2 has been tested so far.
 
+Device and printer names, descriptions and locations are edited in the Windows client and synchronized through heartbeat/inventory. QQQ's native record forms and selectors show the effective friendly name; the physical computer/queue name remains visible in Details. These synchronized fields are read-only in QQQ so two editors do not overwrite each other. Approval remains a separate server control. Friendly names/locations allow 512 characters, descriptions 4096, and physical names/job titles 1024. Clearing a friendly name restores the technical name without changing IDs or routing.
+
+`initialize()` adds profile columns, backfills physical names, widens existing name/title columns and creates dispatch/history indexes without deleting records. The existing `name` column becomes the effective display label; `computer_name`/`queue_name` retain technical names and `display_name` holds the optional override. Back up the database and run schema initialization during a maintenance/deployment window; column widening and index creation can lock populated tables.
+
+Job history uses `GET /printing/v1/admin/jobs?limit=200&before=<nextCursor>` with opaque keyset cursors and a maximum 200 rows per page. Claims read one candidate, pending inspection reads 50, and all these queries project metadata without fetching stored documents. Native dashboard lists already cap attention rows at 10 per category and recent work at 25. Dispatch/history indexes support growing histories; the synthetic 10,000-row regression test checks bounded pages and claim correctness, **not** a certified 10,000-print/day throughput measurement. Driver speed, document size, database hardware and retention policy still determine capacity. Documents remain stored until the host supplies a retention policy; this change does not silently delete jobs or documents.
+
 ```java
 PrintingService printing = new PrintingService(dataSource, tenantId);
 printing.initialize();

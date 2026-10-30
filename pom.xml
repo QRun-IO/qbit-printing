@@ -4,7 +4,7 @@
    <parent><groupId>com.kingsrook</groupId><artifactId>qbit-build-parent</artifactId><version>2.0.0</version><relativePath/></parent>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.1-rc.1</version>
+   <version>0.1.2-rc.1</version>
    <name>QQQ Printing</name>
    <licenses><license><name>Apache License, Version 2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0</url></license></licenses>
    <properties>

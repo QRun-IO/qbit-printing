@@ -81,9 +81,9 @@ public class PrintingQBitProducer implements QBitProducer
       }
       instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion("0.1.0-rc.1").withNamespace("printing").withConfig(config));
       instance.addSecurityKeyType(new QSecurityKeyType().withName("printing_tenant"));
-      QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "agent_version", "last_seen_at"));
+      QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "display_name", "computer_name", "description", "location", "agent_version", "last_seen_at"));
       devices.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Enabled").withPossibleValueSourceName("printing_enabled"));
-      QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "driver_name", "port_name", "status", "formats", "last_seen_at"));
+      QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at"));
       printers.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Approved for printing").withPossibleValueSourceName("printing_approved"));
       printers.withField(new QFieldMetaData("available", QFieldType.INTEGER).withLabel("Exposed by device").withPossibleValueSourceName("printing_available"));
       QTableMetaData jobs = table(PrintingTables.JOB, "Print jobs", List.of("id", "tenant_id", "device_id", "printer_row_id", "title", "format", "content_hash", "options_json", "idempotency_key", "created_at", "status", "message", "spooler_job_id"));
@@ -92,6 +92,16 @@ public class PrintingQBitProducer implements QBitProducer
       jobs.getField("format").withPossibleValueSourceName("printing_format");
       jobs.getField("status").withPossibleValueSourceName("printing_jobStatus");
       printers.getField("status").withPossibleValueSourceName("printing_printerStatus");
+      for(QTableMetaData profileTable : List.of(devices, printers))
+      {
+         profileTable.getField("name").withMaxLength(1024);
+         profileTable.getField("display_name").withLabel("Custom name").withMaxLength(512);
+         profileTable.getField("description").withMaxLength(4096);
+         profileTable.getField("location").withMaxLength(512);
+      }
+      devices.getField("computer_name").withLabel("Computer name").withMaxLength(1024);
+      printers.getField("queue_name").withLabel("Windows queue name").withMaxLength(1024);
+      jobs.getField("title").withMaxLength(1024);
       binaryValues(instance, "printing_enabled", "Disabled", "Enabled");
       binaryValues(instance, "printing_approved", "Not approved", "Approved");
       binaryValues(instance, "printing_available", "Not exposed", "Exposed");
@@ -106,8 +116,8 @@ public class PrintingQBitProducer implements QBitProducer
       printers.getField("device_id").withLabel("Print device");
       instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.DEVICE));
       instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.PRINTER));
-      layout(devices, List.of("name", "facility_id", "enabled", "last_seen_at"));
-      layout(printers, List.of("name", "device_id", "status", "enabled", "available", "last_seen_at"));
+      layout(devices, List.of("name", "location", "description", "facility_id", "enabled", "last_seen_at"));
+      layout(printers, List.of("name", "location", "description", "device_id", "status", "enabled", "available", "last_seen_at"));
       layout(jobs, List.of("title", "device_id", "printer_row_id", "status", "created_at", "format"));
       instance.addTable(devices);
       instance.addTable(printers);
@@ -184,7 +194,7 @@ public class PrintingQBitProducer implements QBitProducer
       table.withSection(new QFieldSection(table.getName() + "_summary", "Summary", new QIcon("print"), Tier.T1, primary));
       List<String> details = table.getFields().keySet().stream().filter(name -> !primary.contains(name) && !Boolean.TRUE.equals(table.getField(name).getIsHidden())).toList();
       table.withSection(new QFieldSection(table.getName() + "_details", "Details", new QIcon("info"), Tier.T3, details));
-      table.withSupplementalMetaData(new DefaultColumns(primary));
+      table.withSupplementalMetaData(new DefaultColumns(primary.stream().filter(name -> !"description".equals(name)).toList()));
    }
 
 

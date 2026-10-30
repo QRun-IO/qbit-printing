@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2-rc.1 — 2026-10-30
+
+- Synchronize client-managed device/printer display names, descriptions and locations; preserve physical computer/queue names and stable identifiers.
+- Add read-only native profile fields, longer names and additive schema migration/backfill.
+- Bound queue claims and history reads, avoid loading document payloads for metadata, and provide keyset-paged admin history.
+- Verify 10,000 synthetic jobs, long-text profiles, migration, explicit clearing and tenant isolation (22 tests, zero Checkstyle violations).
+
 ## 0.1.1-rc.1 — 2026-10-29
 
 - Device-scoped test print, explicit reprint and pre-dispatch cancellation routes.

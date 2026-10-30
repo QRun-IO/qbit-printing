@@ -47,6 +47,7 @@ import org.json.JSONObject;
 public class PrintingService
 {
    private static final int MAX_CONTENT_BYTES = 20 * 1024 * 1024;
+   private static final String JOB_COLUMNS = "id, tenant_id, device_id, printer_id, title, format, content_hash, content_length, options_json, idempotency_key, created_at, status, message, spooler_job_id, printer_row_id";
    private final DataSource dataSource;
    private final String tenantId;
 
@@ -76,7 +77,22 @@ public class PrintingService
          "CREATE TABLE IF NOT EXISTS printing_job (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, device_id VARCHAR(36) NOT NULL REFERENCES printing_device(id), printer_id VARCHAR(200) NOT NULL, title VARCHAR(300) NOT NULL, format VARCHAR(10) NOT NULL, content_hash VARCHAR(64) NOT NULL, content_base64 TEXT NOT NULL, content_length INTEGER NOT NULL, options_json VARCHAR(2000) NOT NULL, idempotency_key VARCHAR(300) NOT NULL, created_at VARCHAR(40) NOT NULL, status VARCHAR(40) NOT NULL, message VARCHAR(2000), spooler_job_id VARCHAR(100), UNIQUE(tenant_id, idempotency_key))",
          "CREATE TABLE IF NOT EXISTS printing_event (id VARCHAR(100) PRIMARY KEY, job_id VARCHAR(36) NOT NULL REFERENCES printing_job(id), status VARCHAR(40) NOT NULL, event_json VARCHAR(4000) NOT NULL, created_at VARCHAR(40) NOT NULL)",
          "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS printer_row_id VARCHAR(36)",
-         "UPDATE printing_job SET printer_row_id=(SELECT p.id FROM printing_printer p WHERE p.device_id=printing_job.device_id AND p.printer_id=printing_job.printer_id AND p.tenant_id=printing_job.tenant_id) WHERE printer_row_id IS NULL"
+         "UPDATE printing_job SET printer_row_id=(SELECT p.id FROM printing_printer p WHERE p.device_id=printing_job.device_id AND p.printer_id=printing_job.printer_id AND p.tenant_id=printing_job.tenant_id) WHERE printer_row_id IS NULL",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS computer_name VARCHAR(1024)",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS display_name VARCHAR(512)",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS description VARCHAR(4096)",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS location VARCHAR(512)",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS queue_name VARCHAR(1024)",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS display_name VARCHAR(512)",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS description VARCHAR(4096)",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS location VARCHAR(512)",
+         "UPDATE printing_device SET computer_name=name WHERE computer_name IS NULL",
+         "UPDATE printing_printer SET queue_name=name WHERE queue_name IS NULL",
+         "CREATE INDEX IF NOT EXISTS printing_job_dispatch_idx ON printing_job(tenant_id, device_id, status, created_at, id)",
+         "CREATE INDEX IF NOT EXISTS printing_job_history_idx ON printing_job(tenant_id, created_at, id)",
+         "CREATE INDEX IF NOT EXISTS printing_event_job_idx ON printing_event(job_id)",
+         "CREATE INDEX IF NOT EXISTS printing_device_tenant_idx ON printing_device(tenant_id, last_seen_at)",
+         "CREATE INDEX IF NOT EXISTS printing_printer_tenant_idx ON printing_printer(tenant_id, status)"
       };
       try(Connection connection = dataSource.getConnection())
       {
@@ -87,6 +103,39 @@ public class PrintingService
             {
                statement.execute();
             }
+         }
+         widenColumn(connection, "printing_device", "name", 1024);
+         widenColumn(connection, "printing_enrollment", "device_name", 1024);
+         widenColumn(connection, "printing_printer", "name", 1024);
+         widenColumn(connection, "printing_printer", "driver_name", 1024);
+         widenColumn(connection, "printing_printer", "port_name", 1024);
+         widenColumn(connection, "printing_job", "title", 1024);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Widen fixed application columns without changing identifiers or content.
+    ***************************************************************************/
+   private static void widenColumn(Connection connection, String table, String column, int maximum) throws SQLException
+   {
+      boolean widen = false;
+      try(ResultSet columns = connection.getMetaData().getColumns(null, null, "%", "%"))
+      {
+         while(columns.next())
+         {
+            if(table.equalsIgnoreCase(columns.getString("TABLE_NAME")) && column.equalsIgnoreCase(columns.getString("COLUMN_NAME")) && columns.getInt("COLUMN_SIZE") < maximum)
+            {
+               widen = true;
+            }
+         }
+      }
+      if(widen)
+      {
+         try(PreparedStatement statement = connection.prepareStatement("ALTER TABLE " + table + " ALTER COLUMN " + column + " SET DATA TYPE VARCHAR(" + maximum + ")"))
+         {
+            statement.execute();
          }
       }
    }
@@ -173,7 +222,8 @@ public class PrintingService
             JSONObject code = codes.getFirst();
             String id = UUID.randomUUID().toString();
             String token = secret();
-            update(connection, "INSERT INTO printing_device VALUES (?, ?, ?, ?, ?, ?, ?, 1)", id, tenantId, code.getString("facility_id"), required(request.optString("deviceName"), "deviceName"), required(request.optString("agentVersion"), "agentVersion"), hash(token), Instant.now().toString());
+            String computerName = required(request.optString("deviceName"), "deviceName");
+            update(connection, "INSERT INTO printing_device (id, tenant_id, facility_id, name, agent_version, token_hash, last_seen_at, enabled, computer_name) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)", id, tenantId, code.getString("facility_id"), computerName, required(request.optString("agentVersion"), "agentVersion"), hash(token), Instant.now().toString(), computerName);
             update(connection, "DELETE FROM printing_enrollment WHERE code_hash=?", codeHash);
             connection.commit();
             return (new JSONObject().put("protocolVersion", 1).put("deviceId", id).put("deviceToken", token).put("pollIntervalSeconds", 5));
@@ -214,8 +264,27 @@ public class PrintingService
       String now = Instant.now().toString();
       try(Connection connection = dataSource.getConnection())
       {
-         requireDevice(connection, deviceId);
-         update(connection, "UPDATE printing_device SET last_seen_at=?, agent_version=? WHERE id=?", now, required(request.optString("agentVersion"), "agentVersion"), deviceId);
+         connection.setAutoCommit(false);
+         try
+         {
+            requireDevice(connection, deviceId);
+            update(connection, "UPDATE printing_device SET last_seen_at=?, agent_version=? WHERE id=?", now, required(request.optString("agentVersion"), "agentVersion"), deviceId);
+            JSONObject profile = request.optJSONObject("profile");
+            if(!request.isNull("profile") && profile == null)
+            {
+               throw new PrintingException(400, "Device profile must be an object");
+            }
+            if(profile != null)
+            {
+               updateProfile(connection, "printing_device", deviceId, profile, "name", "computer_name");
+            }
+            connection.commit();
+         }
+         catch(Exception exception)
+         {
+            connection.rollback();
+            throw exception;
+         }
       }
       return (new JSONObject().put("serverTime", now));
    }
@@ -246,11 +315,15 @@ public class PrintingService
                String formats = printer.getJSONArray("formats").toString();
                String status = printer.optString("status", "UNKNOWN");
                String now = Instant.now().toString();
-               int changed = update(connection, "UPDATE printing_printer SET name=?, driver_name=?, port_name=?, status=?, formats=?, last_seen_at=?, available=1 WHERE device_id=? AND printer_id=?", name, printer.optString("driverName"), printer.optString("portName"), status, formats, now, deviceId, printerId);
+               String driver = optionalText(printer.optString("driverName"), "driverName", 1024);
+               String port = optionalText(printer.optString("portName"), "portName", 1024);
+               int changed = update(connection, "UPDATE printing_printer SET queue_name=?, name=COALESCE(NULLIF(display_name,''),?), driver_name=?, port_name=?, status=?, formats=?, last_seen_at=?, available=1 WHERE device_id=? AND printer_id=?", name, name, driver, port, status, formats, now, deviceId, printerId);
                if(changed == 0)
                {
-                  update(connection, "INSERT INTO printing_printer (id, tenant_id, device_id, printer_id, name, driver_name, port_name, status, formats, enabled, last_seen_at, available) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1)", UUID.randomUUID().toString(), tenantId, deviceId, printerId, name, printer.optString("driverName"), printer.optString("portName"), status, formats, now);
+                  update(connection, "INSERT INTO printing_printer (id, tenant_id, device_id, printer_id, name, driver_name, port_name, status, formats, enabled, last_seen_at, available, queue_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, ?)", UUID.randomUUID().toString(), tenantId, deviceId, printerId, name, driver, port, status, formats, now, name);
                }
+               String rowId = query(connection, "SELECT id FROM printing_printer WHERE device_id=? AND printer_id=?", deviceId, printerId).getFirst().getString("id");
+               updateProfile(connection, "printing_printer", rowId, printer, "displayName", "queue_name");
             }
             update(connection, "UPDATE printing_device SET last_seen_at=? WHERE id=?", Instant.now().toString(), deviceId);
             connection.commit();
@@ -342,7 +415,7 @@ public class PrintingService
             // Serialize submissions per device; the unique key also protects cross-device races.
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
-            List<JSONObject> previous = query(connection, "SELECT * FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+            List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
             if(!previous.isEmpty())
             {
                JSONObject old = previous.getFirst();
@@ -360,7 +433,7 @@ public class PrintingService
             }
             String id = UUID.randomUUID().toString();
             update(connection, "INSERT INTO printing_job (id, tenant_id, device_id, printer_id, title, format, content_hash, content_base64, content_length, options_json, idempotency_key, created_at, status, printer_row_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?)", id, tenantId, deviceId, printerId, title, format, digest, Base64.getEncoder().encodeToString(content), content.length, options.toString(), key, Instant.now().toString(), printers.getFirst().getString("id"));
-            JSONObject result = job(query(connection, "SELECT * FROM printing_job WHERE id=?", id).getFirst());
+            JSONObject result = job(query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE id=?", id).getFirst());
             connection.commit();
             return (result);
          }
@@ -401,7 +474,7 @@ public class PrintingService
       {
          requireDevice(connection, deviceId);
          JSONArray result = new JSONArray();
-         for(JSONObject row : query(connection, "SELECT * FROM printing_job WHERE tenant_id=? AND device_id=? AND status='QUEUED' ORDER BY created_at, id LIMIT 50", tenantId, deviceId))
+         for(JSONObject row : query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND device_id=? AND status='QUEUED' ORDER BY created_at, id LIMIT 50", tenantId, deviceId))
          {
             result.put(job(row));
          }
@@ -420,7 +493,7 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
-         row = deviceJob(connection, deviceId, jobId);
+         row = deviceJob(connection, deviceId, jobId, true);
       }
       String state = row.getString("status");
       if(!Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
@@ -482,7 +555,7 @@ public class PrintingService
          {
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
-            List<JSONObject> candidates = query(connection, "SELECT j.* FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') ORDER BY j.created_at, j.id", tenantId, deviceId);
+            List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') ORDER BY j.created_at, j.id LIMIT 1", tenantId, deviceId);
             if(candidates.isEmpty())
             {
                connection.commit();
@@ -515,7 +588,7 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
-         JSONObject row = deviceJob(connection, deviceId, jobId);
+         JSONObject row = deviceJob(connection, deviceId, jobId, true);
          if("QUEUED".equals(row.getString("status")))
          {
             throw new PrintingException(409, "Claim the job before downloading");
@@ -586,7 +659,9 @@ public class PrintingService
          JSONArray result = new JSONArray();
          for(JSONObject row : query(connection, "SELECT * FROM printing_device WHERE tenant_id=? ORDER BY name", tenantId))
          {
-            result.put(new JSONObject().put("deviceId", row.getString("id")).put("facilityId", row.getString("facility_id")).put("deviceName", row.getString("name")).put("agentVersion", row.getString("agent_version")).put("lastSeenAt", row.getString("last_seen_at")).put("enabled", row.getInt("enabled") == 1));
+            result.put(new JSONObject().put("deviceId", row.getString("id")).put("facilityId", row.getString("facility_id")).put("deviceName", row.getString("name")).put("computerName", row.getString("computer_name"))
+               .put("profile", new JSONObject().put("name", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location")))
+               .put("agentVersion", row.getString("agent_version")).put("lastSeenAt", row.getString("last_seen_at")).put("enabled", row.getInt("enabled") == 1));
          }
          return (result);
       }
@@ -605,7 +680,8 @@ public class PrintingService
          JSONArray result = new JSONArray();
          for(JSONObject row : query(connection, "SELECT * FROM printing_printer WHERE device_id=? ORDER BY name", deviceId))
          {
-            result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("name", row.getString("name")).put("driverName", row.optString("driver_name")).put("portName", row.optString("port_name")).put("status", row.getString("status")).put("formats", new JSONArray(row.getString("formats"))).put("enabled", row.getInt("enabled") == 1).put("available", row.getInt("available") == 1).put("lastSeenAt", row.getString("last_seen_at")));
+            result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("name", row.getString("queue_name")).put("displayName", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location"))
+               .put("driverName", row.optString("driver_name")).put("portName", row.optString("port_name")).put("status", row.getString("status")).put("formats", new JSONArray(row.getString("formats"))).put("enabled", row.getInt("enabled") == 1).put("available", row.getInt("available") == 1).put("lastSeenAt", row.getString("last_seen_at")));
          }
          return (result);
       }
@@ -618,14 +694,59 @@ public class PrintingService
     ***************************************************************************/
    public JSONArray jobs() throws SQLException
    {
+      return (jobsPage(200, null).getJSONArray("jobs"));
+   }
+
+
+
+   /***************************************************************************
+    ** Keyset pagination stays bounded as history grows, without document reads.
+    ***************************************************************************/
+   public JSONObject jobsPage(int limit, String before) throws SQLException
+   {
+      if(limit < 1 || limit > 200)
+      {
+         throw new PrintingException(400, "Job page limit must be between 1 and 200");
+      }
+      String created = null;
+      String id = null;
+      if(before != null && !before.isEmpty())
+      {
+         if(before.length() > 512)
+         {
+            throw new PrintingException(400, "Invalid job cursor");
+         }
+         try
+         {
+            JSONObject cursor = new JSONObject(new String(Base64.getUrlDecoder().decode(before), StandardCharsets.UTF_8));
+            created = cursor.getString("createdAt");
+            Instant.parse(created);
+            id = UUID.fromString(cursor.getString("jobId")).toString();
+         }
+         catch(RuntimeException exception)
+         {
+            throw new PrintingException(400, "Invalid job cursor");
+         }
+      }
       try(Connection connection = dataSource.getConnection())
       {
          JSONArray result = new JSONArray();
-         for(JSONObject row : query(connection, "SELECT * FROM printing_job WHERE tenant_id=? ORDER BY created_at DESC FETCH FIRST 200 ROWS ONLY", tenantId))
+         String sql = "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=?";
+         List<JSONObject> rows = created == null
+            ? query(connection, sql + " ORDER BY created_at DESC, id DESC LIMIT ?", tenantId, limit + 1)
+            : query(connection, sql + " AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC, id DESC LIMIT ?", tenantId, created, created, id, limit + 1);
+         for(JSONObject row : rows.subList(0, Math.min(limit, rows.size())))
          {
             result.put(job(row));
          }
-         return (result);
+         JSONObject response = new JSONObject().put("jobs", result).put("nextCursor", JSONObject.NULL);
+         if(rows.size() > limit)
+         {
+            JSONObject last = rows.get(limit - 1);
+            JSONObject cursor = new JSONObject().put("createdAt", last.getString("created_at")).put("jobId", last.getString("id"));
+            response.put("nextCursor", Base64.getUrlEncoder().withoutPadding().encodeToString(cursor.toString().getBytes(StandardCharsets.UTF_8)));
+         }
+         return (response);
       }
    }
 
@@ -638,7 +759,7 @@ public class PrintingService
    {
       try(Connection connection = dataSource.getConnection())
       {
-         List<JSONObject> rows = query(connection, "SELECT * FROM printing_job WHERE id=? AND tenant_id=?", id, tenantId);
+         List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE id=? AND tenant_id=?", id, tenantId);
          if(rows.isEmpty())
          {
             throw new PrintingException(404, "Job not found");
@@ -656,7 +777,7 @@ public class PrintingService
    {
       try(Connection connection = dataSource.getConnection())
       {
-         List<JSONObject> rows = query(connection, "SELECT * FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+         List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
          return (rows.isEmpty() ? null : job(rows.getFirst()));
       }
    }
@@ -681,7 +802,17 @@ public class PrintingService
     ***************************************************************************/
    private JSONObject deviceJob(Connection connection, String deviceId, String jobId) throws SQLException
    {
-      List<JSONObject> rows = query(connection, "SELECT * FROM printing_job WHERE id=? AND tenant_id=? AND device_id=?", jobId, tenantId, deviceId);
+      return (deviceJob(connection, deviceId, jobId, false));
+   }
+
+
+
+   /***************************************************************************
+    ** Only content download and explicit retry need the stored document bytes.
+    ***************************************************************************/
+   private JSONObject deviceJob(Connection connection, String deviceId, String jobId, boolean includeContent) throws SQLException
+   {
+      List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + (includeContent ? ", content_base64" : "") + " FROM printing_job WHERE id=? AND tenant_id=? AND device_id=?", jobId, tenantId, deviceId);
       if(rows.isEmpty())
       {
          throw new PrintingException(404, "Job not found");
@@ -760,9 +891,43 @@ public class PrintingService
     ***************************************************************************/
    private static String required(String value, String name)
    {
-      if(value == null || value.isBlank() || value.length() > 300)
+      int maximum = switch(name)
+      {
+         case "name", "deviceName", "title" -> 1024;
+         case "tenantId", "facilityId", "printerId" -> 200;
+         case "agentVersion", "eventId" -> 100;
+         default -> 300;
+      };
+      if(value == null || value.isBlank() || value.length() > maximum)
       {
          throw new PrintingException(400, "Invalid " + name);
+      }
+      return (value);
+   }
+
+
+
+   /***************************************************************************
+    ** Client-owned metadata synchronizes without changing technical identity.
+    ***************************************************************************/
+   private void updateProfile(Connection connection, String table, String id, JSONObject profile, String nameKey, String physicalColumn) throws SQLException
+   {
+      String name = profile.isNull(nameKey) ? null : optionalText(profile.getString(nameKey), nameKey, 512).strip();
+      String description = profile.isNull("description") ? null : optionalText(profile.getString("description"), "description", 4096);
+      String location = profile.isNull("location") ? null : optionalText(profile.getString("location"), "location", 512).strip();
+      update(connection, "UPDATE " + table + " SET display_name=COALESCE(?,display_name), description=COALESCE(?,description), location=COALESCE(?,location), name=COALESCE(NULLIF(COALESCE(?,display_name),'')," + physicalColumn + ") WHERE id=? AND tenant_id=?", name, description, location, name, id, tenantId);
+   }
+
+
+
+   /***************************************************************************
+    ** Reject oversized text before persistence; explicit empty values may clear.
+    ***************************************************************************/
+   private static String optionalText(String value, String name, int maximum)
+   {
+      if(value.length() > maximum || value.indexOf('\0') >= 0)
+      {
+         throw new PrintingException(400, "Invalid " + name + "; maximum " + maximum + " characters");
       }
       return (value);
    }

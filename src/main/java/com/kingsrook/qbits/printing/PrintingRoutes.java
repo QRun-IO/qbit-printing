@@ -123,7 +123,8 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
       config.routes.get(BASE + "/admin/jobs", context -> handle(context, () ->
       {
          admin(context);
-         return new JSONObject().put("jobs", service.jobs());
+         String limit = context.queryParam("limit");
+         return service.jobsPage(limit == null ? 200 : Integer.parseInt(limit), context.queryParam("before"));
       }));
       config.routes.get(BASE + "/admin/jobs/{jobId}", context -> handle(context, () ->
       {

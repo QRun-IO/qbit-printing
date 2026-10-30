@@ -13,7 +13,9 @@
 - [x] Separate local printer availability from server approval and block withdrawn queues.
 - [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
 - [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
-- [ ] Logical destinations, profile management and object-storage document backend.
+- [x] Client-owned device/printer name, description and location synchronized into native QQQ metadata.
+- [ ] Logical destinations and object-storage document backend.
+- [ ] Run the coordinated Java gate for profile migration, long text and 10,000-row bounded-history regressions; qualify sustained throughput separately.
 - [x] Device-scoped test/retry/cancel/queued-job routes and native record/table cancellation/reprint review, explicit duplicate-risk consent and retry idempotency.
 - [ ] Server-side job expiry/document retention and operational alerts.
 - [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
