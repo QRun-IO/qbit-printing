@@ -2,6 +2,7 @@
 
 ## 0.1.4-rc.1 — unreleased
 
+- Add an authenticated loopback QQQ host that shares durable paired devices/jobs with native screens and retention scheduling, preserving the separate synthetic UI demo.
 - Make native enrollment and test-print execution replay-safe and retain known duplicate-output risk after later failures.
 - Strictly validate print options, inventory formats/status and event bounds before persistence; recheck current queue format support at claim time.
 - Add dedicated S3 document storage through the host's QQQ storage API, tenant object namespaces and immutable destination/reference checks.
@@ -9,7 +10,7 @@
 - Use named facility choices during enrollment and revalidate them under the current user's tenant/record permissions.
 - Require release security/CodeQL gates, verified artifact promotion and build provenance; report the real packaged QBit version.
 - Enforce configurable atomic queue/storage/rate budgets and cumulative printer limits, with bounded management pagination and stable replay at capacity.
-- Full local verification passed 62 tests with zero failures/errors/skips and Checkstyle violations. Final hosted checks remain pending; this entry does not claim release or live storage migration.
+- Full local verification passed 65 tests with zero failures/errors/skips and Checkstyle violations. Final hosted checks remain pending; this entry does not claim release or live storage migration.
 
 ## 0.1.3-rc.1 — 2026-10-30
 

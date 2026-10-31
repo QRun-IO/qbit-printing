@@ -3,8 +3,11 @@
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
 - [ ] Integrate Record Files' authorized immutable-version reader after its contract is implemented; define async source revocation/correlation and eliminate host-outbox byte copies for that path.
-- [ ] Verify audit release gates and provenance; complete independent security scan and deployed-host qualification.
-- [x] Audit PR #10 at 1655d4e passes all hosted checks; download and verify JAR/POM artifacts. Tagged-release provenance, deep scan and deployment remain pending.
+- [ ] Verify tagged audit release gates, published provenance and deployed-host qualification.
+- [x] Audit PR #10 at aeac1a6 passes all hosted checks; JAR/POM artifacts downloaded and verified. Authenticated local-host addition needs fresh hosted checks.
+- [x] Complete the independent baseline scan and current-source reviews of all five findings and remediations.
+- [x] Add authenticated native QQQ local host sharing paired data with device routes and the existing scheduler; 65 tests/zero Checkstyle pass and independent source review found no blocker.
+- [ ] Deploy the authenticated local host with a closed-database backup; verify browser rendering, preserved pairing and an actual scheduled cleanup tick.
 
 - [x] Versioned shared contract and HTTP happy-path test.
 - [x] Durable enrollment, device-scoped authentication, inventory and printer approval.
@@ -20,11 +23,13 @@
 - [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
 - [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
 - [x] Client-owned device/printer name, description and location synchronized into native QQQ metadata.
-- [ ] Logical destinations and object-storage document backend.
+- [x] Implement the dedicated QQQ object-storage document backend; live S3/IAM qualification remains pending configuration.
+- [ ] Logical destination mappings.
 - [x] Run the coordinated Java gate for profile migration, long text and 10,000-row bounded-history regressions; included in the passing 28-test v0.1.3-rc.1 gate.
 - [ ] Qualify sustained throughput separately from synthetic bounded-history tests.
 - [x] Device-scoped test/retry/cancel/queued-job routes and native record/table cancellation/reprint review, explicit duplicate-risk consent and retry idempotency.
-- [ ] Server-side job expiry/document retention and operational alerts.
+- [x] Implement admin document retention and bounded scheduled cleanup, default 365 days.
+- [ ] Server-side job expiry and operational alerts.
 - [ ] PostgreSQL integration and multi-node stress tests; migration/version management.
 - [ ] Resolve upstream/cached qbit-build-parent interpolation warning for Maven 3.10.
 - [x] Add native Printing home with scoped operational widgets and actionable links.
@@ -52,4 +57,5 @@ The Windows gate, MSI rebuild, installed UI acceptance, release evidence and fre
 - [x] Verify published Windows 0.1.7 assets; all three built-in physical paths are confirmed: laser PDF, Zebra ZPL and Zebra PDF.
 - [ ] Obtain explicit barcode scan and measured alignment confirmation; successful spooling is not physical acceptance.
 
-- [ ] Complete independent review and deployment qualification after the five baseline security findings are remediated; current details are in SESSION-STATE.md.
+- [x] Complete independent review after the five baseline security findings are remediated; current details are in SESSION-STATE.md.
+- [ ] Complete deployed-host and real S3 qualification; source tests are not deployment evidence.

@@ -53,6 +53,12 @@ java -cp $uiClasspath com.kingsrook.qbits.printing.PrintingUiDemo
 
 Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator. Set JVM property `-Dprinting.ui.port=<port>` before the main class to choose another port. This preview is distinct from the credential-protected protocol demo on port 18081; neither replaces deployment-specific authentication and authorization.
 
+## Authenticated local application
+
+`PrintingLocalHost` combines the real QQQ dashboard, native processes, authenticated sign-in and device routes against one durable H2 database. It binds only to loopback, uses QQQ table-based authentication, and starts the native Quartz retention schedule through `QApplicationLauncher`. Existing pairing and job history are retained when the database and tenant are preserved. See [local host setup](docs/LOCAL-HOST.md) for explicit credentials, the required frontend runtime profile and a reviewed cutover procedure.
+
+The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
+
 ## Add to a QQQ application
 
 For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
@@ -87,7 +93,7 @@ new PrintingQBitProducer().withConfig(new PrintingQBitConfig()
    .withStorageTableName("printing_documents") // existing dedicated S3 storage table
    .withSchedulerName("appScheduler")          // existing host scheduler
    .withService(printing)).produce(qInstance, "printing");
-server.addRouteProvider(new PrintingRoutes(printing, context -> hostPrintingAdminGuard(context)));
+server.withAdditionalRouteProviders(List.of(new PrintingRoutes(printing, context -> hostPrintingAdminGuard(context))));
 ```
 
 `hostPrintingAdminGuard` is the host's own authenticated administrator policy, not a supplied library method. The service is bound to one tenant; use a separate host service instance for each tenant. Device token verification and job ownership are enforced on every device operation. Management service methods are intended for trusted application code; enforce user/facility authorization before calling them.
