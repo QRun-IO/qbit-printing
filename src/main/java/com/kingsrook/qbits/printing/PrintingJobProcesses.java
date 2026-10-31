@@ -124,6 +124,7 @@ public class PrintingJobProcesses
    static QRecord resolve(RunBackendStepInput input, String id) throws QException
    {
       GetInput get = new GetInput();
+      get.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
       get.setTableName(PrintingTables.JOB);
       get.setPrimaryKey(id);
       QRecord job = new GetAction().execute(get).getRecord();

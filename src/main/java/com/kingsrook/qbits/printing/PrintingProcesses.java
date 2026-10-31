@@ -293,6 +293,7 @@ public class PrintingProcesses implements BackendStep
    static QRecord resolvePrinter(String id, String deviceId) throws QException
    {
       GetInput get = new GetInput();
+      get.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
       get.setTableName(PrintingTables.PRINTER);
       get.setPrimaryKey(id);
       QRecord printer = new GetAction().execute(get).getRecord();

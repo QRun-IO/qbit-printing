@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — 0.2.0-rc.1 candidate
+
+- Add native device/table selection actions for pause, resume, disconnect,
+  reconnect, revocation, inventory refresh and queued-job clearing, plus exact
+  owned Windows-job cancellation and bounded command history.
+- Show device presence, desired versus applied control state, related printers,
+  jobs and queue; include connection/control issues in the printing dashboard.
+- Register semantic printing extension1.0.0 at `/qqq/v1/qbit/printing`, using
+  standard QQQ user sessions and secondary device proof with current native
+  record/process permissions. Legacy bearer transport remains explicit compatibility.
+- Preserve journal/history and distinguish accepted commands from confirmed
+  execution. Shared-core/provider native authentication acceptance and installed
+  candidate qualification remain required before deployment claims.
+
 ## 0.1.4-rc.1 — 2026-10-31
 
 - Use the official Query dog mascot on every built-in PDF and ZPL diagnostic profile, preserving the original artwork and aspect ratio. Full local and hosted gates pass 73 tests with zero Checkstyle violations; PDF previews and reconstructed thermal graphics pass visual review. Local native deployment is accepted; physical output from the updated Query diagnostics remains unconfirmed.

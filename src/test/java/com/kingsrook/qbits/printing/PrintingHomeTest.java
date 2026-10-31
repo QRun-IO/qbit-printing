@@ -99,6 +99,48 @@ class PrintingHomeTest
 
 
    /***************************************************************************
+    ** Control polls prove liveness; explicit administrative intent stays visible.
+    ***************************************************************************/
+   @Test
+   void controlConnectionAndPendingCommandsRemainVisible() throws Exception
+   {
+      DriverDataSource source = source();
+      QInstance instance = instance(source);
+      seed(source, "tenant-a");
+      QContext.init(instance, viewer("tenant-a", true));
+      try
+      {
+         PrintingService service = new PrintingService(source, "tenant-a");
+         String device = service.devices().getJSONObject(0).getString("deviceId");
+         service.deviceControlPoll(device, new JSONObject().put("controlVersion", 1).put("agentVersion", "test")
+            .put("capabilities", new JSONArray(List.of("REFRESH_INVENTORY"))).put("lastAppliedRevision", 0));
+         assertEquals(0, ((StatisticsData) render(instance, "printingHomeOffline")).getCount());
+         service.deviceAction(device, new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", java.time.Instant.now().toString())
+            .put("action", "REFRESH_INVENTORY"), "viewer");
+         assertEquals(1, ((StatisticsData) render(instance, "printingHomeControls")).getCount());
+         assertTrue(JsonUtils.toJson(render(instance, "printingHomeAttention")).contains("REFRESH_INVENTORY"));
+         try(Connection connection = source.getConnection(); PreparedStatement expired = connection.prepareStatement("UPDATE printing_device_command SET expires_at=? WHERE device_id=?"))
+         {
+            expired.setString(1, java.time.Instant.now().minusSeconds(1).toString());
+            expired.setString(2, device);
+            expired.executeUpdate();
+         }
+         assertEquals(0, ((StatisticsData) render(instance, "printingHomeControls")).getCount());
+         assertTrue(JsonUtils.toJson(render(instance, "printingHomeAttention")).contains("EXPIRED"));
+         service.deviceAction(device, new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", java.time.Instant.now().toString())
+            .put("action", "DISCONNECT"), "viewer");
+         assertEquals(1, ((StatisticsData) render(instance, "printingHomeOffline")).getCount());
+         assertTrue(JsonUtils.toJson(render(instance, "printingHomeAttention")).contains("Administratively disconnected"));
+      }
+      finally
+      {
+         QContext.clear();
+      }
+   }
+
+
+
+   /***************************************************************************
     ** Empty state guides setup; an unprivileged or unscoped caller gets no data.
     ***************************************************************************/
    @Test

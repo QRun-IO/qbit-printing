@@ -88,6 +88,7 @@ public class PrintingHome extends AbstractWidgetRenderer
       add(instance, app, "printingHomePrinters", "Printers needing attention", WidgetType.STATISTICS, "systemHealth", 21, 3);
       add(instance, app, "printingHomeFailures", "Failed or uncertain jobs", WidgetType.STATISTICS, "systemHealth", 22, 3);
       add(instance, app, "printingHomePending", "Pending print jobs", WidgetType.STATISTICS, "systemHealth", 23, 3);
+      add(instance, app, "printingHomeControls", "Pending device commands", WidgetType.STATISTICS, "systemHealth", 24, 12);
       add(instance, app, "printingHomeWork", "Pending and recent print work", WidgetType.TABLE, "queue", 30, 12);
    }
 
@@ -128,10 +129,12 @@ public class PrintingHome extends AbstractWidgetRenderer
       {
          case "printingHomeHeader" -> header();
          case "printingHomeAttention" -> attention(now);
-         case "printingHomeOffline" -> statistic(DEVICE, offline(now), "Devices · now · target 0 without heartbeat for 90 seconds");
+         case "printingHomeOffline" -> statistic(DEVICE, offline(now), "Enabled devices · now · disconnected by an administrator or unseen for 90 seconds");
          case "printingHomePrinters" -> statistic(PRINTER, printerIssues(), "Enabled printers · now · target 0 needing attention");
          case "printingHomeFailures" -> statistic(JOB, failures(now), "Jobs created in last 24 hours · target 0 failed or uncertain");
          case "printingHomePending" -> statistic(JOB, statuses(PENDING), "Jobs · now · target queue drains after printing");
+         case "printingHomeControls" -> statistic(PrintingTables.COMMAND, statuses(List.of("PENDING"))
+            .withCriteria("expires_at", QCriteriaOperator.GREATER_THAN_OR_EQUALS, now.toString()), "Device commands · now · awaiting an agent receipt; not confirmed applied");
          case "printingHomeWork" -> work(now);
          default -> throw new QException("Unknown printing home widget");
       };
@@ -167,13 +170,27 @@ public class PrintingHome extends AbstractWidgetRenderer
    private static TableData attention(Instant now) throws QException
    {
       List<Map<String, Object>> rows = new ArrayList<>();
-      for(QRecord job : query(JOB, failures(now).withOrderBy(new QFilterOrderBy("created_at", true)).withLimit(10)))
+      for(QRecord job : query(JOB, failures(now).withOrderBy(new QFilterOrderBy("created_at", false)).withLimit(10)))
       {
          rows.add(issue(JOB, job, job.getValueString("title"), job.getValueString("status"), "Check the local queue and physical output before retrying an uncertain job.", "created_at"));
       }
       for(QRecord device : query(DEVICE, offline(now).withOrderBy(new QFilterOrderBy("last_seen_at", true)).withLimit(10)))
       {
-         rows.add(issue(DEVICE, device, device.getValueString("name"), "No heartbeat for 90 seconds", "Open the Windows agent and check its service and outbound connection.", "last_seen_at"));
+         boolean disconnected = "DISCONNECTED".equals(device.getValueString("connection_state"));
+         rows.add(issue(DEVICE, device, device.getValueString("name"), disconnected ? "Administratively disconnected" : "No connection for 90 seconds",
+            disconnected ? "Open the device and use Reconnect; review its observed control revision." : "Open the Windows agent and check its service, sign-in and outbound connection.", "last_seen_at"));
+      }
+      for(QRecord device : query(DEVICE, new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1)
+         .withCriteria("dispatch_paused", QCriteriaOperator.EQUALS, 1).withOrderBy(new QFilterOrderBy("name")).withLimit(10)))
+      {
+         rows.add(issue(DEVICE, device, device.getValueString("name"), "Dispatch paused", "Open the device queue, then use Resume dispatch when it is ready.", "control_last_poll_at"));
+      }
+      for(QRecord command : query(PrintingTables.COMMAND, statuses(List.of("PENDING", "FAILED", "EXPIRED", "OUTCOME_UNKNOWN"))
+         .withCriteria("created_at", QCriteriaOperator.GREATER_THAN_OR_EQUALS, now.minusSeconds(86400).toString())
+         .withOrderBy(new QFilterOrderBy("created_at", false)).withLimit(10)))
+      {
+         rows.add(issue(PrintingTables.COMMAND, command, command.getValueString("action"), command.getValueString("command_status"),
+            "Review command history and the device connection before submitting another request.", "created_at"));
       }
       for(QRecord printer : query(PRINTER, printerIssues().withOrderBy(new QFilterOrderBy("last_seen_at", true)).withLimit(10)))
       {
@@ -225,7 +242,9 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static List<QRecord> query(String table, QQueryFilter filter) throws QException
    {
-      return (new QueryAction().execute(new QueryInput().withTableName(table).withFilter(filter)).getRecords());
+      QueryInput input = new QueryInput().withTableName(table).withFilter(filter);
+      input.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
+      return (new QueryAction().execute(input).getRecords());
    }
 
 
@@ -235,17 +254,33 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static int count(String table, QQueryFilter filter) throws QException
    {
-      return (new CountAction().execute(new CountInput(table).withFilter(filter)).getCount());
+      CountInput input = new CountInput(table).withFilter(filter);
+      input.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
+      return (new CountAction().execute(input).getCount());
    }
 
 
 
    /***************************************************************************
-    ** A heartbeat older than 90 seconds means disconnected, not printer failure.
+    ** Either authenticated connection proves liveness; requested disconnect stays visible.
     ***************************************************************************/
    private static QQueryFilter offline(Instant now)
    {
-      return (new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withCriteria("last_seen_at", QCriteriaOperator.LESS_THAN, now.minusSeconds(90).toString()));
+      QQueryFilter unseen = new QQueryFilter().withSubFilter(stale("last_seen_at", now)).withSubFilter(stale("control_last_poll_at", now));
+      QQueryFilter disconnected = new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
+         .withCriteria("connection_state", QCriteriaOperator.EQUALS, "DISCONNECTED").withSubFilter(unseen);
+      return (new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(disconnected));
+   }
+
+
+
+   /***************************************************************************
+    ** Legacy devices may never have sent a control poll.
+    ***************************************************************************/
+   private static QQueryFilter stale(String field, Instant now)
+   {
+      return (new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
+         .withCriteria(field, QCriteriaOperator.IS_BLANK).withCriteria(field, QCriteriaOperator.LESS_THAN, now.minusSeconds(90).toString()));
    }
 
 

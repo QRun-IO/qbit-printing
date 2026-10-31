@@ -29,6 +29,7 @@ public final class PrintingTables
    public static final String DEVICE = "printing_device";
    public static final String PRINTER = "printing_printer";
    public static final String JOB = "printing_job";
+   public static final String COMMAND = "printing_device_command";
 
 
 

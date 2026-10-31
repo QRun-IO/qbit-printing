@@ -22,6 +22,7 @@ package com.kingsrook.qbits.printing;
 
 
 import java.util.List;
+import com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement;
 import com.kingsrook.qqq.backend.core.actions.values.SearchPossibleValueSourceAction;
 import com.kingsrook.qqq.backend.core.context.QContext;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
@@ -95,8 +96,10 @@ final class PrintingFacilities
          throw new QException("Select an available facility");
       }
       String source = QContext.getQInstance().getTable(PrintingTables.DEVICE).getField("facility_id").getPossibleValueSourceName();
-      var options = new SearchPossibleValueSourceAction().execute(new SearchPossibleValueSourceInput()
-         .withPossibleValueSourceName(source).withIdList(List.of(selected)));
+      SearchPossibleValueSourceInput input = new SearchPossibleValueSourceInput()
+         .withPossibleValueSourceName(source).withIdList(List.of(selected));
+      input.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
+      var options = new SearchPossibleValueSourceAction().execute(input);
       if(options.getResults() == null || options.getResults().stream().noneMatch(option -> selected.equals(String.valueOf(option.getId()))))
       {
          throw new QException("The selected facility is unavailable or is not accessible to this user");

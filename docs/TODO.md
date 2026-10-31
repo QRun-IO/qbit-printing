@@ -1,8 +1,13 @@
 # Follow-up
 
+- [x] Complete native device controls, per-record/selection actions, queue/history and dashboard integration tests;106tests pass with zero Checkstyle violations.
+- [ ] Complete real Windows Core client/native QQQ interoperability and installed candidate acceptance after protected CI.
+- [ ] Complete standard QQQ discovery/session/device-binding security checks and Windows auth integration; qualify the shared Authentik native grant without a private authentication fork.
+- [ ] Review protocol fixtures, publish immutable contract inputs and pass protected CI before packaging the new features.
+
 - [x] Replace the test-document logo with the exact official Query dog asset; preserve aspect ratio and verify all PDF/thermal profiles with 73 passing tests, zero Checkstyle violations and reviewed previews.
 - [x] Publish v0.1.4-rc.1 after all required release gates, verify checksums and all three asset attestations, and complete local native deployment acceptance.
-- [ ] Obtain physical-output confirmation for the updated Query diagnostic documents.
+- [x] Obtain user confirmation for all three updated Query diagnostic documents (Letter PDF, Zebra ZPL and Zebra PDF).
 - [x] Correct S3 layout and multiline-prefix binding ambiguity; full isolated gate passes 72 tests with zero Checkstyle violations and independent review complete.
 - [x] Reproduce the actual Windows-to-Linux false-expiration defect, then qualify the corrected runtime: zero SDK requests for refused reads/retries/cleanup and preserved objects, availability and accounting.
 - [x] Pass fresh hosted gates for the S3 correction and approved scoped H2 input; verify exact CI artifacts, all 47 archive payloads and 204 runtime coordinates. Portable upstream keys, historical migration and production IAM remain separate qualification work.
