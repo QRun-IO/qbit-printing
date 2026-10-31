@@ -1,8 +1,8 @@
 # Real-time printing host integration
 
-This source implements printing extension **2.0.0** (wire envelope v1). It is not
-part of the published 0.2.0-rc.1 artifacts. Upgrade server and Windows connector
-together; a real-time connector rejects a server that advertises only extension
+Release candidate [0.3.0-rc.1](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.3.0-rc.1)
+implements printing extension **2.0.0** (wire envelope v1). Upgrade the server
+before the matching Windows connector; a real-time connector rejects a server that advertises only extension
 1.x. There is no timed job/control polling fallback.
 
 ## Connection and authorization

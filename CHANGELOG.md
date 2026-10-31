@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.3.0-rc.1 — unreleased
+## 0.3.0-rc.1 — 2026-10-31
+
+Upgrade the server before the matching Windows connector. Native printing API
+2.0 requires synchronized authenticated WSS; old native clients cannot claim
+without it, and there is no polling fallback. Wire payloads remain v1.
 
 - Add client-initiated realtime WebSocket delivery under native printing API 2.0,
   with current QQQ session and record permissions revalidated during connection use.
@@ -8,8 +12,8 @@
   over the socket; native claims require acknowledged current settings and state.
 - Stream retained documents independently from controls and expose document,
   concurrency, timing, admission and retention batch limits in native admin forms.
-- Preserve durable job/command identities across reconnects. Deployment and actual
-  Windows realtime acceptance remain pending until the candidate gates complete.
+- Preserve durable job/command identities across reconnects. Installed Windows
+  realtime and physical-output acceptance remain separate from source/test gates.
 
 ## 0.2.0-rc.1 — 2026-10-31
 
