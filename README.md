@@ -6,7 +6,7 @@ Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
-The device-controls branch adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. These changes are under integration testing and are not included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md) when that coordinated contract is published; legacy `/printing/v1` remains explicit compatibility.
+The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. Upgrade the server before the 0.2.0 Windows client, then explicitly associate an existing unbound pairing during sign-in. These changes are not included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md); bound devices cannot fall back to legacy `/printing/v1` authentication.
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,7 @@ See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](do
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This feature branch pins protocol commit `cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
@@ -31,7 +31,9 @@ On Linux/macOS use `bash ./mvnw verify` and the corresponding wrapper commands. 
 
 Checkstyle runs during validate. Tests exercise real H2 persistence, native QQQ metadata/processes and real loopback HTTP through Javalin, including the shared fixtures and withdrawal of a locally exposed printer. Keep `../qqq-print-protocol` checked out or pass `-Dprinting.protocol.fixtures=<fixture-directory>`.
 
-## Local server
+## Legacy protocol demo
+
+The new Windows client needs the [authenticated local application](#authenticated-local-application) below, or a QQQ application hosting the native printing extension. This protocol-only demo is for explicitly enabled legacy diagnostics; it does not provide native user sign-in.
 
 Set `QQQ_PRINT_ADMIN_TOKEN` to a random value of at least 24 characters in the process environment; never put it in source or command arguments. Then:
 

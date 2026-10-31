@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 0.2.0-rc.1 candidate
+## 0.2.0-rc.1 — 2026-10-31
 
 - Add native device/table selection actions for pause, resume, disconnect,
   reconnect, revocation, inventory refresh and queued-job clearing, plus exact
@@ -15,7 +15,8 @@
   candidate qualification remain required before deployment claims.
 - Explicitly enforce current native permissions during selection counts and
   extraction, including callbacks and query selections. Pass 110 Java tests and
-  23 real .NET client/native QQQ interoperability checks without print jobs.
+  25 real .NET client/native QQQ interoperability checks without print jobs,
+  including rejection of legacy enrollment and bound-token downgrade attempts.
 - Reject account-bound device tokens on legacy routes and disable legacy
   enrollment by default. Legacy-only hosts opt in explicitly; existing unbound
   devices retain migration compatibility.

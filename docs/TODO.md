@@ -1,10 +1,10 @@
 # Follow-up
 
 - [x] Complete native device controls, per-record/selection actions, queue/history, dashboard and legacy-boundary integration tests; 110 tests pass with zero Checkstyle violations.
-- [x] Complete 23 actual Windows Core client/native QQQ interoperability checks with table-based authentication, no printers and no jobs.
+- [x] Complete 25 actual Windows Core client/native QQQ interoperability checks with table-based authentication, no printers and no jobs.
 - [ ] Complete installed candidate acceptance after protected CI.
 - [ ] Complete standard QQQ discovery/session/device-binding security checks and Windows auth integration; qualify the shared Authentik native grant without a private authentication fork.
-- [ ] Review protocol fixtures, publish immutable contract inputs and pass protected CI before packaging the new features.
+- [x] Review and merge immutable protocol inputs (cc3c4e5), pass protected CI and merge the server and Windows implementations normally. Release tagging and installed acceptance remain separate.
 
 - [x] Replace the test-document logo with the exact official Query dog asset; preserve aspect ratio and verify all PDF/thermal profiles with 73 passing tests, zero Checkstyle violations and reviewed previews.
 - [x] Publish v0.1.4-rc.1 after all required release gates, verify checksums and all three asset attestations, and complete local native deployment acceptance.
