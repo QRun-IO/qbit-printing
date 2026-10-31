@@ -141,13 +141,53 @@ class PrintingHomeTest
 
 
    /***************************************************************************
+    ** Slow configured heartbeats remain healthy and every explanation matches.
+    ***************************************************************************/
+   @Test
+   void configuredHeartbeatTimeoutControlsFreshness() throws Exception
+   {
+      DriverDataSource source = source();
+      QInstance instance = instance(source);
+      seed(source, "tenant-a");
+      QContext.init(instance, viewer("tenant-a", true));
+      try
+      {
+         PrintingService service = PrintingProcesses.currentService();
+         JSONObject policy = service.getRealtimeSettings();
+         policy.remove("revision");
+         service.saveRealtimeSettings(policy.put("heartbeatIntervalSeconds", 300).put("heartbeatTimeoutSeconds", 900));
+         try(Connection connection = source.getConnection(); PreparedStatement contact = connection.prepareStatement("UPDATE printing_device SET control_last_poll_at=? WHERE tenant_id=?"))
+         {
+            contact.setString(1, java.time.Instant.now().minusSeconds(400).toString());
+            contact.setString(2, "tenant-a");
+            contact.executeUpdate();
+         }
+         StatisticsData healthy = (StatisticsData) render(instance, "printingHomeOffline");
+         assertEquals(0, healthy.getCount());
+         assertTrue(healthy.getCountContext().contains("900 seconds"));
+         assertFalse(JsonUtils.toJson(render(instance, "printingHomeAttention")).contains("No connection for"));
+         service.saveRealtimeSettings(policy.put("heartbeatIntervalSeconds", 20).put("heartbeatTimeoutSeconds", 60));
+         StatisticsData stale = (StatisticsData) render(instance, "printingHomeOffline");
+         assertEquals(1, stale.getCount());
+         assertTrue(stale.getCountContext().contains("90 seconds"));
+         assertTrue(JsonUtils.toJson(render(instance, "printingHomeAttention")).contains("No connection for 90 seconds"));
+      }
+      finally
+      {
+         QContext.clear();
+      }
+   }
+
+
+
+   /***************************************************************************
     ** Empty state guides setup; an unprivileged or unscoped caller gets no data.
     ***************************************************************************/
    @Test
    void guidedEmptyStateAndAuthorization() throws Exception
    {
       QInstance instance = instance(source());
-      QContext.init(instance, viewer("tenant-empty", true));
+      QContext.init(instance, viewer("tenant-a", true));
       try
       {
          String header = JsonUtils.toJson(render(instance, "printingHomeHeader"));
@@ -158,7 +198,7 @@ class PrintingHomeTest
          TableData attention = (TableData) render(instance, "printingHomeAttention");
          assertTrue(attention.getRows().isEmpty());
          assertTrue(attention.getNoRowsFoundHTML().contains("No issues"));
-         QContext.init(instance, viewer("tenant-empty", false));
+         QContext.init(instance, viewer("tenant-a", false));
          assertThrows(QPermissionDeniedException.class, () -> render(instance, "printingHomeFailures"));
          QContext.init(instance, new QSession().withUser(new QUser().withIdReference("unscoped")).withPermission("printing_admin"));
          assertThrows(QPermissionDeniedException.class, () -> render(instance, "printingHomeFailures"));

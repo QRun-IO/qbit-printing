@@ -102,6 +102,17 @@ public class PrintingService
    }
 
 
+   /** Authenticated transport contact does not imply applied controls or normal device traffic. */
+   void realtimeContact(String device) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, device);
+         update(connection, "UPDATE printing_device SET control_last_poll_at=? WHERE tenant_id=? AND id=? AND enabled=1", Instant.now().toString(), tenantId, device);
+      }
+   }
+
+
    /** A host may share this event bus across services using the same database. */
    public PrintingService withRealtimeBus(PrintingRealtimeBus bus)
    {

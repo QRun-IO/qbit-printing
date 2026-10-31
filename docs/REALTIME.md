@@ -1,9 +1,9 @@
 # Real-time printing host integration
 
-This source implements printing extension **1.1.0** (wire envelope v1). It is not
+This source implements printing extension **2.0.0** (wire envelope v1). It is not
 part of the published 0.2.0-rc.1 artifacts. Upgrade server and Windows connector
 together; a real-time connector rejects a server that advertises only extension
-1.0. There is no timed job/control polling fallback.
+1.x. There is no timed job/control polling fallback.
 
 ## Connection and authorization
 
@@ -98,3 +98,12 @@ The existing `/printing/v1` routes remain explicit legacy diagnostic compatibili
 They are not a real-time fallback and cannot authorize a native bound device.
 The full message and settings contract is in
 [the shared protocol](https://github.com/QRun-IO/qqq-print-protocol).
+
+## Printing API major upgrade
+
+The extension is **2.0.0** because native HTTP claims now require a synchronized
+WebSocket. A published 1.0 HTTP-only connector no longer meets that precondition;
+this is a breaking behavior change even though request bodies remain wire v1.
+The QQQ framework API `/qqq/v1`, extension path `/qbit/printing` and WebSocket
+subprotocol `qqq-printing.v1` remain unchanged. Upgrade server and client together;
+an older client must report upgrade-required instead of using polling fallback.

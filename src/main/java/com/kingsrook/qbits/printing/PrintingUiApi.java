@@ -49,10 +49,10 @@ public final class PrintingUiApi
       MiddlewareSpecExtensionsMetaData.ofOrWithNew(instance).withExtension(extension());
    }
 
-   /** Semantic extension version 1.1.0 adds authenticated realtime delivery. */
+   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims. */
    public static MiddlewareSpecExtension extension()
    {
-      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("1.1.0")
+      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.0.0")
          .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1.")
          .withSpec(Session.class)
          .withSpec(Bind.class)

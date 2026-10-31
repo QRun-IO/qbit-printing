@@ -481,6 +481,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
             case "INVENTORY" -> service.inventory(device, payload.getJSONArray("printers"), PrintingAgentAuthorization.inventory(device));
             case "PING" ->
             {
+               service.realtimeContact(device);
                send("PONG", new JSONObject().put("serverTime", Instant.now().toString()));
                return;
             }

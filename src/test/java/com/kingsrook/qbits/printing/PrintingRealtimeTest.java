@@ -53,6 +53,44 @@ public class PrintingRealtimeTest
    Path directory;
 
 
+   /** A transport ping while disconnected proves contact, never state application or normal heartbeat. */
+   private static void disconnectedPingUpdatesContactOnly(PrintingService service, String device, PrintingSocketFixture socket) throws Exception
+   {
+      service.deviceAction(device, action("DISCONNECT"), "operator");
+      JSONObject desired = socket.take("DESIRED_STATE").getJSONObject("payload");
+      while(!"DISCONNECTED".equals(desired.getString("connectionState")))
+      {
+         desired = socket.take("DESIRED_STATE").getJSONObject("payload");
+      }
+      JSONObject before = deviceSnapshot(service, device);
+      long applied = before.getJSONObject("control").getLong("lastAppliedRevision");
+      assertTrue(applied < desired.getLong("revision"));
+      Instant sent = Instant.now();
+      socket.send("PING", "disconnected-contact", new JSONObject());
+      socket.take("PONG");
+      JSONObject after = deviceSnapshot(service, device);
+      assertFalse(Instant.parse(after.getJSONObject("control").getString("lastPollAt")).isBefore(sent));
+      assertEquals(applied, after.getJSONObject("control").getLong("lastAppliedRevision"));
+      assertEquals(before.getString("lastSeenAt"), after.getString("lastSeenAt"));
+      assertEquals("DISCONNECTED", after.getJSONObject("control").getJSONObject("desiredState").getString("connectionState"));
+   }
+
+
+   /** Select the exact synthetic device when the shared-bus test has created others. */
+   private static JSONObject deviceSnapshot(PrintingService service, String device) throws Exception
+   {
+      for(Object value : service.devices())
+      {
+         JSONObject row = (JSONObject) value;
+         if(device.equals(row.getString("deviceId")))
+         {
+            return (row);
+         }
+      }
+      throw new AssertionError("Synthetic device was not found");
+   }
+
+
    /** Commit wakeups, exact receipts, replacement and revocation all use actual QQQ sessions. */
    @Test
    void authenticatedPushReconcilesDurableWorkWithoutHttpControlPolling() throws Exception
@@ -130,6 +168,7 @@ public class PrintingRealtimeTest
                second.send("JOB_EVENT", "event-stable-event", new JSONObject().put("jobId", job).put("event", event));
                second.take("ACK");
                assertEquals("RECEIVED", service.getJob(job).getString("status"));
+               disconnectedPingUpdatesContactOnly(service, device, second);
                service.deviceAction(device, action("REVOKE"), "operator");
                assertEquals(1008, second.closed.get(10, TimeUnit.SECONDS));
             }

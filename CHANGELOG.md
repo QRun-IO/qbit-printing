@@ -2,7 +2,7 @@
 
 ## 0.3.0-rc.1 — unreleased
 
-- Add client-initiated realtime WebSocket delivery under native printing API 1.1,
+- Add client-initiated realtime WebSocket delivery under native printing API 2.0,
   with current QQQ session and record permissions revalidated during connection use.
 - Deliver desired state, device commands, inventory, lifecycle events and receipts
   over the socket; native claims require acknowledged current settings and state.
