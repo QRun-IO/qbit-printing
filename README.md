@@ -22,7 +22,7 @@ Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. CI 
 
 ```powershell
 .\mvnw.cmd verify
-.\mvnw.cmd dependency:build-classpath '-Dmdep.outputFile=target/runtime-classpath.txt' '-Dmdep.includeScope=runtime'
+.\mvnw.cmd dependency:build-classpath '-Dmdep.outputFile=target/runtime-classpath.txt' '-DincludeScope=runtime'
 ```
 
 On Linux/macOS use `bash ./mvnw verify` and the corresponding wrapper commands. First builds download dependencies; `-o` is only appropriate after they are cached.
@@ -46,7 +46,7 @@ For a directly managed Java process, classpath is `target/classes;` followed by 
 A separate local demo serves the real QQQ frontend with synthetic device/printer/job records. It binds only to `127.0.0.1:18082`, uses mock authentication and registers no device transport routes, so its synthetic jobs cannot be claimed by a physical connector.
 
 ```powershell
-.\mvnw.cmd -Pui-demo package dependency:build-classpath '-Dmdep.outputFile=target/ui-classpath.txt' '-Dmdep.includeScope=runtime'
+.\mvnw.cmd -Pui-demo package dependency:build-classpath '-Dmdep.outputFile=target/ui-classpath.txt' '-DincludeScope=runtime'
 $uiClasspath = 'target/classes;' + (Get-Content target/ui-classpath.txt -Raw).Trim()
 java -cp $uiClasspath com.kingsrook.qbits.printing.PrintingUiDemo
 ```
@@ -144,7 +144,7 @@ On 2026-10-29, both the development Windows connector and the installed LocalSys
 
 ## CI and releases
 
-Pull requests and `main` pushes run Java 21/Maven wrapper verification with the immutable sibling protocol checkout. A tag matching the POM version runs build/tests and the secrets, workflow, dependency and malicious-package security gates before publishing the tested JAR, POM and `SHA256SUMS` as GitHub release assets. Maven resolves the dependency graph before Trivy scans it; OSV consumes that same graph as CycloneDX. Empty dependency analysis fails. Hyphenated versions create prereleases. The workflow does not publish to Maven Central, deploy a QQQ application or print to hardware. The [0.1.0-rc.1 release](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.0-rc.1) passed these hosted gates.
+Pull requests and `main` pushes run Java 21/Maven wrapper verification with the immutable sibling protocol checkout. A tag matching the POM version runs build/tests and the secrets, workflow, dependency and malicious-package security gates before publishing the tested JAR, POM and `SHA256SUMS` as GitHub release assets. Build verification enables the `ui-demo` profile used by the local host. Maven generates its selected compile/runtime graph as a CycloneDX SBOM, including frontend assets. Trivy and OSV scan that graph; a guard rejects missing or different package versions, missing frontend assets, and empty inventories. CI retains the resolved graph and scanner evidence. OSV uses `--all-packages`; its pinned 2.6.0 reporter [omits Maven groups](https://github.com/google/osv-scanner/issues/3099), so the guard checks every reported artifact/version and rejects ambiguous names while the verified input retains full package URLs. Hyphenated versions create prereleases. The workflow does not publish to Maven Central, deploy a QQQ application or print to hardware. The [0.1.0-rc.1 release](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.0-rc.1) passed these hosted gates.
 
 ## Printing home
 

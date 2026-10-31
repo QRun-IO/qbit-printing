@@ -1,5 +1,8 @@
 # Follow-up
 
+- [x] Reconcile UI-profile Maven runtime dependencies with scanner inventories; 204 exact coordinates, ten guard regressions and workflow lint pass locally.
+- [ ] Run fresh hosted security/build gates for the runtime-SBOM workflow correction before authenticated-host deployment.
+
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
 - [ ] Integrate Record Files' authorized immutable-version reader after its contract is implemented; define async source revocation/correlation and eliminate host-outbox byte copies for that path.

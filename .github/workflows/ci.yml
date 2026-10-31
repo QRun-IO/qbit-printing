@@ -34,7 +34,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Checkstyle, unit tests and HTTP contract tests
-        run: bash ./mvnw --batch-mode --no-transfer-progress verify
+        run: bash ./mvnw --batch-mode --no-transfer-progress -Pui-demo verify
       - name: Prepare JAR, POM and checksums
         shell: bash
         run: |
