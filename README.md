@@ -2,11 +2,11 @@
 
 Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector initiates outbound HTTPS polling; the cloud needs no inbound route into the facility.
 
-**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. The current published release is [**0.1.4-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.4-rc.1). The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with verified build attestations for all three assets. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
+**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. The current published release is [**0.2.0-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.2.0-rc.1). The tagged build passed 110 tests and zero Checkstyle violations. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with verified build attestations for all three assets. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
-The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. Upgrade the server before the 0.2.0 Windows client, then explicitly associate an existing unbound pairing during sign-in. These changes are not included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md); bound devices cannot fall back to legacy `/printing/v1` authentication.
+The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. Upgrade the server before the 0.2.0 Windows client, then explicitly associate an existing unbound pairing during sign-in. These changes are included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md); bound devices cannot fall back to legacy `/printing/v1` authentication.
 
 ```mermaid
 flowchart LR
@@ -63,7 +63,7 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
-Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The published release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. New device-controls/authentication source requires its own integration gates and release.
+Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The previously accepted 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. The 0.2.0 controls/authentication release passed 25 real client/native QQQ interoperability checks; installed Windows acceptance remains in progress.
 
 ## Add to a QQQ application
 
