@@ -9,7 +9,8 @@ Built-in diagnostic documents bundle JetBrains Mono Bold v2.304.
 Copyright 2020 The JetBrains Mono Project Authors.
 The font is licensed under the SIL Open Font License, Version 1.1;
 see src/main/resources/com/kingsrook/qbits/printing/fonts/OFL.txt.
-The QQQ logo is supplied by the QQQ framework, Copyright Kingsrook, LLC.
+Query, the QQQ and QRun.IO dog mascot, is supplied by QRun.IO.
+Artwork provenance: src/main/resources/com/kingsrook/qbits/printing/images/README.md.
 
 The local host runtime uses the unmodified H2 Database Engine, Copyright
 2004-2025 H2 Group. H2 is dual licensed under MPL 2.0 or EPL 1.0; this

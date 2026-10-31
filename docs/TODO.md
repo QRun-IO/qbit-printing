@@ -1,5 +1,7 @@
 # Follow-up
 
+- [x] Replace the test-document logo with the exact official Query dog asset; preserve aspect ratio and verify all PDF/thermal profiles with 73 passing tests, zero Checkstyle violations and reviewed previews.
+- [ ] Deploy and publish the Query correction after fresh required gates, then obtain physical-output confirmation for the updated diagnostic documents.
 - [x] Correct S3 layout and multiline-prefix binding ambiguity; full isolated gate passes 72 tests with zero Checkstyle violations and independent review complete.
 - [x] Reproduce the actual Windows-to-Linux false-expiration defect, then qualify the corrected runtime: zero SDK requests for refused reads/retries/cleanup and preserved objects, availability and accounting.
 - [x] Pass fresh hosted gates for the S3 correction and approved scoped H2 input; verify exact CI artifacts, all 47 archive payloads and 204 runtime coordinates. Portable upstream keys, historical migration and production IAM remain separate qualification work.

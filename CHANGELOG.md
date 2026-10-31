@@ -2,6 +2,7 @@
 
 ## 0.1.4-rc.1 — unreleased
 
+- Use the official Query dog mascot on every built-in PDF and ZPL diagnostic profile, preserving the original artwork and aspect ratio. The full local gate passes 73 tests with zero Checkstyle violations; PDF previews and reconstructed thermal graphics pass visual review. New physical output remains to be confirmed after deployment.
 - Add an authenticated loopback QQQ host that shares durable paired devices/jobs with native screens and retention scheduling, preserving the separate synthetic UI demo.
 - Make native enrollment and test-print execution replay-safe and retain known duplicate-output risk after later failures.
 - Strictly validate print options, inventory formats/status and event bounds before persistence; recheck current queue format support at claim time.

@@ -21,13 +21,16 @@
 package com.kingsrook.qbits.printing;
 
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -42,6 +45,81 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *******************************************************************************/
 class PrintingTestDocumentsTest
 {
+   /***************************************************************************
+    ** The packaged mascot is the exact official asset, with an undistorted
+    ** visible outline in every PDF and each supported thermal raster density.
+    ***************************************************************************/
+   @Test
+   void officialQueryMascotPreservesAspectRatioAcrossFormats() throws Exception
+   {
+      byte[] asset;
+      try(var stream = getClass().getResourceAsStream("/com/kingsrook/qbits/printing/images/query-mascot.png"))
+      {
+         asset = stream.readAllBytes();
+      }
+      assertEquals("385a053e15e0a9fc6f8a965257e3917db827594ab46ecf8cdddb847770a25dbb", HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(asset)));
+      BufferedImage official = ImageIO.read(new java.io.ByteArrayInputStream(asset));
+      assertEquals(1326, official.getWidth());
+      assertEquals(1394, official.getHeight());
+      double expectedRatio = visibleAspectRatio(official);
+      for(TestPrintProfile profile : TestPrintProfile.values())
+      {
+         try(PDDocument document = PDDocument.load(PrintingTestDocuments.pdf(profile)))
+         {
+            int images = 0;
+            var resources = document.getPage(0).getResources();
+            for(var name : resources.getXObjectNames())
+            {
+               if(resources.getXObject(name) instanceof PDImageXObject image)
+               {
+                  images++;
+                  assertEquals(image.getWidth(), image.getHeight());
+                  assertEquals(expectedRatio, visibleAspectRatio(image.getImage()), 0.01);
+               }
+            }
+            assertEquals(1, images);
+         }
+         if(profile.getDpi() > 0)
+         {
+            double scale = profile.getDpi() / 72.0;
+            BufferedImage raster = PrintingTestDocuments.labelImage(profile.getDpi());
+            BufferedImage mascot = raster.getSubimage((int) Math.floor(210 * scale), (int) Math.floor(30 * scale), (int) Math.ceil(54 * scale), (int) Math.ceil(54 * scale));
+            assertEquals(expectedRatio, visibleAspectRatio(mascot), 0.03);
+         }
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Compare the actual visible artwork, ignoring transparent/white padding.
+    ***************************************************************************/
+   private static double visibleAspectRatio(BufferedImage image)
+   {
+      int left = image.getWidth();
+      int right = -1;
+      int top = image.getHeight();
+      int bottom = -1;
+      for(int y = 0; y < image.getHeight(); y++)
+      {
+         for(int x = 0; x < image.getWidth(); x++)
+         {
+            int pixel = image.getRGB(x, y);
+            if((pixel >>> 24) >= 128 && (pixel & 0xffffff) < 0x808080)
+            {
+               left = Math.min(left, x);
+               right = Math.max(right, x);
+               top = Math.min(top, y);
+               bottom = Math.max(bottom, y);
+            }
+         }
+      }
+      assertTrue(right > left && bottom > top);
+      return ((right - left + 1.0) / (bottom - top + 1.0));
+   }
+
+
+
    /***************************************************************************
     ** Every PDF profile has searchable diagnostic text and an embedded font.
     ***************************************************************************/

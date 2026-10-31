@@ -1,5 +1,11 @@
 # Session state — 2026-10-31
 
+## Query mascot correction
+
+Built-in diagnostic pages and labels now use the official Query dog artwork from [qrun.io/query](https://qrun.io/query), with the exact original asset and provenance recorded alongside the resource. White padding preserves its aspect ratio within the existing layout; warehouse glyphs, media profiles, barcode and print routing are unchanged. All five PDF profiles and three thermal resolutions are covered by the new regression. The isolated full build passed **73 tests with no failures/errors/skips and zero Checkstyle violations**. Generated PDF previews and actual ZPL graphic-field reconstruction were reviewed. The tested resource is packaged and the previous logo is absent.
+
+This server-only correction is not yet deployed or released. The Windows client already requests these server-generated documents; no client icon change is needed. The installed corrective Windows 0.1.9 candidate is connected and passed all 16 UI checks with credentials/history preserved. Publication and fresh branded physical-output confirmation remain pending.
+
 ## Audit candidate 0.1.4-rc.1
 
 The authorized local paired-host cutover is complete. The exact approved CI package from `09e0995` runs the native QQQ frontend and device API on the existing loopback address. A native backup was independently restored and fully compared before the old H2 host stopped; its closed database was also preserved and checked. Existing pairing, one device, two ready printers, seven jobs and 21 events were retained. The Windows service reconnected automatically. Native login, bounded real-record queries, anonymous/cross-origin/authentication-table denials, logout and the enabled **365-day** retention policy passed. No new print was requested. This local host uses database delivery storage; real dedicated S3 provisioning and remote deployment are deferred by the user's local-first instruction.
