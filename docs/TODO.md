@@ -1,7 +1,8 @@
 # Follow-up
 
 - [x] Replace the test-document logo with the exact official Query dog asset; preserve aspect ratio and verify all PDF/thermal profiles with 73 passing tests, zero Checkstyle violations and reviewed previews.
-- [ ] Deploy and publish the Query correction after fresh required gates, then obtain physical-output confirmation for the updated diagnostic documents.
+- [x] Publish v0.1.4-rc.1 after all required release gates, verify checksums and all three asset attestations, and complete local native deployment acceptance.
+- [ ] Obtain physical-output confirmation for the updated Query diagnostic documents.
 - [x] Correct S3 layout and multiline-prefix binding ambiguity; full isolated gate passes 72 tests with zero Checkstyle violations and independent review complete.
 - [x] Reproduce the actual Windows-to-Linux false-expiration defect, then qualify the corrected runtime: zero SDK requests for refused reads/retries/cleanup and preserved objects, availability and accounting.
 - [x] Pass fresh hosted gates for the S3 correction and approved scoped H2 input; verify exact CI artifacts, all 47 archive payloads and 204 runtime coordinates. Portable upstream keys, historical migration and production IAM remain separate qualification work.
@@ -10,12 +11,12 @@
 - [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass.
 - [x] Approve central H2 metadata record EX-0013 through standards PR #54, apply only its package-scoped workflow input and pass every fresh required check.
 - [x] Qualify registered JVM-hook shutdown on exact `00dd2dd`: native acceptance, Quartz/HTTP shutdown, exit 0 and independent read-only cold inspection before initialization pass. Windows reboot/service-manager behavior remains separate.
-- [x] Perform authorized live paired-host cutover after verified native recovery, closed backup and fresh required gates; preserve pairing, 1 device, 2 ready printers, 7 jobs and 21 events. Native authentication/query/denial/logout, automatic connector reconnection and 365-day retention checks pass.
+- [x] Complete local paired-host acceptance after verified recovery backups and fresh required gates; preserve pairing and history. Native authentication/query/denial/logout, automatic connector reconnection and 365-day retention checks pass.
 
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
 - [ ] Implement the optional Record Files adapter against its verified frozen contract: durable accepted-source/actor binding, legitimate current reporting identity and committed observation receipt. Adapter remains disabled; standalone printing does not depend on it.
-- [ ] Verify tagged audit release gates, published provenance and deployed-host qualification.
+- [x] Verify v0.1.4-rc.1 release run 41190650664, published JAR/POM/SHA256SUMS provenance and local native deployment acceptance.
 - [x] Historical audit PR #10 checkpoint aeac1a6 passed hosted checks; current H2/native qualification and remaining license gate are recorded above.
 - [x] Complete the independent baseline scan and current-source reviews of all five findings and remediations.
 - [x] Add authenticated native QQQ local host sharing paired data with device routes and the existing scheduler; 65 tests/zero Checkstyle pass and independent source review found no blocker.
@@ -30,7 +31,8 @@
 - [x] Confirm physical built-in ZPL and PDF output on the connected Zebra; scanning and measured alignment remain separate checks below.
 - [x] Add separate synthetic native QQQ frontend preview host.
 - [x] Replace identifier text inputs with tenant-scoped, device-dependent selectors and add table/record actions.
-- [ ] Qualify deployed QQQ host integration.
+- [x] Qualify authenticated local QQQ host integration with preserved pairing/history and native retention scheduling.
+- [ ] Qualify remote QQQ host deployment and production authentication/facility policy.
 - [x] Separate local printer availability from server approval and block withdrawn queues.
 - [x] Prepare public repository documentation, license, CI and GitHub prerelease artifacts.
 - [x] Verify remote CI/security and publish v0.1.0-rc.1 JAR/POM/checksum assets.
@@ -70,4 +72,4 @@ The Windows gate, MSI rebuild, installed UI acceptance, release evidence and fre
 - [ ] Obtain explicit barcode scan and measured alignment confirmation; successful spooling is not physical acceptance.
 
 - [x] Complete independent review after the five baseline security findings are remediated; current details are in SESSION-STATE.md.
-- [ ] Complete deployed-host and real S3 qualification; source tests are not deployment evidence.
+- [ ] Complete remote deployment and production S3/IAM qualification; local native acceptance and isolated storage tests do not establish these.

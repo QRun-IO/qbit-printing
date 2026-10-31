@@ -2,7 +2,7 @@
 
 Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector initiates outbound HTTPS polling; the cloud needs no inbound route into the facility.
 
-**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. Audit source targets **0.1.4-rc.1**; the published baseline remains **0.1.3-rc.1** until the audit and release gates complete. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
+**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. The current published release is [**0.1.4-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.4-rc.1). The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with verified build attestations for all three assets. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
@@ -59,12 +59,14 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
+Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The current release passes 73 tests and zero Checkstyle violations. Production S3/IAM, remote deployment and physical output from the new Query diagnostic artwork remain separate qualification work.
+
 ## Add to a QQQ application
 
 For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.3-rc.1.jar' '-DpomFile=qbit-printing-0.1.3-rc.1.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.4-rc.1.jar' '-DpomFile=qbit-printing-0.1.4-rc.1.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -73,7 +75,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.3-rc.1</version>
+   <version>0.1.4-rc.1</version>
 </dependency>
 ```
 
@@ -98,7 +100,7 @@ server.withAdditionalRouteProviders(List.of(new PrintingRoutes(printing, context
 
 `hostPrintingAdminGuard` is the host's own authenticated administrator policy, not a supplied library method. The service is bound to one tenant; use a separate host service instance for each tenant. Device token verification and job ownership are enforced on every device operation. Management service methods are intended for trusted application code; enforce user/facility authorization before calling them.
 
-The storage/scheduler options above are new in the pending 0.1.4 source. Configure a dedicated private printing bucket for the customer/environment through existing QQQ S3 metadata; no bucket credentials belong in printing forms. Admin retention defaults to 365 days after successful completion. Scheduled cleanup handles bounded batches every five minutes and preserves active, failed and uncertain work plus all receipts/history. Without a configured storage binding, legacy database documents remain supported; without a host scheduler, automatic cleanup does not run. Review [storage configuration, bucket isolation and S3 versioning](docs/STORAGE-AND-RETENTION.md) before deployment.
+The storage/scheduler options above are included in 0.1.4-rc.1. Configure a dedicated private printing bucket for the customer/environment through existing QQQ S3 metadata; no bucket credentials belong in printing forms. Admin retention defaults to 365 days after successful completion. Scheduled cleanup handles bounded batches every five minutes and preserves active, failed and uncertain work plus all receipts/history. Without a configured storage binding, legacy database documents remain supported; without a host scheduler, automatic cleanup does not run. Review [storage configuration, bucket isolation and S3 versioning](docs/STORAGE-AND-RETENTION.md) before deployment.
 
 Enrollment uses a named facility selector. Set `withFacilityPossibleValueSourceName("your_existing_facility_source")` to reuse an already registered host source and its record security. Without it, the standalone choice is **Default facility**. The backend validates the selection under the current user's permissions before issuing an enrollment code; typing or forging an unknown/foreign-tenant ID cannot bypass that check. Existing stored facility IDs are preserved; configure their original source to resolve their names.
 
