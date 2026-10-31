@@ -1,9 +1,11 @@
 # Follow-up
 
 - [x] Consume bounded claim/cancel bodies before side effects; split-body regression fails before fix, full isolated UI-profile gate passes 66 tests.
-- [ ] Verify the HTTP follow-up on fresh hosted checks and resolve the isolated prepared-copy retention discrepancy before live cutover.
+- [x] Verify the HTTP follow-up on fresh hosted checks at d52dfd7.
+- [x] Identify and fix the prepared-copy retention failure by pinning H2 2.4.240; controlled old/fixed-driver comparison and full 67-test gate pass.
+- [ ] Verify fresh H2-change hosted checks and the exact dependency payload through native startup, shutdown and cold reopen before live cutover.
 - [x] Reconcile UI-profile Maven runtime dependencies with scanner inventories; 204 exact coordinates, ten guard regressions and workflow lint pass locally.
-- [ ] Run fresh hosted security/build gates for the runtime-SBOM workflow correction before authenticated-host deployment.
+- [x] Run hosted security/build gates for the runtime-SBOM workflow correction at d52dfd7; dependency follow-up requires its own fresh checks.
 
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.

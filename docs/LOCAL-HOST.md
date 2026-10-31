@@ -31,7 +31,7 @@ There is no default browser password and no account chosen automatically. Startu
 Use Java 21 and the Maven wrapper. The `ui-demo` profile supplies the real frontend-next runtime assets for both UI-capable launch targets:
 
 ```powershell
-.\mvnw.cmd -Pui-demo verify dependency:build-classpath '-Dmdep.outputFile=target/local-host-classpath.txt'
+.\mvnw.cmd -Pui-demo verify dependency:build-classpath '-Dmdep.outputFile=target/local-host-classpath.txt' '-DincludeScope=runtime'
 $dependencies = (Get-Content target/local-host-classpath.txt -Raw).Trim()
 & "$env:JAVA_HOME/bin/java.exe" -cp "target/classes;$dependencies" com.kingsrook.qbits.printing.PrintingLocalHost
 ```
@@ -39,6 +39,12 @@ $dependencies = (Get-Content target/local-host-classpath.txt -Raw).Trim()
 Set the required environment values securely before launch. Maven contract tests require the documented sibling protocol fixture checkout or `printing.protocol.fixtures` override. Browse to `http://localhost:18081/` (or the configured port) and use the native username/password screen. The existing Windows connector continues using the same server origin and device token; it does not receive the browser password or management token.
 
 This command runs the host in the foreground. `QApplicationLauncher` owns graceful HTTP/scheduler shutdown. It does not install an operating-system service or auto-start registration; the deploying operator must provide supervision, protected credential loading, logs and backups for unattended use.
+
+## Embedded database runtime
+
+Use the pinned **H2 2.4.240** runtime for file-backed local hosts. H2 2.3.232 has a confirmed close-time compaction data-loss defect ([issue 4247](https://github.com/h2database/h2database/issues/4247), [fix 4249](https://github.com/h2database/h2database/pull/4249)). Keep exactly one H2 driver JAR on the classpath; replacing the application JAR alone does not replace its runtime dependencies. Regenerate the runtime classpath from the current POM and remove the old driver from the new deployment payload.
+
+Before upgrading, back up the closed database and validate a separate copy through startup, full shutdown and cold reopen with the fixed driver. Confirm paired records, retention settings and job history after reopening, without rerunning initialization merely to make missing tables reappear. Keep the pre-upgrade backup for rollback; do not point an older driver at a database already opened by the new runtime. A successful fresh-database test does not certify every existing database file. Normal compaction remains enabled; no warm-up, retry or delay is part of the fix.
 
 ## Cut over an existing paired protocol server
 

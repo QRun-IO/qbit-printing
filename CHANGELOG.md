@@ -10,7 +10,10 @@
 - Use named facility choices during enrollment and revalidate them under the current user's tenant/record permissions.
 - Require release security/CodeQL gates, verified artifact promotion and build provenance; report the real packaged QBit version.
 - Enforce configurable atomic queue/storage/rate budgets and cumulative printer limits, with bounded management pagination and stable replay at capacity.
-- Full local verification passed 65 tests with zero failures/errors/skips and Checkstyle violations. Final hosted checks remain pending; this entry does not claim release or live storage migration.
+- Consume bounded claim/cancel request bodies before mutation so a persistent HTTP connection remains usable for the subsequent status event.
+- Pin H2 2.4.240 to fix close-time compaction data loss; verify file-backed schema/settings across cold reopens and document closed-backup upgrade qualification.
+- Verify the exact frontend-inclusive runtime inventory in Maven, Trivy and OSV; fail on malformed or incomplete scanner evidence.
+- Full local verification passed 67 tests with zero failures/errors/skips and Checkstyle violations. Final dependency-change hosted checks remain pending; this entry does not claim release or live storage migration.
 
 ## 0.1.3-rc.1 — 2026-10-30
 
