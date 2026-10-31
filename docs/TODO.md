@@ -2,9 +2,12 @@
 
 - [x] Complete native device controls, per-record/selection actions, queue/history, dashboard and legacy-boundary integration tests; 110 tests pass with zero Checkstyle violations.
 - [x] Complete 25 actual Windows Core client/native QQQ interoperability checks with table-based authentication, no printers and no jobs.
-- [ ] Complete installed candidate acceptance after protected CI.
-- [ ] Complete standard QQQ discovery/session/device-binding security checks and Windows auth integration; qualify the shared Authentik native grant without a private authentication fork.
-- [x] Review and merge immutable protocol inputs (cc3c4e5), pass protected CI and merge the server and Windows implementations normally. Release tagging and installed acceptance remain separate.
+- [x] Publish and verify 0.2.0-rc.1 assets; deploy the local server and install the exact published Windows MSI with existing state preserved.
+- [x] Qualify local installed-service table-based sign-in, explicit existing-pairing association, observed pause/disconnect/reconnect/resume and successful inventory refresh.
+- [x] Run native QQQ Letter PDF and 4 × 6-inch, 300-dpi ZPL test processes; both reached `SPOOLED` with reviewed content hashes.
+- [ ] Obtain physical confirmation of the two current-release outputs; qualify the current Windows visual UI and an actual service restart (elevation was canceled before execution).
+- [ ] Qualify the shared Authentik native grant and long-lived renewal without a private authentication fork; local table-based acceptance does not cover the configured provider.
+- [x] Review and merge immutable protocol inputs (cc3c4e5), pass protected CI and merge the server and Windows implementations normally.
 
 - [x] Replace the test-document logo with the exact official Query dog asset; preserve aspect ratio and verify all PDF/thermal profiles with 73 passing tests, zero Checkstyle violations and reviewed previews.
 - [x] Publish v0.1.4-rc.1 after all required release gates, verify checksums and all three asset attestations, and complete local native deployment acceptance.

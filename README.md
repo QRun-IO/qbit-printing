@@ -63,14 +63,16 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
-Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The previously accepted 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. The 0.2.0 controls/authentication release passed 25 real client/native QQQ interoperability checks; installed Windows acceptance remains in progress.
+Local native deployment of 0.2.0-rc.1 is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The exact published Windows MSI is installed; standard QQQ table-based sign-in and explicit existing-pairing association succeeded. Both endpoints observed pause, disconnect, reconnect and resume, and inventory refresh returned `SUCCEEDED` / `INVENTORY_REFRESHED`. Native QQQ processes delivered a Letter PDF and a 4 × 6-inch, 300-dpi ZPL label to `SPOOLED` with the reviewed content hashes. Physical confirmation of these two outputs is pending.
+
+The release passed 25 real client/native QQQ interoperability checks. Current Windows visual UI acceptance remains unverified, and a requested service restart was canceled before execution. Configured Authentik/provider renewal, production S3/IAM, remote deployment and 1.0 readiness remain separate qualification work. See the [installed-client acceptance scope](https://github.com/QRun-IO/qqq-print-agent/blob/main/docs/ACCEPTANCE.md). The historical 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three of its Query diagnostic outputs good.
 
 ## Add to a QQQ application
 
 For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.4-rc.1.jar' '-DpomFile=qbit-printing-0.1.4-rc.1.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.2.0-rc.1.jar' '-DpomFile=qbit-printing-0.2.0-rc.1.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -79,7 +81,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.4-rc.1</version>
+   <version>0.2.0-rc.1</version>
 </dependency>
 ```
 
