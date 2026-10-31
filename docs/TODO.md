@@ -5,8 +5,8 @@
 - [ ] Require fresh hosted gates for the S3 correction; portable upstream keys, historical migration and production IAM remain separate qualification work.
 - [x] Verify the H2 2.4.240 candidate at `fb99faf`: 67 Java tests, zero Checkstyle violations, hosted build/CodeQL/security pass, and all 204 selected runtime dependencies verified.
 - [x] Qualify the exact CI artifact on an isolated closed-data copy: native frontend/authentication/query/denial/logout/retention checks, actual scheduled zero-removal tick, forced termination, read-only inspection before initialization, and successful cold restart; all 11 tables and retained state preserved.
-- [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass. No active package license exception is enabled.
-- [ ] Obtain approval for the prepared central H2 metadata exception record, then apply only its package-scoped workflow input and require fresh complete hosted gates.
+- [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass.
+- [x] Approve central H2 metadata record EX-0013 through standards PR #54 and apply only its package-scoped workflow input; fresh complete hosted gates remain required before release or cutover.
 - [x] Qualify registered JVM-hook shutdown on exact `00dd2dd`: native acceptance, Quartz/HTTP shutdown, exit 0 and independent read-only cold inspection before initialization pass. Windows reboot/service-manager behavior remains separate.
 - [ ] Perform authorized live paired-host cutover from a closed backup after all gates pass; preserve pairing and verify the real native records and connector heartbeat.
 
