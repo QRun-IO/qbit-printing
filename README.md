@@ -6,6 +6,8 @@ Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
+The device-controls branch adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. These changes are under integration testing and are not included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md) when that coordinated contract is published; legacy `/printing/v1` remains explicit compatibility.
+
 ```mermaid
 flowchart LR
   A[QQQ application / durable job] --> B[Printing QBit and JDBC queue]
@@ -18,7 +20,7 @@ See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](do
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. CI pins protocol commit `f4f977ca4aa6b749e6a52760eed5e53c99a7704d`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This feature branch pins protocol commit `cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
@@ -43,7 +45,7 @@ For a directly managed Java process, classpath is `target/classes;` followed by 
 
 ## Native QQQ UI preview
 
-A separate local demo serves the real QQQ frontend with synthetic device/printer/job records. It binds only to `127.0.0.1:18082`, uses mock authentication and registers no device transport routes, so its synthetic jobs cannot be claimed by a physical connector.
+A separate local demo serves the real QQQ frontend with synthetic device/printer/job records. It binds only to `127.0.0.1:18082` and uses mock authentication. Keep it isolated from real pairing data and physical connectors; it is a screen preview, not an authenticated deployment.
 
 ```powershell
 .\mvnw.cmd -Pui-demo package dependency:build-classpath '-Dmdep.outputFile=target/ui-classpath.txt' '-DincludeScope=runtime'
@@ -59,7 +61,7 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
-Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The current release passes 73 tests and zero Checkstyle violations. Production S3/IAM, remote deployment and physical output from the new Query diagnostic artwork remain separate qualification work.
+Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The published release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. New device-controls/authentication source requires its own integration gates and release.
 
 ## Add to a QQQ application
 

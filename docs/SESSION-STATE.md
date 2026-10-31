@@ -1,5 +1,13 @@
 # Session state — 2026-10-31
 
+## Active device controls and standard QQQ authentication
+
+Implementation is in the isolated device-controls worktree. Native device/table actions support pause, resume, disconnect, reconnect, revoke, inventory refresh and queued-job clearing; job records support exact owned Windows-job cancellation. Related printers, jobs, pending queue and bounded command history are registered. Derived status separates connection presence, desired state and observed revision. Domain writes use current QQQ permissions; clearing a queue checks every affected job before the transactional mutation.
+
+The primary client transport is the discovered `/qqq/v1/qbit/printing` semantic extension with standard QQQ user sessions and secondary device proof. Authentik requires the shared advertised native PKCE session grant; no private bearer-only fallback substitutes for that authorization. The final isolated Java 21 gate passed **110 tests**, zero failures/errors/skips and zero Checkstyle violations. All 204 runtime dependencies match the frozen approved hashes. Native HTTP, proof/binding denials, explicit permission enforcement, selection count/extraction, FIFO eligibility, queue races, cancellation replay and offline command expiry are covered. Bound device tokens are rejected on legacy routes, and new legacy enrollment defaults off; real HTTP regressions prove there is no secondary-proof downgrade. The actual .NET client passed 23 native table-based authentication/binding/control/logout checks without printers or jobs. Current protected CI and installed/provider acceptance remain pending. No new feature release or local installation has occurred.
+
+The user confirmed all three current Query test prints good. Barcode catalog expansion was removed from printing scope and belongs to document/barcode generation.
+
 ## Query mascot correction
 
 Built-in diagnostic pages and labels now use the official Query dog artwork from [qrun.io/query](https://qrun.io/query), with the exact original asset and provenance recorded alongside the resource. White padding preserves its aspect ratio within the existing layout; warehouse glyphs, media profiles, barcode and print routing are unchanged. All five PDF profiles and three thermal resolutions are covered by the new regression. The isolated full build passed **73 tests with no failures/errors/skips and zero Checkstyle violations**. Generated PDF previews and actual ZPL graphic-field reconstruction were reviewed. The tested resource is packaged and the previous logo is absent.

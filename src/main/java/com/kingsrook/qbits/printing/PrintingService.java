@@ -178,6 +178,8 @@ public class PrintingService
             }
          }
          PrintingAdmission.initialize(connection, tenantId);
+         PrintingDeviceControls.initialize(connection);
+         update(connection, "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS bound_user_id VARCHAR(200)");
          widenColumn(connection, "printing_device", "name", 1024);
          widenColumn(connection, "printing_enrollment", "device_name", 1024);
          widenColumn(connection, "printing_printer", "name", 1024);
@@ -221,8 +223,81 @@ public class PrintingService
 
 
    /***************************************************************************
-    ** The immutable tenant scope used by host authorization and native actions.
+    ** Apply one audited action after the adapter authorizes the current actor.
     ***************************************************************************/
+   public JSONObject deviceAction(String deviceId, JSONObject request, String actor) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor));
+   }
+
+
+   /** Native authorization supplies the exact reviewed queue identity set, never a predicate executed inside SQL locks. */
+   JSONObject deviceAction(String deviceId, JSONObject request, String actor, Set<String> authorizedQueue) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor, authorizedQueue));
+   }
+
+
+   /** Resolve a retained action receipt without treating new queue contents as part of a replay. */
+   String existingDeviceAction(String deviceId, String requestId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         List<JSONObject> rows = query(connection, "SELECT id FROM printing_device_command WHERE tenant_id=? AND device_id=? AND request_id=?", tenantId, deviceId, requestId);
+         return (rows.isEmpty() ? null : rows.getFirst().getString("id"));
+      }
+   }
+
+
+   /** Bounded identifiers permit native row authorization before bulk queue cancellation. */
+   Set<String> queuedJobIdsForControl(String deviceId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, deviceId);
+         Set<String> ids = new java.util.HashSet<>();
+         for(JSONObject row : query(connection, "SELECT id FROM printing_job WHERE tenant_id=? AND device_id=? AND status='QUEUED' LIMIT 10001", tenantId, deviceId))
+         {
+            ids.add(row.getString("id"));
+         }
+         if(ids.size() > 10000)
+         {
+            throw new PrintingException(429, "The queue exceeds the bounded native review limit");
+         }
+         return (ids);
+      }
+   }
+
+
+   /** Independently poll desired state and pending commands using device authentication. */
+   public JSONObject deviceControlPoll(String deviceId, JSONObject request) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).poll(deviceId, request));
+   }
+
+
+   /** Persist one immutable device observation without inferring physical output. */
+   public JSONObject deviceControlReceipt(String deviceId, String commandId, JSONObject receipt) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).receipt(deviceId, commandId, receipt));
+   }
+
+
+   /** Tenant/device scoped history remains visible after credential revocation. */
+   public JSONObject deviceCommandsPage(String deviceId, int limit, String before) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).page(deviceId, limit, before));
+   }
+
+
+   /** Read the exact durable receipt for a native or HTTP management action. */
+   public JSONObject getDeviceCommand(String deviceId, String commandId) throws SQLException
+   {
+      return (new PrintingDeviceControls(dataSource, tenantId).get(deviceId, commandId));
+   }
+
+
+   /** The immutable tenant scope used by host authorization and native actions. */
    public String getTenantId()
    {
       return (tenantId);
@@ -337,6 +412,32 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject enroll(JSONObject request) throws SQLException
    {
+      return (enrollForUser(request, null));
+   }
+
+
+   /** Native enrollment checks facility visibility before consuming the immutable enrollment code. */
+   String enrollmentFacility(String code) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         List<JSONObject> rows = query(connection, "SELECT facility_id FROM printing_enrollment WHERE tenant_id=? AND code_hash=? AND consumed=0 AND expires_at>?", tenantId, hash(required(code, "enrollmentCode")), Instant.now().toString());
+         if(rows.isEmpty())
+         {
+            throw new PrintingException(401, "Enrollment code is invalid or expired");
+         }
+         return (rows.getFirst().getString("facility_id"));
+      }
+   }
+
+
+   /** Native enrollment binds the core-authenticated principal in the credential transaction. */
+   public JSONObject enrollForUser(JSONObject request, String principalId) throws SQLException
+   {
+      if(principalId != null && (principalId.isBlank() || principalId.length() > 200))
+      {
+         throw new PrintingException(403, "Invalid authenticated principal");
+      }
       String codeHash = hash(required(request.optString("enrollmentCode"), "enrollmentCode"));
       try(Connection connection = dataSource.getConnection())
       {
@@ -352,7 +453,7 @@ public class PrintingService
             String id = UUID.randomUUID().toString();
             String token = secret();
             String computerName = required(request.optString("deviceName"), "deviceName");
-            update(connection, "INSERT INTO printing_device (id, tenant_id, facility_id, name, agent_version, token_hash, last_seen_at, enabled, computer_name) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)", id, tenantId, code.getString("facility_id"), computerName, required(request.optString("agentVersion"), "agentVersion"), hash(token), Instant.now().toString(), computerName);
+            update(connection, "INSERT INTO printing_device (id, tenant_id, facility_id, name, agent_version, token_hash, last_seen_at, enabled, computer_name, bound_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", id, tenantId, code.getString("facility_id"), computerName, required(request.optString("agentVersion"), "agentVersion"), hash(token), Instant.now().toString(), computerName, principalId);
             update(connection, "UPDATE printing_enrollment SET consumed=1 WHERE code_hash=?", codeHash);
             connection.commit();
             return (new JSONObject().put("protocolVersion", 1).put("deviceId", id).put("deviceToken", token).put("pollIntervalSeconds", 5));
@@ -368,18 +469,55 @@ public class PrintingService
 
 
    /***************************************************************************
-    ** Resolve an active device credential without exposing its verifier.
+    ** Legacy primary credentials are valid only until native user binding.
     ***************************************************************************/
    public String authenticate(String token) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
-         List<JSONObject> devices = query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND token_hash=? AND enabled=1", tenantId, hash(token == null ? "" : token));
+         List<JSONObject> devices = query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND token_hash=? AND enabled=1 AND revoked_at IS NULL AND bound_user_id IS NULL", tenantId, hash(token == null ? "" : token));
          if(devices.isEmpty())
          {
             throw new PrintingException(401, "Invalid device credential");
          }
          return (devices.getFirst().getString("id"));
+      }
+   }
+
+
+   /** Secondary device proof never replaces the caller's native QQQ authentication and row permission. */
+   public void authorizeAgent(String deviceId, String token, String principalId, boolean bind) throws SQLException
+   {
+      if(deviceId == null || token == null || token.length() > 128 || principalId == null || principalId.isBlank() || principalId.length() > 200)
+      {
+         throw new PrintingException(403, "User or device is not authorized");
+      }
+      try(Connection connection = dataSource.getConnection())
+      {
+         connection.setAutoCommit(false);
+         try
+         {
+            List<JSONObject> rows = query(connection, "SELECT token_hash,bound_user_id FROM printing_device WHERE tenant_id=? AND id=? AND enabled=1 AND revoked_at IS NULL FOR UPDATE", tenantId, deviceId);
+            if(rows.isEmpty() || !MessageDigest.isEqual(rows.getFirst().getString("token_hash").getBytes(StandardCharsets.UTF_8), hash(token).getBytes(StandardCharsets.UTF_8)))
+            {
+               throw new PrintingException(403, "User or device is not authorized");
+            }
+            String owner = rows.getFirst().optString("bound_user_id", null);
+            if(owner == null && bind)
+            {
+               update(connection, "UPDATE printing_device SET bound_user_id=? WHERE tenant_id=? AND id=? AND bound_user_id IS NULL", principalId, tenantId, deviceId);
+            }
+            else if(!principalId.equals(owner))
+            {
+               throw new PrintingException(403, "User or device is not authorized");
+            }
+            connection.commit();
+         }
+         catch(Exception exception)
+         {
+            connection.rollback();
+            throw exception;
+         }
       }
    }
 
@@ -396,6 +534,8 @@ public class PrintingService
          connection.setAutoCommit(false);
          try
          {
+            requireDevice(connection, deviceId);
+            query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
             requireDevice(connection, deviceId);
             update(connection, "UPDATE printing_device SET last_seen_at=?, agent_version=? WHERE id=?", now, required(request.optString("agentVersion"), "agentVersion"), deviceId);
             JSONObject profile = request.optJSONObject("profile");
@@ -425,6 +565,13 @@ public class PrintingService
     ***************************************************************************/
    public void inventory(String deviceId, JSONArray printers) throws SQLException
    {
+      inventory(deviceId, printers, null);
+   }
+
+
+   /** Native inventory changes exactly the existing row set authorized before opening this transaction. */
+   void inventory(String deviceId, JSONArray printers, Set<String> authorizedRows) throws SQLException
+   {
       if(printers.length() > 200)
       {
          throw new PrintingException(400, "Too many printers");
@@ -439,6 +586,19 @@ public class PrintingService
             PrintingAdmission.lock(connection, tenantId);
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+            requireDevice(connection, deviceId);
+            if(authorizedRows != null)
+            {
+               Set<String> currentRows = new java.util.HashSet<>();
+               for(JSONObject row : query(connection, "SELECT id FROM printing_printer WHERE tenant_id=? AND device_id=? LIMIT 10001", tenantId, deviceId))
+               {
+                  currentRows.add(row.getString("id"));
+               }
+               if(!currentRows.equals(authorizedRows))
+               {
+                  throw new PrintingException(409, "Inventory changed; authorize its current rows before retrying");
+               }
+            }
             Set<String> incoming = new java.util.HashSet<>();
             for(int index = 0; index < printers.length(); index++)
             {
@@ -578,6 +738,7 @@ public class PrintingService
                PrintingAdmission.lock(connection, tenantId);
                requireDevice(connection, deviceId);
                query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+               requireDevice(connection, deviceId);
                List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
                if(!previous.isEmpty())
                {
@@ -625,6 +786,7 @@ public class PrintingService
                }
                requireDevice(connection, deviceId);
                query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+               requireDevice(connection, deviceId);
                printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
                if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
                {
@@ -807,6 +969,7 @@ public class PrintingService
          {
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+            requireDevice(connection, deviceId);
             JSONObject row = deviceJob(connection, deviceId, jobId);
             if("FAILED".equals(row.getString("status")) && CANCELED_BEFORE_DISPATCH.equals(row.optString("message")))
             {
@@ -836,6 +999,13 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject claim(String deviceId) throws SQLException
    {
+      return (claimForJob(deviceId, null));
+   }
+
+
+   /** Native adapters authorize one exact job and printer before this locked dispatch transition. */
+   public JSONObject claimForJob(String deviceId, String authorizedJobId) throws SQLException
+   {
       try(Connection connection = dataSource.getConnection())
       {
          connection.setAutoCommit(false);
@@ -843,7 +1013,14 @@ public class PrintingService
          {
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
-            List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') AND ((j.format='PDF' AND p.formats LIKE '%\"PDF\"%') OR (j.format='ZPL' AND p.formats LIKE '%\"ZPL\"%')) ORDER BY j.created_at, j.id LIMIT 1", tenantId, deviceId);
+            requireDevice(connection, deviceId);
+            JSONObject control = query(connection, "SELECT dispatch_paused,connection_state FROM printing_device WHERE tenant_id=? AND id=?", tenantId, deviceId).getFirst();
+            if(control.getInt("dispatch_paused") == 1 || !"CONNECTED".equals(control.getString("connection_state")))
+            {
+               connection.commit();
+               return (new JSONObject().put("job", JSONObject.NULL));
+            }
+            List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') AND ((j.format='PDF' AND p.formats LIKE '%\"PDF\"%') OR (j.format='ZPL' AND p.formats LIKE '%\"ZPL\"%'))" + (authorizedJobId == null ? "" : " AND j.id=?") + " ORDER BY j.created_at, j.id LIMIT 1", authorizedJobId == null ? new Object[] { tenantId, deviceId } : new Object[] { tenantId, deviceId, authorizedJobId });
             if(candidates.isEmpty())
             {
                connection.commit();
@@ -915,6 +1092,8 @@ public class PrintingService
          try
          {
             requireDevice(connection, deviceId);
+            query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+            requireDevice(connection, deviceId);
             deviceJob(connection, deviceId, jobId);
             query(connection, "SELECT id FROM printing_job WHERE id=? FOR UPDATE", jobId);
             JSONObject row = deviceJob(connection, deviceId, jobId);
@@ -964,7 +1143,7 @@ public class PrintingService
          {
             result.put(new JSONObject().put("deviceId", row.getString("id")).put("facilityId", row.getString("facility_id")).put("deviceName", row.getString("name")).put("computerName", row.getString("computer_name"))
                .put("profile", new JSONObject().put("name", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location")))
-               .put("agentVersion", row.getString("agent_version")).put("lastSeenAt", row.getString("last_seen_at")).put("enabled", row.getInt("enabled") == 1));
+               .put("agentVersion", row.getString("agent_version")).put("lastSeenAt", row.getString("last_seen_at")).put("enabled", row.getInt("enabled") == 1).put("control", PrintingDeviceControls.state(row)));
          }
          return (result);
       }
@@ -1205,7 +1384,7 @@ public class PrintingService
     ***************************************************************************/
    private void requireDevice(Connection connection, String deviceId) throws SQLException
    {
-      if(query(connection, "SELECT id FROM printing_device WHERE id=? AND tenant_id=? AND enabled=1", deviceId, tenantId).isEmpty())
+      if(query(connection, "SELECT id FROM printing_device WHERE id=? AND tenant_id=? AND enabled=1 AND revoked_at IS NULL", deviceId, tenantId).isEmpty())
       {
          throw new PrintingException(404, "Device not found");
       }
@@ -1490,7 +1669,7 @@ public class PrintingService
    /***************************************************************************
     ** Run a bounded, parameterized query with lower-case column names.
     ***************************************************************************/
-   private static List<JSONObject> query(Connection connection, String sql, Object... values) throws SQLException
+   static List<JSONObject> query(Connection connection, String sql, Object... values) throws SQLException
    {
       try(PreparedStatement statement = connection.prepareStatement(sql))
       {
@@ -1517,7 +1696,7 @@ public class PrintingService
    /***************************************************************************
     ** Execute a parameterized mutation.
     ***************************************************************************/
-   private static int update(Connection connection, String sql, Object... values) throws SQLException
+   static int update(Connection connection, String sql, Object... values) throws SQLException
    {
       try(PreparedStatement statement = connection.prepareStatement(sql))
       {

@@ -38,6 +38,13 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    public static final String BASE = "/printing/v1";
    private final PrintingService service;
    private final Predicate<Context> administrator;
+   private final LegacyEnrollment legacyEnrollment;
+
+   /** Legacy-only hosts must explicitly opt into bearer-only device enrollment. */
+   public enum LegacyEnrollment
+   {
+      DISABLED, ENABLED
+   }
 
 
 
@@ -46,8 +53,16 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
     ***************************************************************************/
    public PrintingRoutes(PrintingService service, Predicate<Context> administrator)
    {
+      this(service, administrator, LegacyEnrollment.DISABLED);
+   }
+
+
+   /** Existing unbound devices may migrate; new legacy enrollment is an explicit host policy. */
+   public PrintingRoutes(PrintingService service, Predicate<Context> administrator, LegacyEnrollment legacyEnrollment)
+   {
       this.service = service;
       this.administrator = administrator;
+      this.legacyEnrollment = java.util.Objects.requireNonNull(legacyEnrollment);
    }
 
 
@@ -69,7 +84,33 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    @Override
    public void acceptJavalinConfig(JavalinConfig config)
    {
-      config.routes.post(BASE + "/enroll", context -> handle(context, () -> service.enroll(body(context))));
+      config.routes.get(BASE + "/version", context -> handle(context, () -> new JSONObject().put("protocolVersion", 1).put("capabilities", new org.json.JSONArray().put("device-control-v1"))));
+      config.routes.post(BASE + "/device/control/poll", context -> handle(context, () -> service.deviceControlPoll(device(context), controlBody(context))));
+      config.routes.post(BASE + "/device/control/commands/{commandId}/receipt", context -> handle(context, () -> service.deviceControlReceipt(device(context), context.pathParam("commandId"), controlBody(context))));
+      config.routes.post(BASE + "/admin/devices/{deviceId}/actions", context -> handle(context, () ->
+      {
+         admin(context);
+         return service.deviceAction(context.pathParam("deviceId"), controlBody(context), "http-administrator");
+      }));
+      config.routes.get(BASE + "/admin/devices/{deviceId}/commands", context -> handle(context, () ->
+      {
+         admin(context);
+         String limit = context.queryParam("limit");
+         return service.deviceCommandsPage(context.pathParam("deviceId"), limit == null ? 50 : Integer.parseInt(limit), context.queryParam("before"));
+      }));
+      config.routes.get(BASE + "/admin/devices/{deviceId}/commands/{commandId}", context -> handle(context, () ->
+      {
+         admin(context);
+         return service.getDeviceCommand(context.pathParam("deviceId"), context.pathParam("commandId"));
+      }));
+      config.routes.post(BASE + "/enroll", context -> handle(context, () ->
+      {
+         if(legacyEnrollment != LegacyEnrollment.ENABLED)
+         {
+            throw new PrintingException(403, "Enrollment requires native QQQ authentication");
+         }
+         return service.enroll(body(context));
+      }));
       config.routes.put(BASE + "/device/printers", context -> handle(context, () ->
       {
          service.inventory(device(context), body(context).getJSONArray("printers"));
@@ -195,8 +236,19 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
 
 
    /***************************************************************************
-    ** Standard mutation acknowledgment.
+    ** Control messages have their own small transport bound.
     ***************************************************************************/
+   private static JSONObject controlBody(Context context)
+   {
+      if(context.bodyAsBytes().length > 8192)
+      {
+         throw new PrintingException(413, "Control request is too large");
+      }
+      return (new JSONObject(context.body()));
+   }
+
+
+   /** Standard mutation acknowledgment. */
    private static JSONObject accepted()
    {
       return (new JSONObject().put("accepted", true));

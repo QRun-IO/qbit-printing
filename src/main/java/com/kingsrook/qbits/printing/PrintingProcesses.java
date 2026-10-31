@@ -59,7 +59,6 @@ import com.kingsrook.qqq.backend.core.model.metadata.processes.QProcessMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.qbits.QBitMetaData;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractLoadStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractTransformStep;
-import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ExtractViaQueryStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ProcessSummaryProviderInterface;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
 import org.json.JSONObject;
@@ -200,7 +199,7 @@ public class PrintingProcesses implements BackendStep
       values.put(StreamedETLWithFrontendProcess.FIELD_SUPPORTS_FULL_VALIDATION, true);
       values.put(StreamedETLWithFrontendProcess.FIELD_DO_FULL_VALIDATION, true);
       values.put(StreamedETLWithFrontendProcess.FIELD_PREVIEW_MESSAGE, preview);
-      QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(ExtractViaQueryStep.class, SelectedTransform.class, SelectedLoad.class, values)
+      QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(PrintingExtract.class, SelectedTransform.class, SelectedLoad.class, values)
          .withName(name).withLabel(label).withTableName(PrintingTables.PRINTER).withMinInputRecords(1).withPermissionRules(permissionRules());
       if(name.startsWith("printingTest"))
       {
@@ -293,6 +292,7 @@ public class PrintingProcesses implements BackendStep
    static QRecord resolvePrinter(String id, String deviceId) throws QException
    {
       GetInput get = new GetInput();
+      get.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
       get.setTableName(PrintingTables.PRINTER);
       get.setPrimaryKey(id);
       QRecord printer = new GetAction().execute(get).getRecord();

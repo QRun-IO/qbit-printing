@@ -46,6 +46,125 @@ HTTP 429 means capacity, the rolling-hour allowance, cumulative inventory histor
 
 Inventory snapshots remain limited to 200 entries. Rotating IDs cannot bypass cumulative history limits, and rejected snapshots leave approval, availability and job references intact. Existing IDs remain updateable when a legacy database already exceeds a limit. Management `GET /printing/v1/admin/devices/{deviceId}/printers` accepts `limit` (1–200, default 200) and opaque `before` from the preceding response's `nextCursor`. The response is `{ "printers": [...], "nextCursor": null | "..." }`, ordered by stored name and row identity. The existing Java `printers()` method returns the first bounded array; use `printersPage()` for additional history. Native QQQ tables retain their own backend paging.
 
+## Device controls and durable action receipts
+
+The native client API is the registered `printing` extension, semantic version
+`1.0.0`, under `/qqq/v1/qbit/printing`. Discover it through QQQ's version endpoint;
+its generated OpenAPI fragment is `src/main/resources/openapi/qqq-v1/printing.yaml`.
+The contract test checks this fragment against the registered endpoint specs and
+the initial semantic compatibility baseline. Core QQQ session authentication and
+credential scopes run before printing operations; the application does not issue
+another kind of user login token.
+
+Every native operation requires the authenticated QQQ principal, `printing_admin`,
+the configured tenant security key, and applicable native table, process and row
+access. Device operations additionally require `X-QQQ-Device-Id` and
+`X-QQQ-Device-Token` as secondary proof. Enrollment at `/devices/enroll` validates
+the user's facility access before consuming the enrollment code and atomically
+binds the device to the core user's stable identity. A legacy unbound device can
+be bound only through explicit `/device/bind` with valid proof and native device
+access. Ordinary requests never bind or transfer ownership implicitly.
+
+`GET /session` returns the current principal and tenant; valid bound device headers
+add the device identity. Native administration can manage another user's device
+when current permissions allow it, without impersonating that user. Queue clear
+and inventory updates authorize affected existing rows before mutation and compare
+the reviewed identity set under the device lock. Claims authorize the exact job
+and printer before dispatch, ordered by creation time then identity. An inaccessible
+printer fails closed rather than granting access through its parent device.
+
+Queue-clear review is bounded to 10,000 jobs. It performs a native Get for each
+job and each distinct printer, with the device checked once. Get-specific policies
+remain effective. Large clears on remote databases have not been performance
+qualified; this review cost is separate from normal claim throughput.
+
+Developer projections that request derived `device_status`, `control_status`, or
+`command_status` must also select `id`. The normal native UI includes it. An
+identity-free projection is rejected rather than returning a fabricated UNKNOWN
+status; the frozen QQQ dependency has no pre-query projection hook for these fields.
+
+Printing selection processes also enforce native table access before extraction
+and preview counts. The printing extract wrapper preserves the core filter,
+callbacks, and tenant row locks, then requires permission enforcement on the
+query. Later review/load checks still reauthorize the selected records.
+
+Authorization uses the native QQQ context established for each request. Host
+authentication and session refresh policies determine when permission changes
+reach that context; printing does not assert that an upstream cached session is
+fresh. Cookie-authenticated unsafe calls must also satisfy the host's Origin/CSRF
+policy. The local host requires its canonical same-origin authority.
+
+In the qualified QQQ 4.1.0-RC.20 runtime, OAuth2 `sessionStoreEnabled` defaults
+to `false`. Ordinary requests and session resume rerun the configured
+`QAuthenticationModuleCustomizerInterface` hooks; the host can load current
+permissions, tenant keys, and account status from its authoritative directory.
+With session caching enabled, a cache hit skips those hooks. That configuration
+requires explicit session-cache invalidation on authorization changes or another
+qualified freshness policy. Periodic `manageSession` calls and token renewal alone
+do not establish current provider roles or immediate account revocation.
+
+TABLE_BASED authentication rereads the session and user rows on each request;
+deleting either prevents resume. A generic user `enabled` column is not enforced
+automatically, and this module does not invoke the OAuth customizer hooks. The
+local host grants its configured account the configured printing role and tenant;
+this is not a general mutable role directory. Qualify the integrating host's
+authorization mapping and provider behavior separately from printing transport.
+
+Device controls use the same tenant-scoped service facade from native management
+and transport adapters. Adapters must authorize the current user, tenant, device,
+and action before calling the facade; a device ID or an actor string is not an
+authorization grant. The legacy `/printing/v1` device bearer transport remains a
+compatibility interface, not a substitute for native QQQ user permissions.
+
+Once a device is bound to a QQQ user, its token is secondary proof only: all
+legacy device endpoints reject it, including claim, content and control polling.
+Existing unbound legacy devices remain usable during migration. New legacy
+enrollment is disabled by default in `PrintingRoutes` and explicitly disabled in
+`PrintingLocalHost`; native enrollment uses `/qqq/v1/qbit/printing/devices/enroll`.
+Only a legacy-only host such as `PrintingDemo` should opt into
+`PrintingRoutes.LegacyEnrollment.ENABLED`. A rejected legacy enrollment does not
+consume the code, which still requires native user and facility authorization.
+
+Pause blocks new claims. Disconnect also expresses that ordinary agent heartbeat,
+inventory publication, and claiming should stop; the independent authenticated
+control poll remains available for reconnect. Neither operation cancels in-flight
+jobs. Resume preserves connection state; reconnect preserves pause. Revocation
+invalidates the enrolled credential permanently, blocks control polling, and
+requires separate local re-enrollment. It cannot be undone with resume/reconnect.
+Desired state, the last observed revision, and the last poll are separate facts:
+a successful server action does not prove an offline device applied it.
+
+Queue clear atomically changes only this device's QUEUED jobs to FAILED with the
+existing cancellation reason. It preserves documents, accounting, and history;
+CLAIMED, RECEIVED, SUBMITTING, and uncertain work remain untouched. Claim and clear
+share the device lock across server instances. Spool cancellation accepts only an
+owned job with a recorded spool identity. The agent must independently verify its
+local connection-scoped ownership before asking the operating system to cancel;
+the server never accepts an arbitrary queue name, spool ID, or executable.
+
+Every management action supplies a new `requestId` and a UTC `issuedAt`, retained
+unchanged across retries. A retained matching request returns its existing record;
+a changed body returns 409. Without an existing record, requests older than 15
+minutes return 410, and times over 60 seconds in the future return 400. Review a
+new action explicitly when a form expires. Never silently refresh its time or
+reuse its identity. Terminal records become eligible for bounded cleanup after
+seven days; an unchanged old request still expires after its receipt is removed.
+
+Remote inventory refresh and owned spool cancellation require advertised agent
+capabilities, expire after 15 minutes, and have a limit of 100 pending commands
+per device. Polls deliver at most 20 commands. The retained action history is
+limited to 1,000 records per device, with one additional reserved revocation;
+eligible old terminal records are reclaimed before admission. Capacity returns
+429 explicitly. History pages contain at most 200 records and use the preceding
+`nextCursor`; an expired or foreign cursor cannot disclose another device.
+
+Agents durably journal remote command identity before any effect and return the
+same receipt on duplicate delivery. Expiry stops delivery but does not prove that
+an earlier attempt did not execute: a first late receipt may replace provisional
+EXPIRED with its actual outcome. Once stored, a receipt is immutable; conflicting
+replays return 409. `CANCEL_REQUESTED` means the operating system accepted a
+cancellation request, not that paper was withdrawn or a physical print was undone.
+
 ## Common failures
 
 | Symptom | Check |

@@ -466,7 +466,7 @@ class PrintingProcessesTest
    /***************************************************************************
     ** One database, two tenants and multiple devices exercise real query scoping.
     ***************************************************************************/
-   private static Fixture fixture() throws Exception
+   static Fixture fixture() throws Exception
    {
       return (fixture(null));
    }
@@ -545,7 +545,7 @@ class PrintingProcessesTest
    /***************************************************************************
     ** Per-test handles, without exposed device tokens.
     ***************************************************************************/
-   private record Fixture(QInstance instance, PrintingService service, String device, String otherDevice, String printerId, String otherPrinterId, String foreignPrinterId, String foreignDevice)
+   record Fixture(QInstance instance, PrintingService service, String device, String otherDevice, String printerId, String otherPrinterId, String foreignPrinterId, String foreignDevice)
    {
    }
 }
