@@ -1,20 +1,20 @@
 # Follow-up
 
-- [x] Consume bounded claim/cancel bodies before side effects; split-body regression fails before fix, full isolated UI-profile gate passes 66 tests.
-- [x] Verify the HTTP follow-up on fresh hosted checks at d52dfd7.
-- [x] Identify and fix the prepared-copy retention failure by pinning H2 2.4.240; controlled old/fixed-driver comparison and full 67-test gate pass.
-- [ ] Verify fresh H2-change hosted checks and the exact dependency payload through native startup, shutdown and cold reopen before live cutover.
-- [x] Reconcile UI-profile Maven runtime dependencies with scanner inventories; 204 exact coordinates, ten guard regressions and workflow lint pass locally.
-- [x] Run hosted security/build gates for the runtime-SBOM workflow correction at d52dfd7; dependency follow-up requires its own fresh checks.
+- [x] Verify the H2 2.4.240 candidate at `fb99faf`: 67 Java tests, zero Checkstyle violations, hosted build/CodeQL/security pass, and all 204 selected runtime dependencies verified.
+- [x] Qualify the exact CI artifact on an isolated closed-data copy: native frontend/authentication/query/denial/logout/retention checks, actual scheduled zero-removal tick, forced termination, read-only inspection before initialization, and successful cold restart; all 11 tables and retained state preserved.
+- [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass. No active package license exception is enabled.
+- [ ] Obtain approval for the prepared central H2 metadata exception record, then apply only its package-scoped workflow input and require fresh complete hosted gates.
+- [ ] Qualify graceful application shutdown separately from the passing forced-termination/cold-reopen check.
+- [ ] Perform authorized live paired-host cutover from a closed backup after all gates pass; preserve pairing and verify the real native records and connector heartbeat.
 
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
-- [ ] Integrate Record Files' authorized immutable-version reader after its contract is implemented; define async source revocation/correlation and eliminate host-outbox byte copies for that path.
+- [ ] Integrate Record Files only after its latest candidate becomes a verified installed artifact; implement the durable accepted-source/actor binding and committed observation receipt against the agreed public types. Adapter remains disabled.
 - [ ] Verify tagged audit release gates, published provenance and deployed-host qualification.
-- [x] Audit PR #10 at aeac1a6 passes all hosted checks; JAR/POM artifacts downloaded and verified. Authenticated local-host addition needs fresh hosted checks.
+- [x] Historical audit PR #10 checkpoint aeac1a6 passed hosted checks; current H2/native qualification and remaining license gate are recorded above.
 - [x] Complete the independent baseline scan and current-source reviews of all five findings and remediations.
 - [x] Add authenticated native QQQ local host sharing paired data with device routes and the existing scheduler; 65 tests/zero Checkstyle pass and independent source review found no blocker.
-- [ ] Deploy the authenticated local host with a closed-database backup; verify browser rendering, preserved pairing and an actual scheduled cleanup tick.
+- [ ] Complete live authenticated-host deployment after the isolated native acceptance above; keep remote/S3 qualification separate.
 
 - [x] Versioned shared contract and HTTP happy-path test.
 - [x] Durable enrollment, device-scoped authentication, inventory and printer approval.

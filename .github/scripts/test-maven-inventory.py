@@ -17,7 +17,7 @@ spec.loader.exec_module(inventory)
 
 class InventoryTests(unittest.TestCase):
     def setUp(self):
-        self.expected = {(name, "1.0") for name in inventory.REQUIRED} | {("org.jspecify:jspecify", "1.0.0")}
+        self.expected = {(name, "2.4.240" if name == "com.h2database:h2" else "1.0") for name in inventory.REQUIRED} | {("org.jspecify:jspecify", "1.0.0")}
         self.text = "The following files have been resolved:\n" + "\n".join(
             f"   {name}:jar:{version}:runtime\x1b[36m -- module example\x1b[m" for name, version in self.expected)
         self.bom = {"bomFormat": "CycloneDX", "components": [
@@ -27,7 +27,14 @@ class InventoryTests(unittest.TestCase):
 
     def test_complete_graph_without_findings_passes(self):
         self.assertEqual(self.expected, inventory.resolved(self.text))
-        self.assertEqual(5, inventory.check(self.expected, self.bom, self.trivy))
+        self.assertEqual(6, inventory.check(self.expected, self.bom, self.trivy))
+
+    def test_missing_or_unreviewed_h2_version_fails(self):
+        without_h2 = "\n".join(line for line in self.text.splitlines() if "com.h2database:h2:" not in line)
+        for text in (without_h2, self.text.replace("2.4.240", "2.3.232"), self.text.replace("2.4.240", "2.4.241"),
+                     self.text + "\ncom.h2database:h2:jar:2.3.232:runtime"):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                inventory.resolved(text)
 
     def test_missing_frontend_and_empty_maven_fail(self):
         for text in ("", "\n".join(line for line in self.text.splitlines() if "qqq-frontend-next" not in line)):
@@ -76,7 +83,7 @@ class InventoryTests(unittest.TestCase):
             for name, version in self.expected]}]}
 
     def test_osv_all_clean_packages_pass_without_vulnerabilities(self):
-        self.assertEqual(5, inventory.check_osv(self.expected, self.osv()))
+        self.assertEqual(6, inventory.check_osv(self.expected, self.osv()))
 
     def test_osv_missing_malformed_or_partial_evidence_fails(self):
         partial = self.osv()

@@ -12,7 +12,9 @@ REQUIRED = {
     "com.kingsrook.qqq:qqq-backend-core",
     "com.kingsrook.qqq:qqq-backend-module-filesystem",
     "com.google.guava:guava",
+    "com.h2database:h2",
 }
+REVIEWED_H2_VERSION = "2.4.240"
 OMITTED = object()
 
 
@@ -33,6 +35,10 @@ def resolved(text):
         packages.add((name, parts[-2]))
     if not REQUIRED.issubset({name for name, _ in packages}):
         raise ValueError("Maven inventory is empty or lacks required UI-host dependencies")
+    # The pinned dependency-review license exception matcher ignores versions.
+    # Keep any H2 metadata exception limited to the reviewed, unmodified runtime.
+    if {version for name, version in packages if name == "com.h2database:h2"} != {REVIEWED_H2_VERSION}:
+        raise ValueError("H2 runtime must match reviewed version " + REVIEWED_H2_VERSION)
     return packages
 
 
