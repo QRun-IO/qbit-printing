@@ -8,7 +8,8 @@
 - Add admin retention settings with a 365-day default, reviewed cleanup and bounded scheduled maintenance; preserve job history and uncertain work.
 - Use named facility choices during enrollment and revalidate them under the current user's tenant/record permissions.
 - Require release security/CodeQL gates, verified artifact promotion and build provenance; report the real packaged QBit version.
-- Full local verification passed 53 tests with zero failures/errors and Checkstyle violations. Hosted checks remain pending; this entry does not claim release or live storage migration.
+- Enforce configurable atomic queue/storage/rate budgets and cumulative printer limits, with bounded management pagination and stable replay at capacity.
+- Full local verification passed 62 tests with zero failures/errors/skips and Checkstyle violations. Final hosted checks remain pending; this entry does not claim release or live storage migration.
 
 ## 0.1.3-rc.1 — 2026-10-30
 

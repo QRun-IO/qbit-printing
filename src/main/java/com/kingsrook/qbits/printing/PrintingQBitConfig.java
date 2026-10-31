@@ -31,10 +31,32 @@ public class PrintingQBitConfig implements QBitConfig
 {
    private String backendName;
    private transient PrintingService service;
+   private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
    private PrintingRetentionPolicy retentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
    private String storageTableName;
    private String schedulerName;
    private String facilityPossibleValueSourceName;
+
+
+
+   /***************************************************************************
+    ** Resource capacity is deployment-owned and independent of retention age.
+    ***************************************************************************/
+   public PrintingAdmissionLimits getAdmissionLimits()
+   {
+      return (admissionLimits);
+   }
+
+
+
+   /***************************************************************************
+    ** Positive tenant/device limits apply at the shared admission boundary.
+    ***************************************************************************/
+   public PrintingQBitConfig withAdmissionLimits(PrintingAdmissionLimits value)
+   {
+      admissionLimits = java.util.Objects.requireNonNull(value);
+      return (this);
+   }
 
 
 

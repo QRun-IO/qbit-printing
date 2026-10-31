@@ -79,7 +79,7 @@ public class PrintingQBitProducer implements QBitProducer
       {
          throw new QException("The initial printing QBit supports the printing namespace only");
       }
-      config.getService().withRetentionPolicy(config.getRetentionPolicy());
+      config.getService().withRetentionPolicy(config.getRetentionPolicy()).withAdmissionLimits(config.getAdmissionLimits());
       config.getService().configureStorage(instance, config.getStorageTableName());
       instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion(version()).withNamespace("printing").withConfig(config));
       instance.addSecurityKeyType(new QSecurityKeyType().withName("printing_tenant"));

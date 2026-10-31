@@ -4,6 +4,7 @@
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
 - [ ] Integrate Record Files' authorized immutable-version reader after its contract is implemented; define async source revocation/correlation and eliminate host-outbox byte copies for that path.
 - [ ] Verify audit release gates and provenance; complete independent security scan and deployed-host qualification.
+- [x] Audit PR #10 at 1655d4e passes all hosted checks; download and verify JAR/POM artifacts. Tagged-release provenance, deep scan and deployment remain pending.
 
 - [x] Versioned shared contract and HTTP happy-path test.
 - [x] Durable enrollment, device-scoped authentication, inventory and printer approval.
@@ -50,3 +51,5 @@ The Windows gate, MSI rebuild, installed UI acceptance, release evidence and fre
 - [x] Correct the Zebra machine driver defaults from 4.09 × 2-inch Thermal Transfer to 4 × 6-inch Thermal Direct, restore/resume the printer, and confirm one fresh built-in PDF printed correctly. No application code fix was needed.
 - [x] Verify published Windows 0.1.7 assets; all three built-in physical paths are confirmed: laser PDF, Zebra ZPL and Zebra PDF.
 - [ ] Obtain explicit barcode scan and measured alignment confirmation; successful spooling is not physical acceptance.
+
+- [ ] Complete independent review and deployment qualification after the five baseline security findings are remediated; current details are in SESSION-STATE.md.

@@ -1,12 +1,14 @@
-# Session state — current checkpoint 2026-10-30
+# Session state — 2026-10-30
 
-## Deep audit in progress — pending 0.1.4-rc.1
+## Audit candidate 0.1.4-rc.1
 
-Final local server verification passed **53 tests, zero failures/errors and zero Checkstyle violations**, including named facility selectors and current-user tenant authorization. The JAR manifest reports 0.1.4-rc.1. See [audit evidence](AUDIT-2026-10-30.md). Root is preparing the draft PR; no merge, release or live migration. All three printing repositories now enforce required checks even for administrators, explicitly approved by the user. Master coordination is in `R:\agent-comms\qqq-cloud-printing.md`; Record Files owns originals, printing owns delivery copies. The shared immutable-version reader/async source-authorization contract remains pending. Legacy durable outbox byte payloads are outside printing's S3 retention scope.
+Final isolated verification passed **62 tests, zero failures/errors/skips and zero Checkstyle violations**. The independent baseline scan's two server findings were remediated: configurable atomic tenant/device admission covers outstanding work, retained bytes and hourly allocations; cumulative printer limits and cursor pagination bound inventory. A fresh reviewer found a PostgreSQL wide-index regression, corrected before the final gate. Durable upload accounting, legacy unknown reservations, stable replay and single-connection cleanup have regression coverage.
 
-Source fixes address native process replay, strict print options/inventory validation, duplicate-risk preservation and event bounds. The user requires admin-configurable document retention, default **365 days**, scheduled cleanup and proper S3 bucket separation. Implementation uses existing QQQ StorageAction/S3 configuration with a dedicated printing bucket, tenant namespaces and immutable per-job storage bindings; exact cleanup scope and cross-tenant isolation require regression evidence before release. Active/uncertain jobs and history/receipts remain protected. Existing inline documents remain readable. No live storage configuration, purge or database migration has run.
+Earlier fixes add replay-safe native processes, validated facility selectors, strict wire fields, duplicate-risk preservation, dedicated QQQ S3 storage and native admin retention with a **365-day default**. Active, failed and uncertain work remains protected. Stop older writers before admission-accounting migration; existing content is preserved. See [audit evidence](AUDIT-2026-10-30.md), [operations](OPERATIONS.md) and [storage](STORAGE-AND-RETENTION.md).
 
-Root owns publication and build/release gates; server/native-metadata agents own source and tests. Source, hosted provenance and independent security results remain pending. The installed Windows baseline is still 0.1.7; unsigned prereleases are explicitly accepted by the user. Do not infer deployed-cloud or new hardware acceptance from these source changes.
+Draft PR #10 contains earlier audit/CI guard commits that passed hosted checks; final remediation commits need fresh checks. No live database migration, S3 provisioning, purge, merge, release or host deployment has occurred. Real PostgreSQL/S3, remote host authentication, multi-node operation and sustained physical throughput remain unqualified.
+
+Master coordination at `R:\agent-comms\qqq-cloud-printing.md` is acknowledged. Record Files owns indefinitely retained originals; printing owns its dedicated delivery copies. Their compiled source-reader/actor authorization contract remains pending. Standalone byte submission continues. Installed Windows baseline remains 0.1.7; unsigned prereleases are user-approved.
 
 ## Branded diagnostic documents — v0.1.3-rc.1 verified and published
 

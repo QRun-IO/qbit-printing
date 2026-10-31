@@ -107,7 +107,8 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
       config.routes.get(BASE + "/admin/devices/{deviceId}/printers", context -> handle(context, () ->
       {
          admin(context);
-         return new JSONObject().put("printers", service.printers(context.pathParam("deviceId")));
+         String limit = context.queryParam("limit");
+         return service.printersPage(context.pathParam("deviceId"), limit == null ? 200 : Integer.parseInt(limit), context.queryParam("before"));
       }));
       config.routes.put(BASE + "/admin/devices/{deviceId}/printers/{printerId}", context -> handle(context, () ->
       {

@@ -52,8 +52,20 @@ public class PrintingService
    private final DataSource dataSource;
    private final String tenantId;
    private PrintingDocumentStorage documentStorage;
+   private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
    private String storageTableName;
    private PrintingRetentionPolicy defaultRetentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
+
+
+
+   /***************************************************************************
+    ** Deployment-owned limits apply equally to native, HTTP and outbox callers.
+    ***************************************************************************/
+   public PrintingService withAdmissionLimits(PrintingAdmissionLimits limits)
+   {
+      admissionLimits = java.util.Objects.requireNonNull(limits);
+      return (this);
+   }
 
 
 
@@ -165,6 +177,7 @@ public class PrintingService
                statement.execute();
             }
          }
+         PrintingAdmission.initialize(connection, tenantId);
          widenColumn(connection, "printing_device", "name", 1024);
          widenColumn(connection, "printing_enrollment", "device_name", 1024);
          widenColumn(connection, "printing_printer", "name", 1024);
@@ -418,11 +431,21 @@ public class PrintingService
       }
       try(Connection connection = dataSource.getConnection())
       {
+         requireDevice(connection, deviceId);
+         PrintingAdmission.initializeTenant(connection, tenantId);
          connection.setAutoCommit(false);
          try
          {
+            PrintingAdmission.lock(connection, tenantId);
             requireDevice(connection, deviceId);
-            update(connection, "UPDATE printing_printer SET status='UNKNOWN', available=0 WHERE device_id=?", deviceId);
+            query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+            Set<String> incoming = new java.util.HashSet<>();
+            for(int index = 0; index < printers.length(); index++)
+            {
+               incoming.add(required(printers.getJSONObject(index).optString("printerId"), "printerId"));
+            }
+            PrintingAdmission.inventory(connection, tenantId, deviceId, incoming, admissionLimits);
+            update(connection, "UPDATE printing_printer SET status='UNKNOWN', available=0 WHERE device_id=? AND available=1", deviceId);
             for(int index = 0; index < printers.length(); index++)
             {
                JSONObject printer = printers.getJSONObject(index);
@@ -482,15 +505,7 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject submit(JSONObject request) throws SQLException
    {
-      String deviceId = required(request.optString("deviceId"), "deviceId");
-      String printerId = required(request.optString("printerId"), "printerId");
-      String key = required(request.optString("idempotencyKey"), "idempotencyKey");
-      String title = required(request.optString("title"), "title");
       String format = required(request.optString("format"), "format");
-      if(!Set.of("PDF", "ZPL").contains(format))
-      {
-         throw new PrintingException(400, "Only PDF and ZPL are supported");
-      }
       byte[] content;
       try
       {
@@ -512,47 +527,114 @@ public class PrintingService
       {
          throw new PrintingException(400, "PDF header is missing");
       }
+      return (submitPrepared(request, hash(content), content.length, connection -> content));
+   }
+
+
+
+   /***************************************************************************
+    ** Delay stored-document reads until atomic admission has succeeded.
+    ***************************************************************************/
+   @FunctionalInterface
+   private interface DocumentLoader
+   {
+      /***********************************************************************
+       ** Read the immutable document after capacity is reserved.
+       ***********************************************************************/
+      byte[] load(Connection connection) throws SQLException;
+   }
+
+
+
+   /***************************************************************************
+    ** All producers share durable admission before object storage allocation.
+    ***************************************************************************/
+   private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader) throws SQLException
+   {
+      String deviceId = required(request.optString("deviceId"), "deviceId");
+      String printerId = required(request.optString("printerId"), "printerId");
+      String key = required(request.optString("idempotencyKey"), "idempotencyKey");
+      String title = required(request.optString("title"), "title");
+      String format = required(request.optString("format"), "format");
+      if(!Set.of("PDF", "ZPL").contains(format))
+      {
+         throw new PrintingException(400, "Only PDF and ZPL are supported");
+      }
       JSONObject options = printOptions(request);
-      String digest = hash(content);
       String id = UUID.randomUUID().toString();
       String reference = storageTableName == null ? null : documentStorage.prefix() + id + "." + format.toLowerCase(java.util.Locale.ROOT);
       String binding = storageTableName == null ? null : documentStorage.binding(storageTableName);
       String uploadedId = null;
       try(Connection connection = dataSource.getConnection())
       {
+         requireDevice(connection, deviceId);
+         PrintingAdmission.initializeTenant(connection, tenantId);
          connection.setAutoCommit(false);
          try
          {
+            long pendingDeadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+            while(true)
+            {
+               PrintingAdmission.lock(connection, tenantId);
+               requireDevice(connection, deviceId);
+               query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+               List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+               if(!previous.isEmpty())
+               {
+                  JSONObject old = previous.getFirst();
+                  if(!old.getString("device_id").equals(deviceId) || !old.getString("printer_id").equals(printerId) || !old.getString("content_hash").equals(digest) || !old.getString("format").equals(format) || !new JSONObject(old.getString("options_json")).similar(options))
+                  {
+                     throw new PrintingException(409, "Idempotency key was already used for a different request");
+                  }
+                  connection.commit();
+                  return (job(old));
+               }
+               if(query(connection, "SELECT id FROM printing_document_orphan WHERE tenant_id=? AND idempotency_key=? LIMIT 1", tenantId, key).isEmpty())
+               {
+                  break;
+               }
+               connection.commit();
+               if(System.nanoTime() >= pendingDeadline)
+               {
+                  throw new PrintingException(429, "This request already has an upload in progress or awaiting recovery; retry later using the same request identity");
+               }
+               try
+               {
+                  Thread.sleep(25);
+               }
+               catch(InterruptedException exception)
+               {
+                  Thread.currentThread().interrupt();
+                  throw new SQLException("Interrupted while waiting for the existing submission", exception);
+               }
+            }
+            List<JSONObject> printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
+            if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
+            {
+               throw new PrintingException(400, "Printer is not enabled for this format");
+            }
+            PrintingAdmission.reserve(connection, tenantId, deviceId, id, contentLength, admissionLimits);
             if(storageTableName != null)
             {
-               requireDevice(connection, deviceId);
-               reserveUpload(connection, id, storageTableName, reference, binding);
+               reserveUpload(connection, id, storageTableName, reference, binding, deviceId, contentLength, key);
                connection.commit();
                uploadedId = id;
                if(query(connection, "SELECT id FROM printing_document_orphan WHERE id=? FOR UPDATE", id).isEmpty())
                {
                   throw new PrintingException(409, "Upload reservation expired; retry submission");
                }
-            }
-            // Serialize submissions per device; the unique key also protects cross-device races.
-            requireDevice(connection, deviceId);
-            query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
-            List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
-            if(!previous.isEmpty())
-            {
-               JSONObject old = previous.getFirst();
-               if(!old.getString("device_id").equals(deviceId) || !old.getString("printer_id").equals(printerId) || !old.getString("content_hash").equals(digest) || !old.getString("format").equals(format) || !new JSONObject(old.getString("options_json")).similar(options))
+               requireDevice(connection, deviceId);
+               query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
+               printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
+               if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
                {
-                  throw new PrintingException(409, "Idempotency key was already used for a different request");
+                  throw new PrintingException(400, "Printer is not enabled for this format");
                }
-               update(connection, "DELETE FROM printing_document_orphan WHERE id=? AND tenant_id=?", id, tenantId);
-               connection.commit();
-               return (job(old));
             }
-            List<JSONObject> printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
-            if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
+            byte[] content = loader.load(connection);
+            if(content.length != contentLength || !hash(content).equals(digest))
             {
-               throw new PrintingException(400, "Printer is not enabled for this format");
+               throw new PrintingException(409, "Stored print document integrity validation failed");
             }
             if(storageTableName != null)
             {
@@ -676,7 +758,8 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
-         row = deviceJob(connection, deviceId, jobId, true);
+         row = deviceJob(connection, deviceId, jobId);
+         row.put("content_available", query(connection, "SELECT content_available FROM printing_job WHERE id=? AND tenant_id=? AND device_id=?", jobId, tenantId, deviceId).getFirst().getInt("content_available"));
          List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND device_id=? AND idempotency_key=?", tenantId, deviceId, retryKey);
          if(!previous.isEmpty())
          {
@@ -698,10 +781,10 @@ public class PrintingService
       {
          throw new PrintingException(409, "Inspect the printer and confirm the risk of duplicate output before reprinting");
       }
-      return (submit(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
-         .put("title", row.getString("title")).put("format", row.getString("format")).put("contentBase64", Base64.getEncoder().encodeToString(documentBytes(row)))
+      return (submitPrepared(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
+         .put("title", row.getString("title")).put("format", row.getString("format"))
          .put("options", new JSONObject(row.getString("options_json")))
-         .put("idempotencyKey", retryKey)));
+         .put("idempotencyKey", retryKey), row.getString("content_hash"), row.getInt("content_length"), connection -> documentBytes(deviceJob(connection, deviceId, jobId, true))));
    }
 
 
@@ -884,21 +967,64 @@ public class PrintingService
 
 
    /***************************************************************************
-    ** Return printers for a device owned by this tenant.
+    ** Bounded inventory history for management clients.
     ***************************************************************************/
-   public JSONArray printers(String deviceId) throws SQLException
+   public JSONObject printersPage(String deviceId, int limit, String before) throws SQLException
    {
+      if(limit < 1 || limit > 200)
+      {
+         throw new PrintingException(400, "Printer page limit must be between 1 and 200");
+      }
+      String name = null;
+      String id = null;
+      if(before != null && !before.isEmpty())
+      {
+         try
+         {
+            if(before.length() > 12000)
+            {
+               throw new IllegalArgumentException("Cursor too long");
+            }
+            JSONObject cursor = new JSONObject(new String(Base64.getUrlDecoder().decode(before), StandardCharsets.UTF_8));
+            name = optionalText(cursor.getString("name"), "cursor name", 1024);
+            id = UUID.fromString(cursor.getString("id")).toString();
+         }
+         catch(RuntimeException exception)
+         {
+            throw new PrintingException(400, "Invalid printer cursor");
+         }
+      }
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
+         String sql = "SELECT * FROM printing_printer WHERE tenant_id=? AND device_id=?";
+         List<JSONObject> rows = name == null ? query(connection, sql + " ORDER BY name,id LIMIT ?", tenantId, deviceId, limit + 1)
+            : query(connection, sql + " AND (name>? OR (name=? AND id>?)) ORDER BY name,id LIMIT ?", tenantId, deviceId, name, name, id, limit + 1);
          JSONArray result = new JSONArray();
-         for(JSONObject row : query(connection, "SELECT * FROM printing_printer WHERE device_id=? ORDER BY name", deviceId))
+         for(JSONObject row : rows.subList(0, Math.min(limit, rows.size())))
          {
             result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("name", row.getString("queue_name")).put("displayName", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location"))
                .put("driverName", row.optString("driver_name")).put("portName", row.optString("port_name")).put("status", row.getString("status")).put("formats", new JSONArray(row.getString("formats"))).put("enabled", row.getInt("enabled") == 1).put("available", row.getInt("available") == 1).put("lastSeenAt", row.getString("last_seen_at")));
          }
-         return (result);
+         JSONObject response = new JSONObject().put("printers", result).put("nextCursor", JSONObject.NULL);
+         if(rows.size() > limit)
+         {
+            JSONObject last = rows.get(limit - 1);
+            String cursor = new JSONObject().put("name", last.getString("name")).put("id", last.getString("id")).toString();
+            response.put("nextCursor", Base64.getUrlEncoder().withoutPadding().encodeToString(cursor.getBytes(StandardCharsets.UTF_8)));
+         }
+         return (response);
       }
+   }
+
+
+
+   /***************************************************************************
+    ** Existing callers retain their array contract with a bounded first page.
+    ***************************************************************************/
+   public JSONArray printers(String deviceId) throws SQLException
+   {
+      return (printersPage(deviceId, 200, null).getJSONArray("printers"));
    }
 
 
@@ -1025,6 +1151,7 @@ public class PrintingService
       }
       String cutoff = Instant.now().minusSeconds(policy.days() * 86400L).toString();
       {
+         PrintingAdmission.initializeTenant(connection, tenantId);
          connection.setAutoCommit(false);
          try
          {
@@ -1033,7 +1160,8 @@ public class PrintingService
             for(JSONObject row : rows)
             {
                renewRetentionLease(connection, leaseToken);
-               List<JSONObject> locked = query(connection, "SELECT id, format, content_storage_table, content_reference, content_binding FROM printing_job WHERE tenant_id=? AND id=? AND content_available=1 AND status IN ('SPOOLED','SPOOLER_COMPLETED') AND completed_at<? FOR UPDATE", tenantId, row.getString("id"), cutoff);
+               PrintingAdmission.lock(connection, tenantId);
+               List<JSONObject> locked = query(connection, "SELECT id, device_id, content_length, format, content_storage_table, content_reference, content_binding FROM printing_job WHERE tenant_id=? AND id=? AND content_available=1 AND status IN ('SPOOLED','SPOOLER_COMPLETED') AND completed_at<? FOR UPDATE", tenantId, row.getString("id"), cutoff);
                if(locked.isEmpty())
                {
                   continue;
@@ -1045,6 +1173,10 @@ public class PrintingService
                   documentStorage.delete(document.getString("content_storage_table"), document.getString("content_reference"));
                }
                int changed = update(connection, "UPDATE printing_job SET content_base64=NULL, content_available=0 WHERE tenant_id=? AND id=? AND content_available=1 AND status IN ('SPOOLED','SPOOLER_COMPLETED') AND completed_at<?", tenantId, row.getString("id"), cutoff);
+               if(changed == 1)
+               {
+                  PrintingAdmission.release(connection, tenantId, document.getString("device_id"), document.getLong("content_length"));
+               }
                connection.commit();
                purged += changed;
                progress[0] += changed;
@@ -1214,6 +1346,10 @@ public class PrintingService
     ***************************************************************************/
    private byte[] documentBytes(JSONObject row) throws SQLException
    {
+      if(row.getInt("content_available") == 0)
+      {
+         throw new PrintingException(410, "Print document expired under the host retention policy; submit a new document explicitly");
+      }
       byte[] bytes;
       if(row.isNull("content_reference"))
       {
@@ -1255,9 +1391,9 @@ public class PrintingService
    /***************************************************************************
     ** A committed upload intent survives crashes between object and SQL writes.
     ***************************************************************************/
-   private void reserveUpload(Connection connection, String id, String table, String reference, String binding) throws SQLException
+   private void reserveUpload(Connection connection, String id, String table, String reference, String binding, String deviceId, int contentLength, String key) throws SQLException
    {
-      update(connection, "INSERT INTO printing_document_orphan (id, tenant_id, storage_table, reference, binding, created_at) VALUES (?, ?, ?, ?, ?, ?)", id, tenantId, table, reference, binding, Instant.now().toString());
+      update(connection, "INSERT INTO printing_document_orphan (id, tenant_id, storage_table, reference, binding, created_at, device_id, content_length, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, tenantId, table, reference, binding, Instant.now().toString(), deviceId, contentLength, key);
    }
 
 
@@ -1272,6 +1408,7 @@ public class PrintingService
          connection.setAutoCommit(false);
          try
          {
+            PrintingAdmission.lock(connection, tenantId);
             List<JSONObject> rows = query(connection, "SELECT * FROM printing_document_orphan WHERE tenant_id=? AND id=? FOR UPDATE", tenantId, id);
             if(rows.isEmpty())
             {
@@ -1293,6 +1430,7 @@ public class PrintingService
                   throw new PrintingException(409, "Orphan reference does not match its owned upload identity");
                }
                documentStorage.delete(orphan.getString("storage_table"), orphan.getString("reference"));
+               PrintingAdmission.release(connection, tenantId, orphan.isNull("device_id") ? null : orphan.getString("device_id"), orphan.isNull("content_length") ? PrintingAdmission.UNKNOWN_UPLOAD_BYTES : orphan.getLong("content_length"));
             }
             update(connection, "DELETE FROM printing_document_orphan WHERE id=? AND tenant_id=?", id, tenantId);
             connection.commit();
