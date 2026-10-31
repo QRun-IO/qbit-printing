@@ -132,13 +132,23 @@ public class PrintingLocalHost extends AbstractQQQApplication
     ***************************************************************************/
    void configure(QApplicationJavalinServer server, boolean frontend)
    {
+      long uploadBodyLimit;
+      try
+      {
+         PrintingRealtimePolicy policy = service.realtimePolicy();
+         uploadBodyLimit = ((Math.max(policy.get("maxPdfBytes"), policy.get("maxZplBytes")) + 2) / 3) * 4 + 65536;
+      }
+      catch(java.sql.SQLException exception)
+      {
+         throw new IllegalStateException("Cannot load printing transport limits", exception);
+      }
       PrintingRoutes routes = new PrintingRoutes(service, context -> MessageDigest.isEqual(
          settings.administratorToken().getBytes(StandardCharsets.UTF_8), PrintingRoutes.bearer(context).getBytes(StandardCharsets.UTF_8)), PrintingRoutes.LegacyEnrollment.DISABLED);
       server.withPort(settings.port()).withServeFrontendNext(frontend).withServeFrontendMaterialDashboard(false)
-         .withAdditionalRouteProviders(List.of(routes)).withJavalinConfigCustomizer(config ->
+         .withAdditionalRouteProviders(List.of(routes, new PrintingRealtimeRoutes(service))).withJavalinConfigCustomizer(config ->
          {
             config.jetty.host = "127.0.0.1";
-            config.http.maxRequestSize = 29 * 1024 * 1024;
+            config.http.maxRequestSize = uploadBodyLimit;
             config.routes.before(PrintingLocalHost::guardOrigin);
          });
    }

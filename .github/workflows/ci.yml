@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: QRun-IO/qqq-print-protocol
-          ref: cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3
+          ref: f3cbc02e9b0fb4fdfefaa59d976c04df747cc589
           path: qqq-print-protocol
           persist-credentials: false
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0

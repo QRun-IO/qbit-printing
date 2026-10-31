@@ -1,8 +1,8 @@
 # QQQ Printing
 
-Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector initiates outbound HTTPS polling; the cloud needs no inbound route into the facility.
+Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector opens an outbound, authenticated two-way WebSocket; documents download separately over HTTPS. The cloud needs no inbound route into the facility. Release candidate **0.3.0-rc.1** requires native printing API **2.0**, with no job/control polling fallback. Upgrade the server before the matching Windows connector.
 
-**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. The current published release is [**0.2.0-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.2.0-rc.1). The tagged build passed 110 tests and zero Checkstyle violations. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with verified build attestations for all three assets. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
+**Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. Current release candidate: [**0.3.0-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.3.0-rc.1). The previous [**0.2.0-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.2.0-rc.1) tagged build passed 110 tests and zero Checkstyle violations. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with build attestations for all three assets. Verify the exact downloaded release; publication does not establish installed or physical-output acceptance. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
@@ -11,16 +11,17 @@ The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/
 ```mermaid
 flowchart LR
   A[QQQ application / durable job] --> B[Printing QBit and JDBC queue]
-  C[Windows service] -->|Outbound HTTPS polling| B
+  C[Windows service] <-->|Client-initiated WSS: commands and status| B
+  C -->|Separate outbound HTTPS document streams| B
   C --> D[Windows spooler]
   D --> E[Local laser / Zebra]
 ```
 
-See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
+See the [real-time host integration](docs/REALTIME.md), [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `f3cbc02e9b0fb4fdfefaa59d976c04df747cc589`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
@@ -63,14 +64,14 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
-Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The previously accepted 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. The 0.2.0 controls/authentication release passed 25 real client/native QQQ interoperability checks; installed Windows acceptance remains in progress.
+Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The previously accepted 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. The 0.2.0 controls/authentication release passed 25 real client/native QQQ interoperability checks; the user later confirmed installed Letter PDF and Zebra ZPL output, the Connected footer and both printers. These results do not qualify installed or physical behavior for 0.3.
 
 ## Add to a QQQ application
 
 For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.1.4-rc.1.jar' '-DpomFile=qbit-printing-0.1.4-rc.1.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.3.0-rc.1.jar' '-DpomFile=qbit-printing-0.3.0-rc.1.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -79,7 +80,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.4-rc.1</version>
+   <version>0.3.0-rc.1</version>
 </dependency>
 ```
 
@@ -120,7 +121,7 @@ Metadata names follow QBit conventions: tables and data sources use `printing_*`
 
 Two independent settings govern dispatch: `available` means the queue is present in the latest locally selected inventory; `enabled` means a QQQ administrator approved it. New submissions and claims require both. Removing a queue from local selection makes it unavailable without deleting its approval/history. An empty inventory withdraws all queues. Withdrawing a queue cannot retract a job already accepted by Windows.
 
-Application code calls `printing.submit(JSONObject)` with the shared `SubmitJobRequest` fields. A stable business idempotency key returns the same job when retried; changing document/options/target under the same key fails. PDF is sent as bytes encoded once in base64; ZPL is UTF-8 printer-ready bytes. Default limit is 20 MiB. Queue approval and format compatibility are checked before insertion.
+Application code calls `printing.submit(JSONObject)` with the shared `SubmitJobRequest` fields. A stable business idempotency key returns the same job when retried; changing document/options/target under the same key fails. PDF is sent as bytes encoded once in base64; ZPL is UTF-8 printer-ready bytes. Default decoded limits are 100 MiB for PDF and 20 MiB for ZPL, both configurable in the native Printing connection and limits process. Queue approval and format compatibility are checked before insertion.
 
 ```java
 JSONObject job = printing.submit(new JSONObject()

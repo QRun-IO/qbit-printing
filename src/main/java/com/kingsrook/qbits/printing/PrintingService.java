@@ -47,7 +47,6 @@ import org.json.JSONObject;
 public class PrintingService
 {
    static final String CANCELED_BEFORE_DISPATCH = "Canceled by operator before dispatch";
-   private static final int MAX_CONTENT_BYTES = 20 * 1024 * 1024;
    private static final String JOB_COLUMNS = "id, tenant_id, device_id, printer_id, title, format, content_hash, content_length, options_json, idempotency_key, created_at, status, message, spooler_job_id, printer_row_id";
    private final DataSource dataSource;
    private final String tenantId;
@@ -55,6 +54,132 @@ public class PrintingService
    private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
    private String storageTableName;
    private PrintingRetentionPolicy defaultRetentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
+   private PrintingRealtimeBus realtimeBus = new PrintingRealtimeBus();
+   private RealtimeClaimGuard realtimeClaimGuard = device ->
+   {
+      throw new PrintingException(503, "The host has not registered the realtime printing route provider");
+   };
+
+
+   /** Native claims require a synchronized current-user channel, not a polling fallback. */
+   @FunctionalInterface
+   public interface RealtimeClaimGuard
+   {
+      /** Check this connection's authoritative applied state. */
+      void requireReady(String device) throws SQLException;
+   }
+
+
+   /** Route-provider lifecycle owns the readiness guard. */
+   void withRealtimeClaimGuard(RealtimeClaimGuard guard)
+   {
+      realtimeClaimGuard = guard;
+   }
+
+
+   /** Enforce readiness on native HTTP claims before selecting any job. */
+   public void requireRealtimeReady(String device) throws SQLException
+   {
+      realtimeClaimGuard.requireReady(device);
+   }
+
+
+   /** Persist application observations before the WebSocket acknowledgment is emitted. */
+   void applyRealtimeState(String device, JSONObject control, long settings) throws SQLException
+   {
+      if(settings > getRealtimeSettings().getLong("revision"))
+      {
+         throw new PrintingException(409, "Realtime settings changed before acknowledgment");
+      }
+      deviceControlPoll(device, control);
+      try(Connection connection = dataSource.getConnection())
+      {
+         if(update(connection, "UPDATE printing_device SET realtime_applied_revision=CASE WHEN realtime_applied_revision<? THEN ? ELSE realtime_applied_revision END WHERE tenant_id=? AND id=? AND EXISTS (SELECT 1 FROM printing_settings WHERE tenant_id=? AND realtime_revision>=?)", settings, settings, tenantId, device, tenantId, settings) != 1)
+         {
+            throw new PrintingException(409, "Realtime settings changed before acknowledgment");
+         }
+      }
+   }
+
+
+   /** Authenticated transport contact does not imply applied controls or normal device traffic. */
+   void realtimeContact(String device) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, device);
+         update(connection, "UPDATE printing_device SET control_last_poll_at=? WHERE tenant_id=? AND id=? AND enabled=1", Instant.now().toString(), tenantId, device);
+      }
+   }
+
+
+   /** A host may share this event bus across services using the same database. */
+   public PrintingService withRealtimeBus(PrintingRealtimeBus bus)
+   {
+      realtimeBus = java.util.Objects.requireNonNull(bus);
+      return (this);
+   }
+
+
+   /** Instance-owned notifications never contain credentials or document bytes. */
+   public PrintingRealtimeBus getRealtimeBus()
+   {
+      return (realtimeBus);
+   }
+
+
+   /** Complete persisted tenant settings; defaults apply until the first administrator edit. */
+   public JSONObject getRealtimeSettings() throws SQLException
+   {
+      ensureRetentionSettings();
+      try(Connection connection = dataSource.getConnection())
+      {
+         JSONObject row = query(connection, "SELECT realtime_policy_json, realtime_revision FROM printing_settings WHERE tenant_id=?", tenantId).getFirst();
+         PrintingRealtimePolicy policy = row.isNull("realtime_policy_json") ? PrintingRealtimePolicy.defaults()
+            : PrintingRealtimePolicy.fromJson(new JSONObject(row.getString("realtime_policy_json")));
+         return (policy.toJson(row.getLong("realtime_revision")));
+      }
+   }
+
+
+   /** The native adapter authorizes the administrator before this atomic update. */
+   public JSONObject saveRealtimeSettings(JSONObject request) throws SQLException
+   {
+      PrintingRealtimePolicy policy = PrintingRealtimePolicy.fromJson(request);
+      ensureRetentionSettings();
+      JSONObject result;
+      try(Connection connection = dataSource.getConnection())
+      {
+         connection.setAutoCommit(false);
+         try
+         {
+            long revision = query(connection, "SELECT realtime_revision FROM printing_settings WHERE tenant_id=? FOR UPDATE", tenantId).getFirst().getLong("realtime_revision") + 1;
+            if(revision < 1 || revision > 9007199254740991L)
+            {
+               throw new PrintingException(409, "Realtime settings revision capacity is exhausted");
+            }
+            update(connection, "UPDATE printing_settings SET realtime_policy_json=?, realtime_revision=? WHERE tenant_id=?", request.toString(), revision, tenantId);
+            connection.commit();
+            result = policy.toJson(revision);
+         }
+         catch(Exception exception)
+         {
+            connection.rollback();
+            throw exception;
+         }
+      }
+      realtimeBus.publish(tenantId, null);
+      return (result);
+   }
+
+
+   /** Resolve immutable validated policy values for one request. */
+   public PrintingRealtimePolicy realtimePolicy() throws SQLException
+   {
+      JSONObject settings = getRealtimeSettings();
+      settings.remove("revision");
+      return (PrintingRealtimePolicy.fromJson(settings));
+   }
 
 
 
@@ -65,6 +190,24 @@ public class PrintingService
    {
       admissionLimits = java.util.Objects.requireNonNull(limits);
       return (this);
+   }
+
+
+   /** Native tenant administrator admission settings. */
+   public JSONObject getAdmissionSettings() throws SQLException
+   {
+      ensureRetentionSettings();
+      return (new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).get());
+   }
+
+
+   /** Save validated tenant overrides without changing retained job receipts. */
+   public JSONObject saveAdmissionSettings(JSONObject request) throws SQLException
+   {
+      ensureRetentionSettings();
+      JSONObject result = new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).save(request);
+      realtimeBus.publish(tenantId, null);
+      return (result);
    }
 
 
@@ -147,6 +290,10 @@ public class PrintingService
          "CREATE TABLE IF NOT EXISTS printing_settings (tenant_id VARCHAR(200) PRIMARY KEY, retention_days INTEGER NOT NULL, retention_enabled INTEGER NOT NULL, last_run_at VARCHAR(40), last_run_count INTEGER, last_run_error VARCHAR(500))",
          "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS lease_token VARCHAR(36)",
          "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS lease_expires_at VARCHAR(40)",
+         "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS realtime_policy_json VARCHAR(8000)",
+         "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS realtime_revision BIGINT DEFAULT 0 NOT NULL",
+         "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS admission_policy_json VARCHAR(8000)",
+         "ALTER TABLE printing_settings ADD COLUMN IF NOT EXISTS retention_batch_size INTEGER",
          "CREATE TABLE IF NOT EXISTS printing_document_orphan (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, storage_table VARCHAR(200) NOT NULL, reference VARCHAR(500) NOT NULL, binding VARCHAR(64) NOT NULL, created_at VARCHAR(40) NOT NULL)",
          "CREATE INDEX IF NOT EXISTS printing_orphan_tenant_idx ON printing_document_orphan(tenant_id, created_at, id)",
          "UPDATE printing_job SET printer_row_id=(SELECT p.id FROM printing_printer p WHERE p.device_id=printing_job.device_id AND p.printer_id=printing_job.printer_id AND p.tenant_id=printing_job.tenant_id) WHERE printer_row_id IS NULL",
@@ -154,6 +301,7 @@ public class PrintingService
          "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS display_name VARCHAR(512)",
          "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS description VARCHAR(4096)",
          "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS location VARCHAR(512)",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS realtime_applied_revision BIGINT DEFAULT -1 NOT NULL",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS queue_name VARCHAR(1024)",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS display_name VARCHAR(512)",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS description VARCHAR(4096)",
@@ -227,14 +375,18 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject deviceAction(String deviceId, JSONObject request, String actor) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor));
+      JSONObject result = new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor);
+      realtimeBus.publish(tenantId, deviceId);
+      return (result);
    }
 
 
    /** Native authorization supplies the exact reviewed queue identity set, never a predicate executed inside SQL locks. */
    JSONObject deviceAction(String deviceId, JSONObject request, String actor, Set<String> authorizedQueue) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor, authorizedQueue));
+      JSONObject result = new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor, authorizedQueue);
+      realtimeBus.publish(tenantId, deviceId);
+      return (result);
    }
 
 
@@ -604,7 +756,7 @@ public class PrintingService
             {
                incoming.add(required(printers.getJSONObject(index).optString("printerId"), "printerId"));
             }
-            PrintingAdmission.inventory(connection, tenantId, deviceId, incoming, admissionLimits);
+            PrintingAdmission.inventory(connection, tenantId, deviceId, incoming, new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).effective(connection));
             update(connection, "UPDATE printing_printer SET status='UNKNOWN', available=0 WHERE device_id=? AND available=1", deviceId);
             for(int index = 0; index < printers.length(); index++)
             {
@@ -656,6 +808,7 @@ public class PrintingService
             throw new PrintingException(404, "Printer not found");
          }
       }
+      realtimeBus.publish(tenantId, deviceId);
    }
 
 
@@ -666,6 +819,11 @@ public class PrintingService
    public JSONObject submit(JSONObject request) throws SQLException
    {
       String format = required(request.optString("format"), "format");
+      long maximum = realtimePolicy().documentLimit(format);
+      if(request.getString("contentBase64").length() > ((maximum + 2) / 3) * 4)
+      {
+         throw new PrintingException(413, "Encoded document exceeds its configured format limit");
+      }
       byte[] content;
       try
       {
@@ -675,13 +833,13 @@ public class PrintingService
       {
          throw new PrintingException(400, "Invalid document encoding");
       }
-      if(content.length > MAX_CONTENT_BYTES)
+      if(content.length > maximum)
       {
-         throw new PrintingException(413, "Document exceeds 20971520 bytes");
+         throw new PrintingException(413, "Document exceeds configured " + format + " limit of " + maximum + " bytes");
       }
       if(content.length == 0)
       {
-         throw new PrintingException(400, "Document must contain 1 to 20971520 bytes");
+         throw new PrintingException(400, "Document must contain at least one byte");
       }
       if("PDF".equals(format) && !new String(content, 0, Math.min(5, content.length), StandardCharsets.US_ASCII).equals("%PDF-"))
       {
@@ -721,6 +879,7 @@ public class PrintingService
          throw new PrintingException(400, "Only PDF and ZPL are supported");
       }
       JSONObject options = printOptions(request);
+      long contentLimit = realtimePolicy().documentLimit(format);
       String id = UUID.randomUUID().toString();
       String reference = storageTableName == null ? null : documentStorage.prefix() + id + "." + format.toLowerCase(java.util.Locale.ROOT);
       String binding = storageTableName == null ? null : documentStorage.binding(storageTableName);
@@ -774,7 +933,11 @@ public class PrintingService
             {
                throw new PrintingException(400, "Printer is not enabled for this format");
             }
-            PrintingAdmission.reserve(connection, tenantId, deviceId, id, contentLength, admissionLimits);
+            if(contentLength > contentLimit)
+            {
+               throw new PrintingException(413, "Document exceeds the current configured format limit");
+            }
+            PrintingAdmission.reserve(connection, tenantId, deviceId, id, contentLength, new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).effective(connection));
             if(storageTableName != null)
             {
                reserveUpload(connection, id, storageTableName, reference, binding, deviceId, contentLength, key);
@@ -806,6 +969,7 @@ public class PrintingService
             update(connection, "DELETE FROM printing_document_orphan WHERE id=? AND tenant_id=?", id, tenantId);
             JSONObject result = job(query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE id=?", id).getFirst());
             connection.commit();
+            realtimeBus.publish(tenantId, deviceId);
             return (result);
          }
          catch(Exception exception)
@@ -832,7 +996,7 @@ public class PrintingService
    /***************************************************************************
     ** Preserve request intent: reject malformed types instead of coercing them.
     ***************************************************************************/
-   private static JSONObject printOptions(JSONObject request)
+   private JSONObject printOptions(JSONObject request) throws SQLException
    {
       if(request.has("options") && !(request.opt("options") instanceof JSONObject))
       {
@@ -845,7 +1009,7 @@ public class PrintingService
       {
          if(!(copies instanceof Number number))
          {
-            throw new PrintingException(400, "Copies must be an integer between 1 and 100");
+            throw new PrintingException(400, "Copies must be an integer within the configured limit");
          }
          try
          {
@@ -853,11 +1017,11 @@ public class PrintingService
          }
          catch(ArithmeticException | NumberFormatException exception)
          {
-            throw new PrintingException(400, "Copies must be an integer between 1 and 100");
+            throw new PrintingException(400, "Copies must be an integer within the configured limit");
          }
       }
       Object scale = options.has("scale") ? options.opt("scale") : "ACTUAL_SIZE";
-      if(count < 1 || count > 100 || !(scale instanceof String) || !Set.of("ACTUAL_SIZE", "FIT").contains(scale))
+      if(count < 1 || count > realtimePolicy().get("maxCopies") || !(scale instanceof String) || !Set.of("ACTUAL_SIZE", "FIT").contains(scale))
       {
          throw new PrintingException(400, "Invalid print options");
       }
@@ -982,6 +1146,7 @@ public class PrintingService
             }
             update(connection, "UPDATE printing_job SET status='FAILED', message=? WHERE id=?", CANCELED_BEFORE_DISPATCH, jobId);
             connection.commit();
+            realtimeBus.publish(tenantId, deviceId);
             return (new JSONObject().put("accepted", true));
          }
          catch(Exception exception)
@@ -1067,6 +1232,41 @@ public class PrintingService
    }
 
 
+   /** Stream external documents without holding a database connection or buffering the entire body. */
+   public java.io.InputStream openContent(String deviceId, String jobId) throws SQLException
+   {
+      JSONObject row;
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, deviceId);
+         row = deviceJob(connection, deviceId, jobId, true);
+         if("QUEUED".equals(row.getString("status")))
+         {
+            throw new PrintingException(409, "Claim the job before downloading");
+         }
+         if(row.getInt("content_available") == 0)
+         {
+            throw new PrintingException(410, "Print document expired under the host retention policy");
+         }
+      }
+      if(row.getLong("content_length") > realtimePolicy().documentLimit(row.getString("format")))
+      {
+         throw new PrintingException(413, "Document exceeds the current configured format limit");
+      }
+      java.io.InputStream input;
+      if(row.isNull("content_reference"))
+      {
+         input = new java.io.ByteArrayInputStream(Base64.getDecoder().decode(row.getString("content_base64")));
+      }
+      else
+      {
+         verifyStoredReference(row);
+         input = documentStorage.open(row.getString("content_storage_table"), row.getString("content_reference"));
+      }
+      return (new PrintingDocumentStream(input, row.getLong("content_length"), row.getString("content_hash")));
+   }
+
+
 
    /***************************************************************************
     ** Record a replay-safe lifecycle event without reprinting ambiguous jobs.
@@ -1120,6 +1320,7 @@ public class PrintingService
             }
             update(connection, "UPDATE printing_job SET status=?, message=?, spooler_job_id=? WHERE id=?", status, message, spooler == null ? row.optString("spooler_job_id") : spooler, jobId);
             connection.commit();
+            realtimeBus.publish(tenantId, deviceId);
          }
          catch(Exception exception)
          {
@@ -1404,7 +1605,7 @@ public class PrintingService
          String cutoff = Instant.now().minusSeconds(row.getInt("retention_days") * 86400L).toString();
          long backlog = query(connection, "SELECT COUNT(*) AS total FROM printing_job WHERE tenant_id=? AND content_available=1 AND status IN ('SPOOLED','SPOOLER_COMPLETED') AND completed_at<?", tenantId, cutoff).getFirst().getLong("total");
          JSONObject result = new JSONObject().put("days", row.getInt("retention_days")).put("enabled", row.getInt("retention_enabled") == 1)
-            .put("batchSize", defaultRetentionPolicy.batchSize()).put("lastRunAt", row.optString("last_run_at")).put("lastRunCount", row.optInt("last_run_count", 0))
+            .put("batchSize", row.optInt("retention_batch_size", defaultRetentionPolicy.batchSize())).put("lastRunAt", row.optString("last_run_at")).put("lastRunCount", row.optInt("last_run_count", 0))
             .put("lastRunError", row.optString("last_run_error")).put("eligibleBacklog", backlog);
          if(storageTableName != null)
          {
@@ -1426,11 +1627,18 @@ public class PrintingService
     ***************************************************************************/
    public void saveRetentionSettings(int days, boolean enabled) throws SQLException
    {
-      new PrintingRetentionPolicy(enabled, days, defaultRetentionPolicy.batchSize());
+      saveRetentionSettings(days, enabled, getRetentionSettings().getInt("batchSize"));
+   }
+
+
+   /** Administrators explicitly select bounded work per scheduled cleanup invocation. */
+   public void saveRetentionSettings(int days, boolean enabled, int batchSize) throws SQLException
+   {
+      new PrintingRetentionPolicy(enabled, days, batchSize);
       ensureRetentionSettings();
       try(Connection connection = dataSource.getConnection())
       {
-         update(connection, "UPDATE printing_settings SET retention_days=?, retention_enabled=? WHERE tenant_id=?", days, enabled ? 1 : 0, tenantId);
+         update(connection, "UPDATE printing_settings SET retention_days=?, retention_enabled=?, retention_batch_size=? WHERE tenant_id=?", days, enabled ? 1 : 0, batchSize, tenantId);
       }
    }
 
@@ -1482,7 +1690,7 @@ public class PrintingService
          try
          {
             JSONObject row = query(connection, "SELECT * FROM printing_settings WHERE tenant_id=?", tenantId).getFirst();
-            PrintingRetentionPolicy policy = new PrintingRetentionPolicy(row.getInt("retention_enabled") == 1, row.getInt("retention_days"), defaultRetentionPolicy.batchSize());
+            PrintingRetentionPolicy policy = new PrintingRetentionPolicy(row.getInt("retention_enabled") == 1, row.getInt("retention_days"), row.optInt("retention_batch_size", defaultRetentionPolicy.batchSize()));
             purgeCompletedContent(connection, policy, progress, token);
             if(policy.enabled())
             {
@@ -1543,7 +1751,7 @@ public class PrintingService
       else
       {
          verifyStoredReference(row);
-         bytes = documentStorage.get(row.getString("content_storage_table"), row.getString("content_reference"));
+         bytes = documentStorage.get(row.getString("content_storage_table"), row.getString("content_reference"), row.getInt("content_length"));
       }
       if(bytes.length != row.getInt("content_length") || !hash(bytes).equals(row.getString("content_hash")))
       {

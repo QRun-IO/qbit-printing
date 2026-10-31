@@ -153,6 +153,10 @@ final class PrintingAdmission
     ***************************************************************************/
    static void reserve(Connection connection, String tenant, String device, String id, int bytes, PrintingAdmissionLimits limits) throws SQLException
    {
+      if(number(connection, "SELECT COUNT(*) FROM printing_document_orphan WHERE tenant_id=? AND content_length IS NULL", tenant) != 0)
+      {
+         throw new PrintingException(429, "An old upload has an unknown document size; complete exact orphan cleanup before admitting new documents");
+      }
       if(number(connection, "SELECT COUNT(*) FROM printing_resource_usage WHERE tenant_id=? AND device_id=?", tenant, device) == 0)
       {
          execute(connection, "INSERT INTO printing_resource_usage VALUES (?, ?, 0)", tenant, device);

@@ -95,18 +95,32 @@ public class PrintingDocumentStorage
     ***************************************************************************/
    public byte[] get(String table, String reference) throws SQLException
    {
+      return (get(table, reference, Math.toIntExact(PrintingRealtimePolicy.defaults().get("maxPdfBytes"))));
+   }
+
+
+   /** Internal retry callers supply the exact persisted length, independent of the current format policy. */
+   public byte[] get(String table, String reference, int maximum) throws SQLException
+   {
       return (execute(() ->
       {
          try(InputStream stream = new StorageAction().getInputStream(input(table, reference)))
          {
-            byte[] bytes = stream.readNBytes(20 * 1024 * 1024 + 1);
-            if(bytes.length > 20 * 1024 * 1024)
+            byte[] bytes = stream.readNBytes(maximum);
+            if(stream.read() != -1)
             {
-               throw new PrintingException(502, "Stored print document exceeds the allowed size");
+               throw new PrintingException(502, "Stored print document exceeds its declared length");
             }
             return bytes;
          }
       }));
+   }
+
+
+   /** Return the native backend stream; the request owns closing it and enforcing its declared length. */
+   public InputStream open(String table, String reference) throws SQLException
+   {
+      return (execute(() -> new StorageAction().getInputStream(input(table, reference))));
    }
 
 

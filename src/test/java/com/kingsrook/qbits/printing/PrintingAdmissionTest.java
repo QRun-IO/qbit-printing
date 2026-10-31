@@ -160,13 +160,13 @@ class PrintingAdmissionTest
 
 
    /***************************************************************************
-    ** Legacy upload intents with unknown size reserve the maximum allowed bytes.
+    ** Legacy unknown sizes block new admission even when current capacity exceeds their historical estimate.
     ***************************************************************************/
    @Test
    void legacyUnknownUploadChargesTenantCapacityUntilExactCleanup() throws Exception
    {
       long unknownBytes = 20L * 1024 * 1024;
-      Fixture fixture = fixture(limits(10, 20, 100_000_000, 200_000_000, 100_000_000, unknownBytes, 100, 200, 10, 20));
+      Fixture fixture = fixture(limits(10, 20, 100_000_000, 200_000_000, 100_000_000, 200_000_000, 100, 200, 10, 20));
       String orphan = UUID.randomUUID().toString();
       String reference = fixture.documents.prefix() + orphan + ".zpl";
       fixture.documents.objects.put(reference, DOCUMENT.clone());
@@ -572,7 +572,7 @@ class PrintingAdmissionTest
        ** Read immutable synthetic bytes for the retry path.
        ***********************************************************************/
       @Override
-      public byte[] get(String table, String reference) throws SQLException
+      public byte[] get(String table, String reference, int maximum) throws SQLException
       {
          gets.incrementAndGet();
          byte[] content = objects.get(reference);

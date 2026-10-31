@@ -190,7 +190,11 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
             service.inventory(device, body.getJSONArray("printers"), PrintingAgentAuthorization.inventory(device));
             result = accepted();
          }
-         case "Claim" -> result = PrintingAgentAuthorization.claim(device);
+         case "Claim" ->
+         {
+            service.requireRealtimeReady(device);
+            result = PrintingAgentAuthorization.claim(device);
+         }
          case "Queued" ->
          {
             PrintingControlAuthorization.table(PrintingTables.JOB);
@@ -204,7 +208,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          case "Content" ->
          {
             PrintingControlAuthorization.job(device, job);
-            return (service.content(device, job));
+            return (service.openContent(device, job));
          }
          case "Event" ->
          {
@@ -275,7 +279,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
 
 
    /** Receipt and history access apply child-record security independently of device access. */
-   private static void command(String device, String id) throws Exception
+   static void command(String device, String id) throws Exception
    {
       QRecord command = PrintingControlAuthorization.record(PrintingTables.COMMAND, id);
       if(!device.equals(command.getValueString("device_id")))

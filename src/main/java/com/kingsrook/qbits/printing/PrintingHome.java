@@ -128,8 +128,8 @@ public class PrintingHome extends AbstractWidgetRenderer
       QWidgetData data = switch(input.getWidgetMetaData().getName())
       {
          case "printingHomeHeader" -> header();
-         case "printingHomeAttention" -> attention(now);
-         case "printingHomeOffline" -> statistic(DEVICE, offline(now), "Enabled devices · now · disconnected by an administrator or unseen for 90 seconds");
+         case "printingHomeAttention" -> attention(now, freshnessSeconds());
+         case "printingHomeOffline" -> offlineStatistic(now);
          case "printingHomePrinters" -> statistic(PRINTER, printerIssues(), "Enabled printers · now · target 0 needing attention");
          case "printingHomeFailures" -> statistic(JOB, failures(now), "Jobs created in last 24 hours · target 0 failed or uncertain");
          case "printingHomePending" -> statistic(JOB, statuses(PENDING), "Jobs · now · target queue drains after printing");
@@ -153,6 +153,8 @@ public class PrintingHome extends AbstractWidgetRenderer
          .withBlock(text("Scope: current tenant. Devices/printers: now. Job exceptions/recent work: last 24 hours."))
          .withBlock(text("Enroll a print device").withLink(new BlockLink("/app/printingEnrollDevice/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing retention settings").withLink(new BlockLink("/app/printingRetentionSettings/?returnTo=%2Fapp%2Fprinting%2F")))
+         .withBlock(text("Printing connection and limits").withLink(new BlockLink("/app/printingRealtimeSettings/?returnTo=%2Fapp%2Fprinting%2F")))
+         .withBlock(text("Printing queue and storage limits").withLink(new BlockLink("/app/printingAdmissionSettings/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Run retention cleanup").withLink(new BlockLink("/app/printingRunRetention/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing setup and help").withLink(new BlockLink("https://github.com/QRun-IO/qbit-printing/blob/main/docs/OPERATIONS.md")));
       if(count(DEVICE, new QQueryFilter()) == 0)
@@ -167,17 +169,17 @@ public class PrintingHome extends AbstractWidgetRenderer
    /***************************************************************************
     ** Severity order: failed work, disconnected devices, then printer issues.
     ***************************************************************************/
-   private static TableData attention(Instant now) throws QException
+   private static TableData attention(Instant now, long freshnessSeconds) throws QException
    {
       List<Map<String, Object>> rows = new ArrayList<>();
       for(QRecord job : query(JOB, failures(now).withOrderBy(new QFilterOrderBy("created_at", false)).withLimit(10)))
       {
          rows.add(issue(JOB, job, job.getValueString("title"), job.getValueString("status"), "Check the local queue and physical output before retrying an uncertain job.", "created_at"));
       }
-      for(QRecord device : query(DEVICE, offline(now).withOrderBy(new QFilterOrderBy("last_seen_at", true)).withLimit(10)))
+      for(QRecord device : query(DEVICE, offline(now, freshnessSeconds).withOrderBy(new QFilterOrderBy("last_seen_at", true)).withLimit(10)))
       {
          boolean disconnected = "DISCONNECTED".equals(device.getValueString("connection_state"));
-         rows.add(issue(DEVICE, device, device.getValueString("name"), disconnected ? "Administratively disconnected" : "No connection for 90 seconds",
+         rows.add(issue(DEVICE, device, device.getValueString("name"), disconnected ? "Administratively disconnected" : "No connection for " + freshnessSeconds + " seconds",
             disconnected ? "Open the device and use Reconnect; review its observed control revision." : "Open the Windows agent and check its service, sign-in and outbound connection.", "last_seen_at"));
       }
       for(QRecord device : query(DEVICE, new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1)
@@ -262,11 +264,39 @@ public class PrintingHome extends AbstractWidgetRenderer
 
 
    /***************************************************************************
+    ** Current tenant policy controls freshness, retaining the legacy grace period.
+    ***************************************************************************/
+   private static long freshnessSeconds() throws QException
+   {
+      try
+      {
+         return (Math.max(90, PrintingProcesses.currentService().realtimePolicy().get("heartbeatTimeoutSeconds")));
+      }
+      catch(java.sql.SQLException exception)
+      {
+         throw new QException("Could not read printing connection freshness settings", exception);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Explain the exact threshold used by the linked native filter.
+    ***************************************************************************/
+   private static StatisticsData offlineStatistic(Instant now) throws QException
+   {
+      long seconds = freshnessSeconds();
+      return (statistic(DEVICE, offline(now, seconds), "Enabled devices · now · disconnected by an administrator or unseen for " + seconds + " seconds"));
+   }
+
+
+
+   /***************************************************************************
     ** Either authenticated connection proves liveness; requested disconnect stays visible.
     ***************************************************************************/
-   private static QQueryFilter offline(Instant now)
+   private static QQueryFilter offline(Instant now, long freshnessSeconds)
    {
-      QQueryFilter unseen = new QQueryFilter().withSubFilter(stale("last_seen_at", now)).withSubFilter(stale("control_last_poll_at", now));
+      QQueryFilter unseen = new QQueryFilter().withSubFilter(stale("last_seen_at", now, freshnessSeconds)).withSubFilter(stale("control_last_poll_at", now, freshnessSeconds));
       QQueryFilter disconnected = new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
          .withCriteria("connection_state", QCriteriaOperator.EQUALS, "DISCONNECTED").withSubFilter(unseen);
       return (new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(disconnected));
@@ -277,10 +307,10 @@ public class PrintingHome extends AbstractWidgetRenderer
    /***************************************************************************
     ** Legacy devices may never have sent a control poll.
     ***************************************************************************/
-   private static QQueryFilter stale(String field, Instant now)
+   private static QQueryFilter stale(String field, Instant now, long freshnessSeconds)
    {
       return (new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
-         .withCriteria(field, QCriteriaOperator.IS_BLANK).withCriteria(field, QCriteriaOperator.LESS_THAN, now.minusSeconds(90).toString()));
+         .withCriteria(field, QCriteriaOperator.IS_BLANK).withCriteria(field, QCriteriaOperator.LESS_THAN, now.minusSeconds(freshnessSeconds).toString()));
    }
 
 

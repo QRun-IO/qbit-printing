@@ -56,12 +56,12 @@ class PrintingUiApiContractTest
          Files.createDirectories(baseline.getParent());
          Files.writeString(baseline, generated);
       }
-      assertEquals(List.of(), UiApiContract.check(generated, Files.readString(contract), Files.readString(baseline), 1,
+      assertEquals(List.of(), UiApiContract.check(generated, Files.readString(contract), Files.readString(baseline), 2,
          "mvnw.cmd -Dtest=PrintingUiApiContractTest -Dprinting.openapi.update=true test"));
       var model = version.generateExtensionOpenAPIModel("qqq", extension);
       assertEquals(17, model.getPaths().size());
       assertTrue(model.getPaths().keySet().stream().allMatch(path -> path.startsWith("/qqq/v1/qbit/printing/")));
-      assertEquals("1.0.0", extension.getSemanticVersion());
+      assertEquals("2.0.0", extension.getSemanticVersion());
       assertTrue(generated.contains("X-QQQ-Device-Token"));
       assertTrue(generated.contains("application/octet-stream"));
       assertTrue(generated.contains("principalId"));

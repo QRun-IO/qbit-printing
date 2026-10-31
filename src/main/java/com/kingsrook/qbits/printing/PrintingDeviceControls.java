@@ -281,6 +281,7 @@ final class PrintingDeviceControls
             {
                throw new PrintingException(409, "Unknown control revision");
             }
+            applied = Math.max(applied, device.getLong("control_applied_revision"));
             String now = Instant.now().toString();
             update(connection, "UPDATE printing_device SET control_version=1,control_capabilities=?,control_last_poll_at=?,control_applied_revision=?,agent_version=?,last_seen_at=? WHERE tenant_id=? AND id=?",
                capabilities.toString(), now, applied, version, now, tenant, deviceId);
