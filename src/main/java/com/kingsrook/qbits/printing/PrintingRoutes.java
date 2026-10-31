@@ -76,11 +76,21 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
          return accepted();
       }));
       config.routes.post(BASE + "/device/heartbeat", context -> handle(context, () -> service.heartbeat(device(context), body(context))));
-      config.routes.post(BASE + "/device/jobs/claim", context -> handle(context, () -> service.claim(device(context))));
+      config.routes.post(BASE + "/device/jobs/claim", context -> handle(context, () ->
+      {
+         String device = device(context);
+         body(context);
+         return service.claim(device);
+      }));
       config.routes.get(BASE + "/device/jobs/queued", context -> handle(context, () -> new JSONObject().put("jobs", service.queuedJobs(device(context)))));
       config.routes.post(BASE + "/device/test-print", context -> handle(context, () -> service.testPrint(device(context), body(context))));
       config.routes.post(BASE + "/device/jobs/{jobId}/retry", context -> handle(context, () -> service.retry(device(context), context.pathParam("jobId"), body(context))));
-      config.routes.post(BASE + "/device/jobs/{jobId}/cancel", context -> handle(context, () -> service.cancel(device(context), context.pathParam("jobId"))));
+      config.routes.post(BASE + "/device/jobs/{jobId}/cancel", context -> handle(context, () ->
+      {
+         String device = device(context);
+         body(context);
+         return service.cancel(device, context.pathParam("jobId"));
+      }));
       config.routes.get(BASE + "/device/jobs/{jobId}/content", context -> handle(context, () ->
       {
          byte[] bytes = service.content(device(context), context.pathParam("jobId"));

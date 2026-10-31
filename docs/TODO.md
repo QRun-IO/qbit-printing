@@ -1,5 +1,7 @@
 # Follow-up
 
+- [x] Consume bounded claim/cancel bodies before side effects; split-body regression fails before fix, full isolated UI-profile gate passes 66 tests.
+- [ ] Verify the HTTP follow-up on fresh hosted checks and resolve the isolated prepared-copy retention discrepancy before live cutover.
 - [x] Reconcile UI-profile Maven runtime dependencies with scanner inventories; 204 exact coordinates, ten guard regressions and workflow lint pass locally.
 - [ ] Run fresh hosted security/build gates for the runtime-SBOM workflow correction before authenticated-host deployment.
 

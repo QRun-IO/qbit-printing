@@ -21,10 +21,13 @@
 package com.kingsrook.qbits.printing;
 
 
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -36,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
@@ -113,6 +117,41 @@ class PrintingContractTest
          assertTrue(error.has("code"));
          assertTrue(error.has("message"));
          assertFalse(error.has("error"));
+      }
+      finally
+      {
+         app.stop();
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Claim waits for its bounded JSON body before committing the response.
+    ***************************************************************************/
+   @Test
+   void claimConsumesSplitRequestBodyBeforeResponding() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:split-body-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "contract-tenant");
+      service.initialize();
+      String code = service.createEnrollment("default", "Synthetic device").getString("enrollmentCode");
+      String token = service.enroll(fixture("enroll.request.json").put("enrollmentCode", code)).getString("deviceToken");
+      PrintingRoutes routes = new PrintingRoutes(service, context -> false);
+      Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
+      try(Socket socket = new Socket("127.0.0.1", app.port()))
+      {
+         socket.setSoTimeout(250);
+         String headers = "POST " + PrintingRoutes.BASE + "/device/jobs/claim HTTP/1.1\r\nHost: 127.0.0.1:" + app.port()
+            + "\r\nAuthorization: Bearer " + token + "\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{";
+         socket.getOutputStream().write(headers.getBytes(StandardCharsets.US_ASCII));
+         socket.getOutputStream().flush();
+         assertThrows(SocketTimeoutException.class, () -> socket.getInputStream().read());
+         socket.setSoTimeout(5000);
+         socket.getOutputStream().write('}');
+         socket.getOutputStream().flush();
+         String response = new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+         assertTrue(response.startsWith("HTTP/1.1 200"));
+         assertTrue(response.contains("\"job\":null"));
       }
       finally
       {
