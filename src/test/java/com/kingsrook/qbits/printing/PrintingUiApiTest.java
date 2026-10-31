@@ -136,6 +136,8 @@ class PrintingUiApiTest
          JSONObject others = service.enrollForUser(service.createEnrollment("default", "Other owner").put("deviceName", "Other owner").put("agentVersion", "test"), "another-principal");
          assertEquals(403, send(client, base, prefix + "/device/heartbeat", "POST", new JSONObject().put("agentVersion", "test"), cookie, others.getString("deviceId"), others.getString("deviceToken")).statusCode());
          assertEquals(device, json(send(client, base, prefix + "/session", "GET", null, cookie, device, proof), 200).getString("deviceId"));
+         assertEquals(409, send(client, base, prefix + "/device/jobs/claim", "POST", new JSONObject(), cookie, device, proof).statusCode());
+         PrintingSocketFixture channel = PrintingSocketFixture.connect(client, base, cookie, device, proof);
          assertEquals(job, json(send(client, base, prefix + "/device/jobs/claim", "POST", new JSONObject(), cookie, device, proof), 200).getJSONObject("job").getString("jobId"));
          HttpResponse<byte[]> downloaded = send(client, base, prefix + "/device/jobs/" + job + "/content", "GET", null, cookie, device, proof);
          assertEquals(200, downloaded.statusCode());
@@ -146,6 +148,7 @@ class PrintingUiApiTest
          JSONObject action = action("REVOKE");
          json(send(client, base, prefix + "/admin/devices/" + device + "/actions", "POST", action, cookie, null, null), 200);
          assertEquals(403, send(client, base, prefix + "/device/heartbeat", "POST", new JSONObject().put("agentVersion", "test"), cookie, device, proof).statusCode());
+         channel.close();
          JSONObject nativeEnrollment = service.createEnrollment("default", "Native enrollment").put("deviceName", "Native enrollment").put("agentVersion", "test");
          JSONObject fresh = json(send(client, base, prefix + "/devices/enroll", "POST", nativeEnrollment, cookie, null, null), 200);
          service.authorizeAgent(fresh.getString("deviceId"), fresh.getString("deviceToken"), "operator", false);

@@ -63,6 +63,7 @@ public class PrintingRetentionProcesses implements BackendStep
          .withStep(review("Current retention and storage"))
          .withStep(new QFrontendStepMetaData().withName("settings").withLabel("Edit retention")
             .withFormFields(List.of(new QFieldMetaData("days", QFieldType.INTEGER).withLabel("Keep successful job documents for days (1–36500)").withIsRequired(true),
+               new QFieldMetaData("batchSize", QFieldType.INTEGER).withLabel("Maximum documents per cleanup run (1–200)").withIsRequired(true),
                new QFieldMetaData("enabled", QFieldType.BOOLEAN).withLabel("Enable document retention cleanup").withIsRequired(true)))
             .withComponent(new QFrontendComponentMetaData().withType(QComponentType.EDIT_FORM)))
          .withStep(backend("execute")).withStep(result());
@@ -165,11 +166,12 @@ public class PrintingRetentionProcesses implements BackendStep
          {
             Integer days = input.getValueInteger("days");
             Boolean enabled = input.getValueBoolean("enabled");
-            if(days == null || enabled == null)
+            Integer batchSize = input.getValueInteger("batchSize");
+            if(days == null || enabled == null || batchSize == null)
             {
                throw new QException("Specify retention days and whether cleanup is enabled");
             }
-            service.saveRetentionSettings(days, enabled);
+            service.saveRetentionSettings(days, enabled, batchSize);
             output.addValue("result", "Printing retention settings saved for this tenant. Changing the policy does not run cleanup immediately.");
          }
          else if("execute".equals(input.getStepName()) && (RUN_NOW.equals(input.getProcessName()) || scheduled))
@@ -198,6 +200,7 @@ public class PrintingRetentionProcesses implements BackendStep
       JSONObject settings = service.getRetentionSettings();
       output.addValue("days", settings.getInt("days"));
       output.addValue("enabled", settings.getBoolean("enabled"));
+      output.addValue("batchSize", settings.getInt("batchSize"));
       output.addValue("policy", (settings.getBoolean("enabled") ? "Enabled" : "Disabled") + ": retain successful job documents for " + settings.getInt("days") + " days; at most " + settings.getInt("batchSize") + " documents per run.");
       String table = settings.optString("storageTableName", "");
       String label = QContext.getQInstance().getTable(table) == null ? table : QContext.getQInstance().getTable(table).getLabel();

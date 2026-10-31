@@ -224,9 +224,12 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    /***************************************************************************
     ** Parse bounded protocol JSON; the server also configures request limits.
     ***************************************************************************/
-   private static JSONObject body(Context context)
+   private JSONObject body(Context context) throws java.sql.SQLException
    {
-      if(context.bodyAsBytes().length > 29 * 1024 * 1024)
+      PrintingRealtimePolicy policy = service.realtimePolicy();
+      long maximum = context.path().equals(BASE + "/admin/jobs")
+         ? ((Math.max(policy.get("maxPdfBytes"), policy.get("maxZplBytes")) + 2) / 3) * 4 + 65536 : 2097152;
+      if((context.req().getContentLengthLong() > maximum) || context.bodyAsBytes().length > maximum)
       {
          throw new PrintingException(413, "Request is too large");
       }

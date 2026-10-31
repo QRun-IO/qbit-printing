@@ -79,3 +79,11 @@ The Windows gate, MSI rebuild, installed UI acceptance, release evidence and fre
 
 - [x] Complete independent review after the five baseline security findings are remediated; current details are in SESSION-STATE.md.
 - [ ] Complete remote deployment and production S3/IAM qualification; local native acceptance and isolated storage tests do not establish these.
+
+## Real-time upgrade (active)
+
+- [ ] Complete authenticated outbound WebSocket transport and automatic durable recovery; remove production job/control polling fallback.
+- [ ] Verify concurrent control while large streamed documents download, bounds/cleanup, real concurrency and exact event replay.
+- [ ] Verify native administrator limits forms, live policy delivery, admission overrides and configurable document sizes.
+- [ ] Complete consistent sortable/expandable Windows Jobs and Printers tables.
+- [ ] Run coordinated server/client/protocol gates and cross-runtime native integration before packaging/installing.

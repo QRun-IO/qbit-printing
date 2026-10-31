@@ -153,6 +153,8 @@ public class PrintingHome extends AbstractWidgetRenderer
          .withBlock(text("Scope: current tenant. Devices/printers: now. Job exceptions/recent work: last 24 hours."))
          .withBlock(text("Enroll a print device").withLink(new BlockLink("/app/printingEnrollDevice/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing retention settings").withLink(new BlockLink("/app/printingRetentionSettings/?returnTo=%2Fapp%2Fprinting%2F")))
+         .withBlock(text("Printing connection and limits").withLink(new BlockLink("/app/printingRealtimeSettings/?returnTo=%2Fapp%2Fprinting%2F")))
+         .withBlock(text("Printing queue and storage limits").withLink(new BlockLink("/app/printingAdmissionSettings/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Run retention cleanup").withLink(new BlockLink("/app/printingRunRetention/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing setup and help").withLink(new BlockLink("https://github.com/QRun-IO/qbit-printing/blob/main/docs/OPERATIONS.md")));
       if(count(DEVICE, new QQueryFilter()) == 0)

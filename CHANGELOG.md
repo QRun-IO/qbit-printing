@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0-rc.1 — unreleased
+
+- Add client-initiated realtime WebSocket delivery under native printing API 1.1,
+  with current QQQ session and record permissions revalidated during connection use.
+- Deliver desired state, device commands, inventory, lifecycle events and receipts
+  over the socket; native claims require acknowledged current settings and state.
+- Stream retained documents independently from controls and expose document,
+  concurrency, timing, admission and retention batch limits in native admin forms.
+- Preserve durable job/command identities across reconnects. Deployment and actual
+  Windows realtime acceptance remain pending until the candidate gates complete.
+
 ## 0.2.0-rc.1 — 2026-10-31
 
 - Add native device/table selection actions for pause, resume, disconnect,

@@ -61,7 +61,7 @@ class PrintingUiApiContractTest
       var model = version.generateExtensionOpenAPIModel("qqq", extension);
       assertEquals(17, model.getPaths().size());
       assertTrue(model.getPaths().keySet().stream().allMatch(path -> path.startsWith("/qqq/v1/qbit/printing/")));
-      assertEquals("1.0.0", extension.getSemanticVersion());
+      assertEquals("1.1.0", extension.getSemanticVersion());
       assertTrue(generated.contains("X-QQQ-Device-Token"));
       assertTrue(generated.contains("application/octet-stream"));
       assertTrue(generated.contains("principalId"));

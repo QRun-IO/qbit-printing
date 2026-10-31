@@ -105,7 +105,7 @@ class PrintingRetentionProcessesTest
    {
       PrintingService service = fixture();
       PrintingRetentionProcesses step = new PrintingRetentionProcesses();
-      RunBackendStepInput save = input(PrintingRetentionProcesses.SETTINGS, "execute").addValue("days", 730).addValue("enabled", false);
+      RunBackendStepInput save = input(PrintingRetentionProcesses.SETTINGS, "execute").addValue("days", 730).addValue("enabled", false).addValue("batchSize", 100);
       QContext.getQSession().setSecurityKeyValues(Map.of("printing_tenant", List.of("foreign")));
       assertThrows(QPermissionDeniedException.class, () -> step.run(save, new RunBackendStepOutput()));
       QContext.init(QContext.getQInstance(), new QSession().withSecurityKeyValue("printing_tenant", "tenant-a"));

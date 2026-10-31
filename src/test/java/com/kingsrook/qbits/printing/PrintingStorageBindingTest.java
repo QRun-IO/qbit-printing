@@ -405,7 +405,7 @@ class PrintingStorageBindingTest
        ** Unexpected reads are observable independently of returned bytes.
        ************************************************************************/
       @Override
-      public byte[] get(String table, String reference)
+      public byte[] get(String table, String reference, int maximum)
       {
          calls.add("GET " + reference);
          return (objects.get(reference).clone());

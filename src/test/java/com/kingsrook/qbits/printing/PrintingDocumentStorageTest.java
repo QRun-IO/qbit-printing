@@ -255,6 +255,40 @@ class PrintingDocumentStorageTest
    }
 
 
+   /** Native StorageAction content larger than the old cap is consumed incrementally and verified. */
+   @Test
+   void streamsLargePdfAndRejectsChangedLengthWithoutBufferingInTheAdapter() throws Exception
+   {
+      Fixture fixture = fixture();
+      fixture.service.inventory(fixture.device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic")
+         .put("formats", new JSONArray(List.of("PDF")))));
+      byte[] document = new byte[21 * 1024 * 1024];
+      System.arraycopy("%PDF-1.7\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0, document, 0, 9);
+      JSONObject submitted = fixture.service.submit(new JSONObject().put("deviceId", fixture.device).put("printerId", "queue").put("title", "Large synthetic PDF")
+         .put("format", "PDF").put("contentBase64", Base64.getEncoder().encodeToString(document)).put("idempotencyKey", "large-pdf"));
+      fixture.service.claim(fixture.device);
+      java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+      long count = 0;
+      try(var stream = fixture.service.openContent(fixture.device, submitted.getString("jobId")))
+      {
+         byte[] buffer = new byte[65536];
+         int read;
+         while((read = stream.read(buffer)) != -1)
+         {
+            count += read;
+            digest.update(buffer, 0, read);
+         }
+      }
+      assertEquals(document.length, count);
+      assertEquals(submitted.getString("contentSha256"), java.util.HexFormat.of().formatHex(digest.digest()));
+      fixture.storage.put("printing_documents", fixture.storage.lastReference, "PDF", new byte[] {1, 2, 3});
+      try(var stream = fixture.service.openContent(fixture.device, submitted.getString("jobId")))
+      {
+         assertThrows(java.io.IOException.class, stream::readAllBytes);
+      }
+   }
+
+
 
    /***************************************************************************
     ** Synthetic bytes never leave the test process.

@@ -40,7 +40,7 @@ The host configures resource ceilings through `PrintingQBitConfig.withAdmissionL
 
 `PrintingAdmissionLimits.defaults()` returns these defaults. To override them, construct the record with device/tenant pairs in this order: outstanding jobs, outstanding bytes, retained bytes, hourly admissions, cumulative printers. Values must be positive. Use the same configuration on every QQQ node serving a tenant. Size retained capacity for actual document sizes and the chosen retention period; 10,000 jobs/day is a sizing target, not a measured hardware throughput result. These are logical application byte limits, not an S3 billing limit: object versions, multipart fragments and provider overhead require their own deployment monitoring and lifecycle policy.
 
-Admission is serialized per tenant in SQL before storage writes. Pending and failed upload reservations stay charged until exact-object cleanup succeeds; failed admissions that reached a committed reservation also consume the hourly allowance. Legacy reservations with unknown length conservatively reserve the maximum 20 MiB each, against the tenant when their device is unknown. Existing payloads are backfilled without removal. Apply this additive accounting migration with older application writers stopped; mixed-version writers or direct SQL changes bypass accounting and are unsupported.
+Admission is serialized per tenant in SQL before storage writes. Pending and failed upload reservations stay charged until exact-object cleanup succeeds; failed admissions that reached a committed reservation also consume the hourly allowance. Legacy reservations with unknown length block new allocations until exact cleanup resolves them; a fixed-size guess cannot safely account for configurable document limits. Existing payloads are backfilled without removal. Apply this additive accounting migration with older application writers stopped; mixed-version writers or direct SQL changes bypass accounting and are unsupported.
 
 HTTP 429 means capacity, the rolling-hour allowance, cumulative inventory history, or an existing upload reservation prevents a new allocation. The response explains the category. Reuse the same idempotency/request identity when retrying: a completed matching replay returns its existing job even at capacity or after the original retry source expires. Wait for outstanding work or the hourly window, investigate failed cleanup/storage access, or have the host administrator adjust a justified capacity limit. Retention only removes eligible successful documents; it does not erase failed, uncertain or active work to make space.
 
@@ -125,13 +125,12 @@ Only a legacy-only host such as `PrintingDemo` should opt into
 `PrintingRoutes.LegacyEnrollment.ENABLED`. A rejected legacy enrollment does not
 consume the code, which still requires native user and facility authorization.
 
-Pause blocks new claims. Disconnect also expresses that ordinary agent heartbeat,
-inventory publication, and claiming should stop; the independent authenticated
-control poll remains available for reconnect. Neither operation cancels in-flight
-jobs. Resume preserves connection state; reconnect preserves pause. Revocation
-invalidates the enrolled credential permanently, blocks control polling, and
-requires separate local re-enrollment. It cannot be undone with resume/reconnect.
-Desired state, the last observed revision, and the last poll are separate facts:
+Pause blocks new claims. Disconnect stops dispatch and inventory publication while
+the authenticated control WebSocket remains available for a reconnect command.
+Neither operation cancels an already submitted spooler job. Resume preserves
+connection state; reconnect preserves pause. Revocation invalidates device proof,
+closes its channel and requires separate local re-enrollment. It cannot be undone
+with resume/reconnect. Desired state, observed revision and last contact are separate facts:
 a successful server action does not prove an offline device applied it.
 
 Queue clear atomically changes only this device's QUEUED jobs to FAILED with the
@@ -171,7 +170,7 @@ cancellation request, not that paper was withdrawn or a physical print was undon
 | --- | --- |
 | Enrollment rejected | Code expiration/single use, correct server, administrator-created facility/device enrollment |
 | No printers in QQQ | Service access to Windows queues; local exposure selection; connector enrollment and inventory publication |
-| Printer listed but submission rejected | Both `available` and `enabled`, format capability and 20 MiB decoded-size limit |
+| Printer listed but submission rejected | Both `available` and `enabled`, format capability and configured PDF/ZPL decoded-size limits |
 | Job stays queued | Connector connectivity, selected queue availability and device assignment |
 | Job stays received/submitting after restart | Inspect local journal/spooler; automatic uncertain-output replay is intentionally absent |
 | Printing app missing or access denied | QBit registration, `printing_admin`, matching `printing_tenant`, and correct QQQ backend |

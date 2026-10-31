@@ -1,6 +1,6 @@
 # QQQ Printing
 
-Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector initiates outbound HTTPS polling; the cloud needs no inbound route into the facility.
+Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://github.com/QRun-IO/qqq-print-agent) and the [shared protocol](https://github.com/QRun-IO/qqq-print-protocol). The Windows connector opens an outbound, authenticated two-way WebSocket; documents download separately over HTTPS. The cloud needs no inbound route into the facility. The real-time transport described here is unreleased source; published 0.2.0-rc.1 uses the earlier polling transport.
 
 **Prerelease software**, tested against QQQ **4.1.0-RC.20** and Java 21. The current published release is [**0.2.0-rc.1**](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.2.0-rc.1). The tagged build passed 110 tests and zero Checkstyle violations. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with verified build attestations for all three assets. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
 
@@ -11,16 +11,17 @@ The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/
 ```mermaid
 flowchart LR
   A[QQQ application / durable job] --> B[Printing QBit and JDBC queue]
-  C[Windows service] -->|Outbound HTTPS polling| B
+  C[Windows service] <-->|Client-initiated WSS: commands and status| B
+  C -->|Separate outbound HTTPS document streams| B
   C --> D[Windows spooler]
   D --> E[Local laser / Zebra]
 ```
 
-See the [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
+See the [real-time host integration](docs/REALTIME.md), [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `cc3c4e50e8f6f4fbc93d351fb51edb4f5438bbd3`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `67be986cb76d6b5d9a9f72cad054193b0d11b0d5`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
@@ -120,7 +121,7 @@ Metadata names follow QBit conventions: tables and data sources use `printing_*`
 
 Two independent settings govern dispatch: `available` means the queue is present in the latest locally selected inventory; `enabled` means a QQQ administrator approved it. New submissions and claims require both. Removing a queue from local selection makes it unavailable without deleting its approval/history. An empty inventory withdraws all queues. Withdrawing a queue cannot retract a job already accepted by Windows.
 
-Application code calls `printing.submit(JSONObject)` with the shared `SubmitJobRequest` fields. A stable business idempotency key returns the same job when retried; changing document/options/target under the same key fails. PDF is sent as bytes encoded once in base64; ZPL is UTF-8 printer-ready bytes. Default limit is 20 MiB. Queue approval and format compatibility are checked before insertion.
+Application code calls `printing.submit(JSONObject)` with the shared `SubmitJobRequest` fields. A stable business idempotency key returns the same job when retried; changing document/options/target under the same key fails. PDF is sent as bytes encoded once in base64; ZPL is UTF-8 printer-ready bytes. Default decoded limits are 100 MiB for PDF and 20 MiB for ZPL, both configurable in the native Printing connection and limits process. Queue approval and format compatibility are checked before insertion.
 
 ```java
 JSONObject job = printing.submit(new JSONObject()

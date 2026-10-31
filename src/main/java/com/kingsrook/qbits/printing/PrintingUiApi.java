@@ -49,11 +49,11 @@ public final class PrintingUiApi
       MiddlewareSpecExtensionsMetaData.ofOrWithNew(instance).withExtension(extension());
    }
 
-   /** Semantic extension version 1.0.0 includes device-control-v1. */
+   /** Semantic extension version 1.1.0 adds authenticated realtime delivery. */
    public static MiddlewareSpecExtension extension()
    {
-      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("1.0.0")
-         .withDescription("Native current-user printing with secondary device proof and device-control-v1.")
+      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("1.1.0")
+         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1.")
          .withSpec(Session.class)
          .withSpec(Bind.class)
          .withSpec(Enroll.class)
@@ -181,7 +181,7 @@ public final class PrintingUiApi
       @Override
       public void handleOutput(Context context, JsonOutput output)
       {
-         context.header("Cache-Control", "no-store").contentType("application/octet-stream").result((byte[]) output.getResult());
+         context.header("Cache-Control", "no-store").contentType("application/octet-stream").result((java.io.InputStream) output.getResult());
       }
    }
 
