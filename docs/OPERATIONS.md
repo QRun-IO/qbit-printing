@@ -94,6 +94,22 @@ reach that context; printing does not assert that an upstream cached session is
 fresh. Cookie-authenticated unsafe calls must also satisfy the host's Origin/CSRF
 policy. The local host requires its canonical same-origin authority.
 
+In the qualified QQQ 4.1.0-RC.20 runtime, OAuth2 `sessionStoreEnabled` defaults
+to `false`. Ordinary requests and session resume rerun the configured
+`QAuthenticationModuleCustomizerInterface` hooks; the host can load current
+permissions, tenant keys, and account status from its authoritative directory.
+With session caching enabled, a cache hit skips those hooks. That configuration
+requires explicit session-cache invalidation on authorization changes or another
+qualified freshness policy. Periodic `manageSession` calls and token renewal alone
+do not establish current provider roles or immediate account revocation.
+
+TABLE_BASED authentication rereads the session and user rows on each request;
+deleting either prevents resume. A generic user `enabled` column is not enforced
+automatically, and this module does not invoke the OAuth customizer hooks. The
+local host grants its configured account the configured printing role and tenant;
+this is not a general mutable role directory. Qualify the integrating host's
+authorization mapping and provider behavior separately from printing transport.
+
 Device controls use the same tenant-scoped service facade from native management
 and transport adapters. Adapters must authorize the current user, tenant, device,
 and action before calling the facade; a device ID or an actor string is not an
