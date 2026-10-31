@@ -35,6 +35,7 @@ import com.kingsrook.qqq.backend.core.model.metadata.QInstance;
 import com.kingsrook.qqq.backend.core.model.session.QSystemUserSession;
 import com.kingsrook.qqq.backend.module.filesystem.s3.model.metadata.S3BackendMetaData;
 import com.kingsrook.qqq.backend.module.filesystem.s3.model.metadata.S3TableBackendDetails;
+import org.json.JSONArray;
 
 
 /*******************************************************************************
@@ -43,6 +44,7 @@ import com.kingsrook.qqq.backend.module.filesystem.s3.model.metadata.S3TableBack
  *******************************************************************************/
 public class PrintingDocumentStorage
 {
+   private static final String S3_KEY_LAYOUT = "qqq-s3-filesystem-v1";
    private final QInstance instance;
    private final String prefix;
    private final boolean allowMemoryTest;
@@ -140,6 +142,9 @@ public class PrintingDocumentStorage
    /***************************************************************************
     ** Validate dedicated bucket use visible in this host's metadata. External
     ** bucket policies and unrelated applications still require deployment review.
+    ** RC.20 keys use File.separator; changing that layout requires explicit
+    ** binding review and migration, not silently adopting historical objects.
+    ** Ordered JSON preserves component boundaries, including multiline paths.
     ***************************************************************************/
    public String binding(String table)
    {
@@ -163,8 +168,9 @@ public class PrintingDocumentStorage
             throw new IllegalArgumentException("Printing bucket is shared with a non-printing table; configure a dedicated bucket");
          }
       }
-      return (digest(identity + "\n" + java.util.Objects.toString(s3.getRegion(), "") + "\n" + java.util.Objects.toString(s3.getPathStyleAccess(), "false")
-         + "\n" + java.util.Objects.toString(s3.getBasePath(), "") + "\n" + java.util.Objects.toString(details.getBasePath(), "")));
+      return (digest(new JSONArray().put(identity).put(java.util.Objects.toString(s3.getRegion(), "")).put(java.util.Objects.toString(s3.getPathStyleAccess(), "false"))
+         .put(java.util.Objects.toString(s3.getBasePath(), "")).put(java.util.Objects.toString(details.getBasePath(), ""))
+         .put(S3_KEY_LAYOUT).put((int) java.io.File.separatorChar).toString()));
    }
 
 
@@ -221,7 +227,7 @@ public class PrintingDocumentStorage
          endpoint = uri.getScheme().toLowerCase(java.util.Locale.ROOT) + "://" + uri.getHost().toLowerCase(java.util.Locale.ROOT)
             + (uri.getPort() < 0 || ("https".equalsIgnoreCase(uri.getScheme()) && uri.getPort() == 443) || ("http".equalsIgnoreCase(uri.getScheme()) && uri.getPort() == 80) ? "" : ":" + uri.getPort()) + java.util.Objects.toString(uri.getPath(), "").replaceAll("/+$", "");
       }
-      return (endpoint + "\n" + backend.getBucketName());
+      return (new JSONArray().put(endpoint).put(java.util.Objects.toString(backend.getBucketName())).toString());
    }
 
 

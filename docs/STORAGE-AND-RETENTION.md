@@ -12,6 +12,16 @@ The code validates the selected S3 metadata, detects conflicting bucket bindings
 
 Application metadata cannot prove that a bucket is unused by another application or that deployed IAM/bucket policies are correct. Deployment qualification must check those external controls, public-access blocking, transport/encryption policy and the intended customer/environment boundary. No live bucket has been created or changed by the audit.
 
+## S3 key layout and migration
+
+QQQ filesystem 4.1.0-RC.20 builds S3 keys with the host filesystem separator. With empty base paths, Windows writes two leading backslashes before the logical `printing/<tenant-hash>/<job>.ext` reference; Linux writes the canonical reference. Same-platform object operations have been qualified in isolated S3-compatible storage. The logical reference alone is therefore insufficient for IAM prefix rules or migration between platforms.
+
+Printing fingerprints the reviewed `qqq-s3-filesystem-v1` layout and the actual `File.separatorChar` code point (47 or 92), alongside the endpoint, bucket, region, path-style setting and backend/table base paths. Ordered JSON encoding preserves the identity component boundaries, including valid multiline base paths. A different layout rejects historical reads, new retries and cleanup with a destination-mismatch error before accessing those objects. New retries whose source binding is already incompatible fail before reserving another upload; the document loader also rechecks the binding when reading. An already-created retry still returns its idempotent receipt. Cleanup preserves content availability, retained-byte accounting and orphan reservations on mismatch.
+
+This S3 feature is unreleased. Old experimental fingerprints without the layout marker are deliberately rejected, even on their original platform. Startup never rewrites those bindings or moves/deletes their objects. Preserve the original database and objects until an explicitly reviewed migration or disposal; do not replace hashes merely to bypass the guard. Inline database documents remain readable and can be explicitly retried into the configured destination without any automatic storage migration.
+
+This guard does not make QQQ keys portable. The upstream owner must provide portable key construction and legacy-key handling. Adopting that change, including a change on the same operating system, requires an explicit layout-marker review and a migration plan for historical bindings and exact objects. The marker is a reviewed compatibility contract, not automatic detection of dependency implementation changes. Cross-platform migration and production IAM remain separate qualification work.
+
 ## Retained originals and delivery copies
 
 Record Files owns original versions and attachments; document generation owns rendering. Printing owns a separate delivery payload and queue receipts. Never bind printing cleanup to a Record Files bucket or pass an original's storage key as a printing-owned reference. Printing expiration must not remove a source attachment or weaken its retention policy.

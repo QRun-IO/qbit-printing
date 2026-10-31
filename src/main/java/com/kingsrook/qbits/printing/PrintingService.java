@@ -759,7 +759,9 @@ public class PrintingService
       {
          requireDevice(connection, deviceId);
          row = deviceJob(connection, deviceId, jobId);
-         row.put("content_available", query(connection, "SELECT content_available FROM printing_job WHERE id=? AND tenant_id=? AND device_id=?", jobId, tenantId, deviceId).getFirst().getInt("content_available"));
+         JSONObject document = query(connection, "SELECT content_available, content_storage_table, content_reference, content_binding FROM printing_job WHERE id=? AND tenant_id=? AND device_id=?", jobId, tenantId, deviceId).getFirst();
+         row.put("content_available", document.getInt("content_available")).put("content_storage_table", document.opt("content_storage_table"))
+            .put("content_reference", document.opt("content_reference")).put("content_binding", document.opt("content_binding"));
          List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND device_id=? AND idempotency_key=?", tenantId, deviceId, retryKey);
          if(!previous.isEmpty())
          {
@@ -780,6 +782,10 @@ public class PrintingService
       if((!"FAILED".equals(state) || mayHavePrinted) && !Boolean.TRUE.equals(request.opt("confirmDuplicateRisk")))
       {
          throw new PrintingException(409, "Inspect the printer and confirm the risk of duplicate output before reprinting");
+      }
+      if(!row.isNull("content_reference"))
+      {
+         verifyStoredReference(row);
       }
       return (submitPrepared(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
          .put("title", row.getString("title")).put("format", row.getString("format"))

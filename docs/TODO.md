@@ -1,15 +1,18 @@
 # Follow-up
 
+- [x] Correct S3 layout and multiline-prefix binding ambiguity; full isolated gate passes 72 tests with zero Checkstyle violations and independent review complete.
+- [x] Reproduce the actual Windows-to-Linux false-expiration defect, then qualify the corrected runtime: zero SDK requests for refused reads/retries/cleanup and preserved objects, availability and accounting.
+- [ ] Require fresh hosted gates for the S3 correction; portable upstream keys, historical migration and production IAM remain separate qualification work.
 - [x] Verify the H2 2.4.240 candidate at `fb99faf`: 67 Java tests, zero Checkstyle violations, hosted build/CodeQL/security pass, and all 204 selected runtime dependencies verified.
 - [x] Qualify the exact CI artifact on an isolated closed-data copy: native frontend/authentication/query/denial/logout/retention checks, actual scheduled zero-removal tick, forced termination, read-only inspection before initialization, and successful cold restart; all 11 tables and retained state preserved.
 - [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass. No active package license exception is enabled.
 - [ ] Obtain approval for the prepared central H2 metadata exception record, then apply only its package-scoped workflow input and require fresh complete hosted gates.
-- [ ] Qualify graceful application shutdown separately from the passing forced-termination/cold-reopen check.
+- [x] Qualify registered JVM-hook shutdown on exact `00dd2dd`: native acceptance, Quartz/HTTP shutdown, exit 0 and independent read-only cold inspection before initialization pass. Windows reboot/service-manager behavior remains separate.
 - [ ] Perform authorized live paired-host cutover from a closed backup after all gates pass; preserve pairing and verify the real native records and connector heartbeat.
 
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
-- [ ] Integrate Record Files only after its latest candidate becomes a verified installed artifact; implement the durable accepted-source/actor binding and committed observation receipt against the agreed public types. Adapter remains disabled.
+- [ ] Implement the optional Record Files adapter against its verified frozen contract: durable accepted-source/actor binding, legitimate current reporting identity and committed observation receipt. Adapter remains disabled; standalone printing does not depend on it.
 - [ ] Verify tagged audit release gates, published provenance and deployed-host qualification.
 - [x] Historical audit PR #10 checkpoint aeac1a6 passed hosted checks; current H2/native qualification and remaining license gate are recorded above.
 - [x] Complete the independent baseline scan and current-source reviews of all five findings and remediations.
