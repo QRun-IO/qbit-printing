@@ -96,3 +96,7 @@ Server source0.3.0-rc.1 passes117 Java tests and zero Checkstyle violations, inc
 ## Final real-time API gate — 2026-10-31
 
 Native printing extension is now2.0.0, because requiring a synchronized WebSocket for previously HTTP-only native claims is a breaking behavior change. Framework/qqq/v1, wirev1 and qqq-printing.v1 remain unchanged; product0.3.0-rc.1. Full final-source verify passed118tests, zero failures/errors/skips and zero Checkstyle violations. Configured heartbeat timeout now determines dashboard freshness (90s legacy floor) and authorized PING records control-only contact. Published1.0 OpenAPI baseline remains preserved. Protocol repin and final Windows verification are pending; no live deployment.
+
+## Coordinated protocol and cross-runtime verification — 2026-10-31
+
+Current immutable consumer pin is df3729ac632d4a34a3fb8423acef465042a624fc (71definitions/73fixtures); it supersedes earlier67be986 pre-major-correction checkpoints. Final API2.0 Java/Release.NET interoperability passed13 checks with25MiB content and exact durable replay, temporary host stopped and wrapper exit0. Installed0.2 remains unchanged. Windows source gate398tests passed before one final startup recovery regression was added; its definitive gate is still pending. No release/install acceptance claim.

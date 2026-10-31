@@ -21,7 +21,7 @@ See the [real-time host integration](docs/REALTIME.md), [screen walkthrough](doc
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `67be986cb76d6b5d9a9f72cad054193b0d11b0d5`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `df3729ac632d4a34a3fb8423acef465042a624fc`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify
