@@ -50,7 +50,6 @@ import com.kingsrook.qqq.backend.core.model.metadata.processes.QFrontendStepMeta
 import com.kingsrook.qqq.backend.core.model.metadata.processes.QProcessMetaData;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractLoadStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractTransformStep;
-import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ExtractViaQueryStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ProcessSummaryProviderInterface;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
 import org.json.JSONObject;
@@ -138,7 +137,7 @@ public final class PrintingDeviceProcesses
          values.put(StreamedETLWithFrontendProcess.FIELD_SUPPORTS_FULL_VALIDATION, true);
          values.put(StreamedETLWithFrontendProcess.FIELD_DO_FULL_VALIDATION, true);
          values.put(StreamedETLWithFrontendProcess.FIELD_PREVIEW_MESSAGE, action.preview);
-         QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(ExtractViaQueryStep.class, Transform.class, Load.class, values)
+         QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(PrintingExtract.class, Transform.class, Load.class, values)
             .withName(action.process).withLabel(action.label).withTableName(table).withMinInputRecords(1)
             .withPermissionRules(PrintingProcesses.permissionRules());
          process.withStep(0, new QBackendStepMetaData().withName("prepareControl").withCode(new QCodeReference(Prepare.class)));

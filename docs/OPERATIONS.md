@@ -73,8 +73,8 @@ the reviewed identity set under the device lock. Claims authorize the exact job
 and printer before dispatch, ordered by creation time then identity. An inaccessible
 printer fails closed rather than granting access through its parent device.
 
-Queue-clear review is bounded to 10,000 jobs. It performs a native Get for each job
-and each distinct printer, with the device checked once. Get-specific host policies
+Queue-clear review is bounded to 10,000 jobs. It performs a native Get for each
+job and each distinct printer, with the device checked once. Get-specific policies
 remain effective. Large clears on remote databases have not been performance
 qualified; this review cost is separate from normal claim throughput.
 
@@ -82,6 +82,11 @@ Developer projections that request derived `device_status`, `control_status`, or
 `command_status` must also select `id`. The normal native UI includes it. An
 identity-free projection is rejected rather than returning a fabricated UNKNOWN
 status; the frozen QQQ dependency has no pre-query projection hook for these fields.
+
+Printing selection processes also enforce native table access before extraction
+and preview counts. The printing extract wrapper preserves the core filter,
+callbacks, and tenant row locks, then requires permission enforcement on the
+query. Later review/load checks still reauthorize the selected records.
 
 Authorization uses the native QQQ context established for each request. Host
 authentication and session refresh policies determine when permission changes

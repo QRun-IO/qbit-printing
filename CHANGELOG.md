@@ -7,12 +7,15 @@
   owned Windows-job cancellation and bounded command history.
 - Show device presence, desired versus applied control state, related printers,
   jobs and queue; include connection/control issues in the printing dashboard.
-- Register semantic printing extension1.0.0 at `/qqq/v1/qbit/printing`, using
+- Register semantic printing extension `1.0.0` at `/qqq/v1/qbit/printing`, using
   standard QQQ user sessions and secondary device proof with current native
   record/process permissions. Legacy bearer transport remains explicit compatibility.
 - Preserve journal/history and distinguish accepted commands from confirmed
   execution. Shared-core/provider native authentication acceptance and installed
   candidate qualification remain required before deployment claims.
+- Explicitly enforce current native permissions during selection counts and
+  extraction, including callbacks and query selections. Pass 109 Java tests and
+  23 real .NET client/native QQQ interoperability checks without print jobs.
 
 ## 0.1.4-rc.1 — 2026-10-31
 
