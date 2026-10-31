@@ -15,7 +15,7 @@
 - Pin H2 2.4.240 to fix close-time compaction data loss; verify file-backed schema/settings across cold reopens and document closed-backup upgrade qualification.
 - Verify the exact frontend-inclusive runtime inventory in Maven, Trivy and OSV; fail on malformed or incomplete scanner evidence.
 - Include repository LICENSE and NOTICE under META-INF using standard Maven resources; preserve font license, provenance and diagnostic assets.
-- Full local verification passed 72 tests with zero failures/errors/skips and Checkstyle violations, including incompatible S3 bindings, multiline prefix retargeting, retry accounting and inline document compatibility. Actual cross-platform refusal preserves objects and accounting with zero SDK requests. The H2-fixed artifact passed hosted build/security/CodeQL and isolated native cold-restart checks. Fresh S3 guard CI remains pending; this entry does not claim release or live storage migration.
+- Full local and fresh hosted verification passed 72 tests with zero failures/errors/skips and Checkstyle violations, including incompatible S3 bindings, multiline prefix retargeting, retry accounting and inline document compatibility. Actual cross-platform refusal preserves objects and accounting with zero SDK requests. Required build/security/CodeQL/dependency gates pass with the approved scoped H2 record. The exact CI artifact passed isolated graceful/cold-restart checks and local paired-host cutover with native authentication, preserved records, automatic connector reconnection and 365-day retention. No live S3 migration or remote deployment is claimed.
 
 ## 0.1.3-rc.1 — 2026-10-30
 

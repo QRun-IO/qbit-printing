@@ -2,13 +2,13 @@
 
 - [x] Correct S3 layout and multiline-prefix binding ambiguity; full isolated gate passes 72 tests with zero Checkstyle violations and independent review complete.
 - [x] Reproduce the actual Windows-to-Linux false-expiration defect, then qualify the corrected runtime: zero SDK requests for refused reads/retries/cleanup and preserved objects, availability and accounting.
-- [ ] Require fresh hosted gates for the S3 correction; portable upstream keys, historical migration and production IAM remain separate qualification work.
+- [x] Pass fresh hosted gates for the S3 correction and approved scoped H2 input; verify exact CI artifacts, all 47 archive payloads and 204 runtime coordinates. Portable upstream keys, historical migration and production IAM remain separate qualification work.
 - [x] Verify the H2 2.4.240 candidate at `fb99faf`: 67 Java tests, zero Checkstyle violations, hosted build/CodeQL/security pass, and all 204 selected runtime dependencies verified.
 - [x] Qualify the exact CI artifact on an isolated closed-data copy: native frontend/authentication/query/denial/logout/retention checks, actual scheduled zero-removal tick, forced termination, read-only inspection before initialization, and successful cold restart; all 11 tables and retained state preserved.
 - [x] Add the exact reviewed H2 version guard and license attribution/evidence; 17 Python guard tests and workflow lint pass.
-- [x] Approve central H2 metadata record EX-0013 through standards PR #54 and apply only its package-scoped workflow input; fresh complete hosted gates remain required before release or cutover.
+- [x] Approve central H2 metadata record EX-0013 through standards PR #54, apply only its package-scoped workflow input and pass every fresh required check.
 - [x] Qualify registered JVM-hook shutdown on exact `00dd2dd`: native acceptance, Quartz/HTTP shutdown, exit 0 and independent read-only cold inspection before initialization pass. Windows reboot/service-manager behavior remains separate.
-- [ ] Perform authorized live paired-host cutover from a closed backup after all gates pass; preserve pairing and verify the real native records and connector heartbeat.
+- [x] Perform authorized live paired-host cutover after verified native recovery, closed backup and fresh required gates; preserve pairing, 1 device, 2 ready printers, 7 jobs and 21 events. Native authentication/query/denial/logout, automatic connector reconnection and 365-day retention checks pass.
 
 - [x] Finish audit regressions for native-process replay, strict options/inventory validation, retained duplicate risk and event field bounds; full gate passes 53 tests.
 - [x] Implement admin-configurable document retention (one-year default), bounded scheduled cleanup and existing QQQ object-storage integration, retaining history/receipts and protecting active or uncertain output.
@@ -17,7 +17,7 @@
 - [x] Historical audit PR #10 checkpoint aeac1a6 passed hosted checks; current H2/native qualification and remaining license gate are recorded above.
 - [x] Complete the independent baseline scan and current-source reviews of all five findings and remediations.
 - [x] Add authenticated native QQQ local host sharing paired data with device routes and the existing scheduler; 65 tests/zero Checkstyle pass and independent source review found no blocker.
-- [ ] Complete live authenticated-host deployment after the isolated native acceptance above; keep remote/S3 qualification separate.
+- [x] Complete live authenticated local-host deployment after isolated native and graceful/cold-copy acceptance; remote/S3 qualification remains separate under the user's local-first instruction.
 
 - [x] Versioned shared contract and HTTP happy-path test.
 - [x] Durable enrollment, device-scoped authentication, inventory and printer approval.
