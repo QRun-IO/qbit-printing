@@ -469,13 +469,13 @@ public class PrintingService
 
 
    /***************************************************************************
-    ** Resolve an active device credential without exposing its verifier.
+    ** Legacy primary credentials are valid only until native user binding.
     ***************************************************************************/
    public String authenticate(String token) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
-         List<JSONObject> devices = query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND token_hash=? AND enabled=1 AND revoked_at IS NULL", tenantId, hash(token == null ? "" : token));
+         List<JSONObject> devices = query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND token_hash=? AND enabled=1 AND revoked_at IS NULL AND bound_user_id IS NULL", tenantId, hash(token == null ? "" : token));
          if(devices.isEmpty())
          {
             throw new PrintingException(401, "Invalid device credential");

@@ -116,6 +116,15 @@ and action before calling the facade; a device ID or an actor string is not an
 authorization grant. The legacy `/printing/v1` device bearer transport remains a
 compatibility interface, not a substitute for native QQQ user permissions.
 
+Once a device is bound to a QQQ user, its token is secondary proof only: all
+legacy device endpoints reject it, including claim, content and control polling.
+Existing unbound legacy devices remain usable during migration. New legacy
+enrollment is disabled by default in `PrintingRoutes` and explicitly disabled in
+`PrintingLocalHost`; native enrollment uses `/qqq/v1/qbit/printing/devices/enroll`.
+Only a legacy-only host such as `PrintingDemo` should opt into
+`PrintingRoutes.LegacyEnrollment.ENABLED`. A rejected legacy enrollment does not
+consume the code, which still requires native user and facility authorization.
+
 Pause blocks new claims. Disconnect also expresses that ordinary agent heartbeat,
 inventory publication, and claiming should stop; the independent authenticated
 control poll remains available for reconnect. Neither operation cancels in-flight

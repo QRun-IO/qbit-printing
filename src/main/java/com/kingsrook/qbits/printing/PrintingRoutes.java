@@ -38,6 +38,13 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    public static final String BASE = "/printing/v1";
    private final PrintingService service;
    private final Predicate<Context> administrator;
+   private final LegacyEnrollment legacyEnrollment;
+
+   /** Legacy-only hosts must explicitly opt into bearer-only device enrollment. */
+   public enum LegacyEnrollment
+   {
+      DISABLED, ENABLED
+   }
 
 
 
@@ -46,8 +53,16 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
     ***************************************************************************/
    public PrintingRoutes(PrintingService service, Predicate<Context> administrator)
    {
+      this(service, administrator, LegacyEnrollment.DISABLED);
+   }
+
+
+   /** Existing unbound devices may migrate; new legacy enrollment is an explicit host policy. */
+   public PrintingRoutes(PrintingService service, Predicate<Context> administrator, LegacyEnrollment legacyEnrollment)
+   {
       this.service = service;
       this.administrator = administrator;
+      this.legacyEnrollment = java.util.Objects.requireNonNull(legacyEnrollment);
    }
 
 
@@ -88,7 +103,14 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
          admin(context);
          return service.getDeviceCommand(context.pathParam("deviceId"), context.pathParam("commandId"));
       }));
-      config.routes.post(BASE + "/enroll", context -> handle(context, () -> service.enroll(body(context))));
+      config.routes.post(BASE + "/enroll", context -> handle(context, () ->
+      {
+         if(legacyEnrollment != LegacyEnrollment.ENABLED)
+         {
+            throw new PrintingException(403, "Enrollment requires native QQQ authentication");
+         }
+         return service.enroll(body(context));
+      }));
       config.routes.put(BASE + "/device/printers", context -> handle(context, () ->
       {
          service.inventory(device(context), body(context).getJSONArray("printers"));

@@ -52,6 +52,7 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -119,6 +120,18 @@ class PrintingUiApiTest
          assertEquals(403, send(client, base, prefix + "/device/jobs/claim", "POST", new JSONObject(), cookie, device, proof).statusCode());
          assertEquals(403, send(client, base, prefix + "/device/bind", "POST", new JSONObject(), cookie, device, "wrong").statusCode());
          json(send(client, base, prefix + "/device/bind", "POST", new JSONObject(), cookie, device, proof), 200);
+         JSONObject codeForNative = service.createEnrollment("default", "Native-only code").put("deviceName", "Native-only code").put("agentVersion", "test");
+         assertAll("Native proof cannot authorize the legacy transport",
+            () -> assertEquals(401, legacy(client, base, "/device/jobs/claim", "POST", new JSONObject(), proof).statusCode()),
+            () -> assertEquals(401, legacy(client, base, "/device/jobs/" + job + "/content", "GET", null, proof).statusCode()),
+            () -> assertEquals(401, legacy(client, base, "/device/jobs/queued", "GET", null, proof).statusCode()),
+            () -> assertEquals(401, legacy(client, base, "/device/control/poll", "POST", new JSONObject(), proof).statusCode()),
+            () -> assertEquals(403, legacy(client, base, "/enroll", "POST", codeForNative, null).statusCode()));
+         assertEquals("QUEUED", service.getJob(job).getString("status"));
+         assertEquals("default", service.enrollmentFacility(codeForNative.getString("enrollmentCode")));
+         JSONObject nativeOnly = json(send(client, base, prefix + "/devices/enroll", "POST", codeForNative, cookie, null, null), 200);
+         service.authorizeAgent(nativeOnly.getString("deviceId"), nativeOnly.getString("deviceToken"), "operator", false);
+         assertEquals(401, legacy(client, base, "/device/jobs/queued", "GET", null, nativeOnly.getString("deviceToken")).statusCode());
          assertEquals(403, send(client, base, prefix + "/device/jobs/claim", "POST", new JSONObject(), cookie, null, null).statusCode());
          JSONObject others = service.enrollForUser(service.createEnrollment("default", "Other owner").put("deviceName", "Other owner").put("agentVersion", "test"), "another-principal");
          assertEquals(403, send(client, base, prefix + "/device/heartbeat", "POST", new JSONObject().put("agentVersion", "test"), cookie, others.getString("deviceId"), others.getString("deviceToken")).statusCode());
@@ -332,6 +345,23 @@ class PrintingUiApiTest
       {
          request.header("Content-Type", "application/json");
       }
+      return (client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray()));
+   }
+
+
+   /** Legacy requests intentionally carry no QQQ cookie or native secondary-proof headers. */
+   private static HttpResponse<byte[]> legacy(HttpClient client, String base, String path, String method, JSONObject body, String token) throws Exception
+   {
+      HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + PrintingRoutes.BASE + path)).header("Origin", base);
+      if(token != null)
+      {
+         request.header("Authorization", "Bearer " + token);
+      }
+      if(body != null)
+      {
+         request.header("Content-Type", "application/json");
+      }
+      request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body.toString()));
       return (client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray()));
    }
 

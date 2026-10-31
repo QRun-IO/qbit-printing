@@ -1,6 +1,6 @@
 # Follow-up
 
-- [x] Complete native device controls, per-record/selection actions, queue/history and dashboard integration tests; 109 tests pass with zero Checkstyle violations.
+- [x] Complete native device controls, per-record/selection actions, queue/history, dashboard and legacy-boundary integration tests; 110 tests pass with zero Checkstyle violations.
 - [x] Complete 23 actual Windows Core client/native QQQ interoperability checks with table-based authentication, no printers and no jobs.
 - [ ] Complete installed candidate acceptance after protected CI.
 - [ ] Complete standard QQQ discovery/session/device-binding security checks and Windows auth integration; qualify the shared Authentik native grant without a private authentication fork.

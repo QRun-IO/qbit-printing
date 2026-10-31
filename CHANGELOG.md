@@ -14,8 +14,11 @@
   execution. Shared-core/provider native authentication acceptance and installed
   candidate qualification remain required before deployment claims.
 - Explicitly enforce current native permissions during selection counts and
-  extraction, including callbacks and query selections. Pass 109 Java tests and
+  extraction, including callbacks and query selections. Pass 110 Java tests and
   23 real .NET client/native QQQ interoperability checks without print jobs.
+- Reject account-bound device tokens on legacy routes and disable legacy
+  enrollment by default. Legacy-only hosts opt in explicitly; existing unbound
+  devices retain migration compatibility.
 
 ## 0.1.4-rc.1 — 2026-10-31
 

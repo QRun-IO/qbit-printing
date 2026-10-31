@@ -133,7 +133,7 @@ public class PrintingLocalHost extends AbstractQQQApplication
    void configure(QApplicationJavalinServer server, boolean frontend)
    {
       PrintingRoutes routes = new PrintingRoutes(service, context -> MessageDigest.isEqual(
-         settings.administratorToken().getBytes(StandardCharsets.UTF_8), PrintingRoutes.bearer(context).getBytes(StandardCharsets.UTF_8)));
+         settings.administratorToken().getBytes(StandardCharsets.UTF_8), PrintingRoutes.bearer(context).getBytes(StandardCharsets.UTF_8)), PrintingRoutes.LegacyEnrollment.DISABLED);
       server.withPort(settings.port()).withServeFrontendNext(frontend).withServeFrontendMaterialDashboard(false)
          .withAdditionalRouteProviders(List.of(routes)).withJavalinConfigCustomizer(config ->
          {
