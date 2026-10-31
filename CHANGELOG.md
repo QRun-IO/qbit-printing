@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.4-rc.1 — unreleased
+## 0.1.4-rc.1 — 2026-10-31
 
-- Use the official Query dog mascot on every built-in PDF and ZPL diagnostic profile, preserving the original artwork and aspect ratio. The full local gate passes 73 tests with zero Checkstyle violations; PDF previews and reconstructed thermal graphics pass visual review. New physical output remains to be confirmed after deployment.
+- Use the official Query dog mascot on every built-in PDF and ZPL diagnostic profile, preserving the original artwork and aspect ratio. Full local and hosted gates pass 73 tests with zero Checkstyle violations; PDF previews and reconstructed thermal graphics pass visual review. Local native deployment is accepted; physical output from the updated Query diagnostics remains unconfirmed.
 - Add an authenticated loopback QQQ host that shares durable paired devices/jobs with native screens and retention scheduling, preserving the separate synthetic UI demo.
 - Make native enrollment and test-print execution replay-safe and retain known duplicate-output risk after later failures.
 - Strictly validate print options, inventory formats/status and event bounds before persistence; recheck current queue format support at claim time.
@@ -16,7 +16,8 @@
 - Pin H2 2.4.240 to fix close-time compaction data loss; verify file-backed schema/settings across cold reopens and document closed-backup upgrade qualification.
 - Verify the exact frontend-inclusive runtime inventory in Maven, Trivy and OSV; fail on malformed or incomplete scanner evidence.
 - Include repository LICENSE and NOTICE under META-INF using standard Maven resources; preserve font license, provenance and diagnostic assets.
-- Full local and fresh hosted verification passed 72 tests with zero failures/errors/skips and Checkstyle violations, including incompatible S3 bindings, multiline prefix retargeting, retry accounting and inline document compatibility. Actual cross-platform refusal preserves objects and accounting with zero SDK requests. Required build/security/CodeQL/dependency gates pass with the approved scoped H2 record. The exact CI artifact passed isolated graceful/cold-restart checks and local paired-host cutover with native authentication, preserved records, automatic connector reconnection and 365-day retention. No live S3 migration or remote deployment is claimed.
+- The S3 safeguard checkpoint passed 72 tests with zero failures/errors/skips and Checkstyle violations, including incompatible S3 bindings, multiline prefix retargeting, retry accounting and inline document compatibility. Actual cross-platform refusal preserves objects and accounting with zero SDK requests. Required build/security/CodeQL/dependency gates pass with the approved scoped H2 record. Qualified artifacts passed isolated graceful/cold-restart checks and local paired-host acceptance with native authentication, preserved records, automatic connector reconnection and 365-day retention. No live S3 migration or remote deployment is claimed.
+- Publish the JAR, POM and SHA256SUMS after [release run 41190650664](https://github.com/QRun-IO/qbit-printing/actions/runs/41190650664) passed all gates. Verify checksums and GitHub attestations for all three assets against the release tag and source; all packaged entry contents match the reviewed Query CI artifact.
 
 ## 0.1.3-rc.1 — 2026-10-30
 
