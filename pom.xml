@@ -31,7 +31,17 @@
    <profiles><profile><id>ui-demo</id><dependencies>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-frontend-next</artifactId><version>1.0.0-RC.37</version><scope>runtime</scope></dependency>
    </dependencies></profile></profiles>
-   <build><plugins>
+   <build>
+      <resources>
+         <resource><directory>src/main/resources</directory></resource>
+         <resource>
+            <directory>${project.basedir}</directory>
+            <targetPath>META-INF</targetPath>
+            <includes><include>LICENSE</include><include>NOTICE</include></includes>
+            <filtering>false</filtering>
+         </resource>
+      </resources>
+      <plugins>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><version>3.3.1</version>
          <dependencies><dependency><groupId>com.puppycrawl.tools</groupId><artifactId>checkstyle</artifactId><version>10.12.6</version></dependency></dependencies>
          <configuration><configLocation>checkstyle/config.xml</configLocation><includeTestSourceDirectory>true</includeTestSourceDirectory><consoleOutput>true</consoleOutput><violationSeverity>warning</violationSeverity><failOnViolation>true</failOnViolation></configuration>

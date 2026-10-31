@@ -13,7 +13,8 @@
 - Consume bounded claim/cancel request bodies before mutation so a persistent HTTP connection remains usable for the subsequent status event.
 - Pin H2 2.4.240 to fix close-time compaction data loss; verify file-backed schema/settings across cold reopens and document closed-backup upgrade qualification.
 - Verify the exact frontend-inclusive runtime inventory in Maven, Trivy and OSV; fail on malformed or incomplete scanner evidence.
-- Full local verification passed 67 tests with zero failures/errors/skips and Checkstyle violations. Final dependency-change hosted checks remain pending; this entry does not claim release or live storage migration.
+- Include repository LICENSE and NOTICE under META-INF using standard Maven resources; preserve font license, provenance and diagnostic assets.
+- Full local verification passed 67 tests with zero failures/errors/skips and Checkstyle violations. The H2-fixed artifact passed hosted build/security/CodeQL and isolated native cold-restart checks. Fresh packaging checks and the license-metadata PR gate remain pending; this entry does not claim release or live storage migration.
 
 ## 0.1.3-rc.1 — 2026-10-30
 
