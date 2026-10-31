@@ -70,6 +70,10 @@ import org.json.JSONObject;
  *******************************************************************************/
 public class PrintingProcesses implements BackendStep
 {
+   private static final String TEST_REQUEST_ID = "printingTestRequestId";
+
+
+
    /***************************************************************************
     ** Register the setup and test actions in the Printing app.
     ***************************************************************************/
@@ -77,7 +81,7 @@ public class PrintingProcesses implements BackendStep
    {
       PrintingJobProcesses.register(instance);
       registerProfiles(instance);
-      add(instance, "printingEnrollDevice", "Enroll a print device", List.of(field("facilityId", "Facility"), field("deviceName", "Device name")));
+      add(instance, "printingEnrollDevice", "Enroll a print device", List.of(PrintingFacilities.field(instance), field("deviceName", "Device name")));
       add(instance, "printingEnablePrinter", "Set printer approval", List.of(deviceField(), printerField(null), new QFieldMetaData("enabled", QFieldType.BOOLEAN).withLabel("Approved for printing").withIsRequired(true)));
       add(instance, "printingTestZpl", "Print a test label", List.of(deviceField(), printerField("ZPL"), profileField(false)));
       add(instance, "printingTestPdf", "Print a test page", List.of(deviceField(), printerField("PDF"), profileField(true)));
@@ -174,6 +178,11 @@ public class PrintingProcesses implements BackendStep
       if("printingEnrollDevice".equals(name))
       {
          process.withTableName(PrintingTables.DEVICE).withMinInputRecords(0);
+         process.withStep(0, new QBackendStepMetaData().withName("prepareEnrollment").withCode(new QCodeReference(PrepareEnrollment.class)));
+      }
+      if(name.startsWith("printingTest"))
+      {
+         process.withStep(0, new QBackendStepMetaData().withName("prepareTest").withCode(new QCodeReference(PrepareTest.class)));
       }
       instance.addProcess(process);
    }
@@ -197,6 +206,7 @@ public class PrintingProcesses implements BackendStep
       {
          process.withStep(0, new QFrontendStepMetaData().withName("testProfile").withLabel("Choose matching stock and resolution")
             .withFormFields(List.of(profileField(name.endsWith("Pdf")))).withComponent(new QFrontendComponentMetaData().withType(QComponentType.EDIT_FORM)));
+         process.withStep(0, new QBackendStepMetaData().withName("prepareTest").withCode(new QCodeReference(PrepareTest.class)));
       }
       instance.addProcess(process);
    }
@@ -250,7 +260,8 @@ public class PrintingProcesses implements BackendStep
          {
             case "printingEnrollDevice" ->
             {
-               JSONObject enrollment = service.createEnrollment(input.getValueString("facilityId"), input.getValueString("deviceName"));
+               JSONObject enrollment = service.createEnrollment(PrintingFacilities.validate(input.getValueString("facilityId")), input.getValueString("deviceName"),
+                  input.getValueString("printingEnrollmentCode"), input.getValueString("printingEnrollmentExpires"));
                output.addValue("result", "Enrollment code: " + enrollment.getString("enrollmentCode") + " (expires " + enrollment.getString("expiresAt") + ")");
             }
             case "printingEnablePrinter" ->
@@ -262,7 +273,7 @@ public class PrintingProcesses implements BackendStep
             case "printingTestZpl", "printingTestPdf" ->
             {
                QRecord printer = resolvePrinter(input.getValueString("printerId"), input.getValueString("deviceId"));
-               String job = submitTest(printer, "printingTestPdf".equals(input.getProcessName()), input.getValueString("testProfile"));
+               String job = submitTest(printer, "printingTestPdf".equals(input.getProcessName()), input.getValueString("testProfile"), testRequestKey(input, printer));
                output.addValue("result", "Queued print job " + job + ". Check Print jobs for submission status.");
             }
             default -> throw new QException("Unknown printing action");
@@ -309,17 +320,92 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    static String submitTest(QRecord printer, boolean pdf, String profileName) throws QException
    {
+      return (submitTest(printer, pdf, profileName, "test:" + UUID.randomUUID()));
+   }
+
+
+
+   /***************************************************************************
+    ** The native process persists its request identity before operator review.
+    ***************************************************************************/
+   private static String testRequestKey(RunBackendStepInput input, QRecord printer) throws QException
+   {
+      String request = input.getValueString(TEST_REQUEST_ID);
+      if(request == null || request.isBlank())
+      {
+         throw new QException("Restart the test-print action to obtain a safe request identity");
+      }
+      return ("native-test:" + request + ":" + printer.getValueString("id"));
+   }
+
+
+
+   /***************************************************************************
+    ** Generate one immutable document and deduplicate replays of a process load.
+    ***************************************************************************/
+   private static String submitTest(QRecord printer, boolean pdf, String profileName, String key) throws QException
+   {
       try
       {
          TestPrintProfile profile = TestPrintProfile.resolve(pdf ? "PDF" : "ZPL", profileName);
          byte[] bytes = pdf ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
          JSONObject job = currentService().submit(new JSONObject().put("deviceId", printer.getValueString("device_id")).put("printerId", printer.getValueString("printer_id"))
-            .put("title", "QQQ print test").put("format", pdf ? "PDF" : "ZPL").put("contentBase64", Base64.getEncoder().encodeToString(bytes)).put("idempotencyKey", "test:" + UUID.randomUUID()));
+            .put("title", "QQQ print test").put("format", pdf ? "PDF" : "ZPL").put("contentBase64", Base64.getEncoder().encodeToString(bytes)).put("idempotencyKey", key));
          return (job.getString("jobId"));
       }
       catch(java.sql.SQLException | PrintingException exception)
       {
          throw new QException("Could not queue test print: " + exception.getMessage(), exception);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Prepare once before forms/review; a replay reuses the persisted identity.
+    ***************************************************************************/
+   public static class PrepareTest implements BackendStep
+   {
+      /************************************************************************
+       ** Direct invocation also requires administrator and tenant access.
+       ************************************************************************/
+      @Override
+      public void run(RunBackendStepInput input, RunBackendStepOutput output) throws QException
+      {
+         new PrintingAdminPermission().checkPermissionsThrowing(input, null);
+         currentService();
+         String request = input.getValueString(TEST_REQUEST_ID);
+         output.addValue(TEST_REQUEST_ID, request == null || request.isBlank() ? UUID.randomUUID().toString() : request);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Prepare one short-lived credential in the authorized process state. The
+    ** database stores its hash and consumed receipt, never its plaintext value.
+    ***************************************************************************/
+   public static class PrepareEnrollment implements BackendStep
+   {
+      /************************************************************************
+       ** Keep credential and expiry stable across form and backend replay.
+       ************************************************************************/
+      @Override
+      public void run(RunBackendStepInput input, RunBackendStepOutput output) throws QException
+      {
+         new PrintingAdminPermission().checkPermissionsThrowing(input, null);
+         currentService();
+         String code = input.getValueString("printingEnrollmentCode");
+         String expires = input.getValueString("printingEnrollmentExpires");
+         if(code == null && expires == null)
+         {
+            byte[] random = new byte[32];
+            new java.security.SecureRandom().nextBytes(random);
+            code = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+            expires = java.time.Instant.now().plusSeconds(900).toString();
+         }
+         output.addValue("printingEnrollmentCode", code);
+         output.addValue("printingEnrollmentExpires", expires);
       }
    }
 
@@ -405,8 +491,8 @@ public class PrintingProcesses implements BackendStep
             {
                switch(input.getProcessName())
                {
-                  case "printingTestSelectedPdf" -> submitTest(printer, true, input.getValueString("testProfile"));
-                  case "printingTestSelectedZpl" -> submitTest(printer, false, input.getValueString("testProfile"));
+                  case "printingTestSelectedPdf" -> submitTest(printer, true, input.getValueString("testProfile"), testRequestKey(input, printer));
+                  case "printingTestSelectedZpl" -> submitTest(printer, false, input.getValueString("testProfile"), testRequestKey(input, printer));
                   case "printingEnableSelectedPrinters", "printingDisableSelectedPrinters" -> currentService().enablePrinter(printer.getValueString("device_id"), printer.getValueString("printer_id"), "printingEnableSelectedPrinters".equals(input.getProcessName()));
                   default -> throw new QException("Unknown selected printing action");
                }

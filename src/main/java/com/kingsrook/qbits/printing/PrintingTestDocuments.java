@@ -53,7 +53,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 public final class PrintingTestDocuments
 {
    static final String FONT_RESOURCE = "/com/kingsrook/qbits/printing/fonts/JetBrainsMono-Bold.ttf";
-   private static final String LOGO_RESOURCE = "/com/kingsrook/qbits/printing/images/qqq-logo.png";
+   private static final String LOGO_RESOURCE = "/com/kingsrook/qbits/printing/images/query-mascot.png";
    static final String BARCODE_VALUE = "QQQ-TEST-123456";
 
 
@@ -267,7 +267,8 @@ public final class PrintingTestDocuments
 
 
    /***************************************************************************
-    ** Composite transparent source artwork on white before monochrome printing.
+    ** Preserve Query's official artwork and aspect ratio inside square layout
+    ** boxes, compositing transparency on white before monochrome printing.
     ***************************************************************************/
    private static BufferedImage logo() throws IOException
    {
@@ -275,16 +276,17 @@ public final class PrintingTestDocuments
       {
          if(stream == null)
          {
-            throw new IOException("Bundled QQQ logo is missing");
+            throw new IOException("Bundled Query mascot is missing");
          }
          BufferedImage source = ImageIO.read(stream);
-         BufferedImage image = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_BYTE_BINARY);
+         int size = Math.max(source.getWidth(), source.getHeight());
+         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_BYTE_BINARY);
          Graphics2D graphics = image.createGraphics();
          try
          {
             graphics.setColor(Color.WHITE);
             graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
-            graphics.drawImage(source, 0, 0, null);
+            graphics.drawImage(source, (size - source.getWidth()) / 2, (size - source.getHeight()) / 2, null);
          }
          finally
          {

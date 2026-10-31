@@ -1,12 +1,29 @@
 # Changelog
 
+## 0.1.4-rc.1 — unreleased
+
+- Use the official Query dog mascot on every built-in PDF and ZPL diagnostic profile, preserving the original artwork and aspect ratio. The full local gate passes 73 tests with zero Checkstyle violations; PDF previews and reconstructed thermal graphics pass visual review. New physical output remains to be confirmed after deployment.
+- Add an authenticated loopback QQQ host that shares durable paired devices/jobs with native screens and retention scheduling, preserving the separate synthetic UI demo.
+- Make native enrollment and test-print execution replay-safe and retain known duplicate-output risk after later failures.
+- Strictly validate print options, inventory formats/status and event bounds before persistence; recheck current queue format support at claim time.
+- Add dedicated S3 document storage through the host's QQQ storage API, tenant object namespaces and immutable destination/reference checks.
+- Bind S3 documents to the reviewed native key layout and platform separator using unambiguous ordered identity components, including multiline base paths; reject incompatible or old experimental bindings before historical object access and preserve cleanup accounting. Validate new retry sources before reserving uploads while retaining replay and inline database compatibility. Portable upstream keys and historical-object migration remain separate work.
+- Add admin retention settings with a 365-day default, reviewed cleanup and bounded scheduled maintenance; preserve job history and uncertain work.
+- Use named facility choices during enrollment and revalidate them under the current user's tenant/record permissions.
+- Require release security/CodeQL gates, verified artifact promotion and build provenance; report the real packaged QBit version.
+- Enforce configurable atomic queue/storage/rate budgets and cumulative printer limits, with bounded management pagination and stable replay at capacity.
+- Consume bounded claim/cancel request bodies before mutation so a persistent HTTP connection remains usable for the subsequent status event.
+- Pin H2 2.4.240 to fix close-time compaction data loss; verify file-backed schema/settings across cold reopens and document closed-backup upgrade qualification.
+- Verify the exact frontend-inclusive runtime inventory in Maven, Trivy and OSV; fail on malformed or incomplete scanner evidence.
+- Include repository LICENSE and NOTICE under META-INF using standard Maven resources; preserve font license, provenance and diagnostic assets.
+- Full local and fresh hosted verification passed 72 tests with zero failures/errors/skips and Checkstyle violations, including incompatible S3 bindings, multiline prefix retargeting, retry accounting and inline document compatibility. Actual cross-platform refusal preserves objects and accounting with zero SDK requests. Required build/security/CodeQL/dependency gates pass with the approved scoped H2 record. The exact CI artifact passed isolated graceful/cold-restart checks and local paired-host cutover with native authentication, preserved records, automatic connector reconnection and 365-day retention. No live S3 migration or remote deployment is claimed.
+
 ## 0.1.3-rc.1 — 2026-10-30
 
 - Shared QQQ-branded warehouse test pages and labels across native record/table actions and device requests.
 - Bundle licensed JetBrains Mono Bold; embed PDF glyphs and use bounded ZPL graphics for consistent identifier readability.
 - Add Letter/A4 and 4 × 6 profile options with explicit 203/300/600-dpi label resolution, compatible defaults and validation.
 - Add font/media, deterministic generation, ZPL bitmap reconstruction and operator action regression coverage.
-
 
 ## 0.1.2-rc.1 — 2026-10-30
 
