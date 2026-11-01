@@ -1,5 +1,10 @@
 # Follow-up
 
+## Script quality gates
+
+- [x] Pin Ruff and strict Pyright with a locked restore; reject Python outside `.github/scripts/` and zero-file Pyright runs; negative tool probes pass locally.
+- [ ] Observe the new `verify` job steps pass on hosted CI before relying on them.
+
 ## Echo integration candidate
 
 - [x] Implement authorized operator catalog, native submission/process permission,
