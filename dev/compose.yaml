@@ -1,0 +1,105 @@
+# Every published port is bound to host loopback; no live printing configuration is imported.
+x-owned: &owned
+  labels:
+    io.qrun.printing.dev: ${PRINTING_DEV_PROJECT:?owned project required}
+  restart: "no"
+  cpus: 2
+  mem_limit: 1g
+  pids_limit: 256
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m,mode=1777"]
+
+services:
+  minio:
+    <<: *owned
+    image: cgr.dev/chainguard/minio@sha256:dc455cdd4db6e390b1b26514f15ff37681a777bf8dab41aac445a0259f751e56
+    user: "0:0"
+    command: [server, /data, --address, ":9000"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?fixture secret required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?fixture secret required}
+    volumes: [minio-data:/data]
+    ports:
+      - "127.0.0.1:${MINIO_HTTP_PORT:-19095}:9000"
+      - "127.0.0.1:${QQQ_HTTP_PORT:-19081}:${QQQ_HTTP_PORT:-19081}"
+  qqq:
+    <<: *owned
+    build:
+      context: ${DEV_SOURCE_DIR:?source required}
+      dockerfile: dev/Dockerfile.server
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:?source identity required}
+    image: ${PRINTING_DEV_PROJECT}-server:local
+    network_mode: service:minio
+    depends_on: [minio]
+    environment:
+      QQQ_HTTP_PORT: ${QQQ_HTTP_PORT:-19081}
+      QQQ_DATABASE_PASSWORD: ${QQQ_DATABASE_PASSWORD:?fixture secret required}
+      QQQ_ADMIN_PASSWORD: ${QQQ_ADMIN_PASSWORD:?fixture secret required}
+      QQQ_MANAGEMENT_TOKEN: ${QQQ_MANAGEMENT_TOKEN:?fixture secret required}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: [qqq-data:/data]
+  minio-test:
+    <<: *owned
+    profiles: [test]
+    image: cgr.dev/chainguard/minio@sha256:dc455cdd4db6e390b1b26514f15ff37681a777bf8dab41aac445a0259f751e56
+    user: "0:0"
+    command: [server, /data, --address, ":9000"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,mode=1777", "/data:rw,noexec,nosuid,size=900m,mode=1777"]
+  test-server:
+    <<: *owned
+    profiles: [test]
+    build:
+      context: ${DEV_SOURCE_DIR}
+      dockerfile: dev/Dockerfile.server
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT}
+    image: ${PRINTING_DEV_PROJECT}-server:local
+    network_mode: service:minio-test
+    depends_on: [minio-test]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TEST_RUN: ${TEST_RUN:-run-uninitialized}
+      WORKLOAD_MODE: ${WORKLOAD_MODE:-idle}
+    volumes: [test-data:/work]
+    entrypoint: [/bin/sh, /app/run-tests.sh]
+    healthcheck:
+      test: [CMD-SHELL, 'test -f "/work/$$TEST_RUN/input.json"']
+      interval: 1s
+      timeout: 2s
+      retries: 120
+  test-client:
+    <<: *owned
+    profiles: [test]
+    build:
+      context: ${DEV_SOURCE_DIR}
+      dockerfile: dev/Dockerfile.client
+    image: ${PRINTING_DEV_PROJECT}-client:local
+    network_mode: service:minio-test
+    depends_on:
+      test-server:
+        condition: service_healthy
+    volumes: [test-data:/work]
+    command: ["/work/${TEST_RUN:-run-uninitialized}"]
+
+volumes:
+  minio-data:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+  qqq-data:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+  test-data:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+networks:
+  default:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}

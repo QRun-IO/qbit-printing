@@ -19,6 +19,12 @@ flowchart LR
 
 See the [real-time host integration](docs/REALTIME.md), [screen walkthrough](docs/UI-WALKTHROUGH.md), [storage and retention](docs/STORAGE-AND-RETENTION.md), [operations and troubleshooting](docs/OPERATIONS.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md), [changelog](CHANGELOG.md), and [Apache-2.0 license](LICENSE).
 
+## Local development
+
+Start an isolated native QQQ application, MinIO and optional Authentik with the
+[Docker development commands](dev/README.md). The default test runs synthetic
+Java/.NET WebSocket jobs and S3 checks without an installed connector or printer.
+
 ## Build and verify
 
 Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `f3cbc02e9b0fb4fdfefaa59d976c04df747cc589`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
