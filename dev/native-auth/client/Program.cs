@@ -20,6 +20,11 @@ internal static class Program
 
    public static async Task<int> Main(string[] arguments)
    {
+      if(arguments is ["--check-discovery"])
+      {
+         await NativeAuthDiscoveryChecks.RunAsync();
+         return 0;
+      }
       JsonObject? input = null;
       try
       {
@@ -99,10 +104,7 @@ internal static class Program
       using var receiver = new CallbackReceiver(callback);
       using var first = Session(origin);
       _stage = "typed-native-discovery";
-      QqqApiDiscovery discovery = await first.DiscoverAsync(token);
-      if(discovery.ApiVersion != "1.9.0" || !discovery.Features.Contains("nativeSessionLogin", StringComparer.Ordinal)
-         || discovery.Extensions.Single(extension => extension.Name == "printing").Version != "2.0.0")
-      { throw new InvalidOperationException("The actual server did not advertise the pinned native-session API."); }
+      await NativeAuthDiscovery.DiscoverAsync(first, token);
       QqqAuthenticationMetadata metadata = await first.GetAuthenticationMetadataAsync(token);
       if(metadata.Values?.ClientId != ProviderSetup.Text(input, "clientId"))
       { throw new InvalidOperationException("Native metadata did not retain the configured client identifier."); }
