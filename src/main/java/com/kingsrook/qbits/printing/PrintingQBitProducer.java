@@ -173,6 +173,7 @@ public class PrintingQBitProducer implements QBitProducer
       QAppMetaData app = new QAppMetaData().withName("printing").withLabel("Printing").withIcon(new QIcon("print")).withChild(devices).withChild(printers).withChild(jobs).withChild(commands);
       app.withPermissionRules(PrintingProcesses.permissionRules());
       PrintingProcesses.register(instance, app);
+      PrintingListProcesses.register(instance);
       PrintingDeviceProcesses.register(instance);
       PrintingUiApi.register(instance);
       PrintingRetentionProcesses.register(instance, config);
