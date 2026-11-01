@@ -12,3 +12,8 @@ dist/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Local script-quality environments and tool caches.
+.venv/
+.ruff_cache/
+__pycache__/
