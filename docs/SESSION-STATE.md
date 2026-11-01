@@ -2,6 +2,19 @@
 
 ## Local Docker development — 2026-11-01
 
+The developer tooling is published on `main` through [PR #21](https://github.com/QRun-IO/qbit-printing/pull/21),
+merged as `3592decba8087439aff5d1b75a9726c72f460cb9`; its tree matches tested
+head `def8d961f3d82a1235f8e45ffbeacb0fbe79c421`. The final hosted
+[development run](https://github.com/QRun-IO/qbit-printing/actions/runs/41324370247)
+passed the actual 40-job HTTP/WS smoke and 65 S3 checks, nine pinned-Core discovery
+compatibility cases, and all 33 script tests on each of Windows and Ubuntu.
+The [Java run](https://github.com/QRun-IO/qbit-printing/actions/runs/41324370253)
+reported 133 tests: 132 executed, one intentionally skipped opt-in workload test,
+zero failures/errors, and zero Checkstyle violations. That workload separately
+passed on the combined source. These are development-tooling publication results,
+not a server release or live runtime upgrade. The experimental API 1.9 candidate
+remains opt-in and is not adopted into the released application dependencies.
+
 The current qualification scope is local Docker only. The new `dev/Invoke-Dev.ps1`
 provides owned Start/Test/Stop commands for a native QQQ TABLE host, dedicated
 MinIO storage and optional real Authentik/PostgreSQL. Source images and the client
@@ -40,8 +53,8 @@ published production dependency upgrade. Container HTTPS and automated real
 provider flows do not qualify the Windows browser callback UI, host trust,
 months-long operation or physical printing. See [local development](../dev/README.md),
 [provider limits](../dev/AUTHENTIK.md) and [native qualification](../dev/native-auth/README.md).
-Earlier release checkpoints below are historical; no publication or live change
-was performed by this development-tooling lane.
+Earlier release checkpoints below are historical. This developer-tooling merge
+did not publish a new server product release or change the live paired runtime.
 
 ## Opt-in service workload regression — 2026-11-01
 
@@ -56,6 +69,7 @@ network run and
 40-job idle latency measurements are recorded in
 [qualification evidence](QUALIFICATION-2026-11-01.md), separately from the portable
 Docker run above. No runtime source, dependencies or version changed.
+
 ## Active device controls and standard QQQ authentication
 
 Implementation is in the isolated device-controls worktree. Native device/table actions support pause, resume, disconnect, reconnect, revoke, inventory refresh and queued-job clearing; job records support exact owned Windows-job cancellation. Related printers, jobs, pending queue and bounded command history are registered. Derived status separates connection presence, desired state and observed revision. Domain writes use current QQQ permissions; clearing a queue checks every affected job before the transactional mutation.
