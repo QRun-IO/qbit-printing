@@ -120,7 +120,7 @@ public final class PrintingRenderProcesses
                {
                   throw new QException("Give the record to save (recordId)");
                }
-               yield PrintingRecordProcesses.render(table, com.kingsrook.qqq.backend.core.utils.ValueUtils.getValueAsFieldType(table.getField(table.getPrimaryKeyField()).getType(), id));
+               yield PrintingRecordProcesses.render(table, com.kingsrook.qqq.backend.core.utils.ValueUtils.getValueAsFieldType(table.getField(table.getPrimaryKeyField()).getType(), id), PrintingChrome.from(input, null));
             }
             case "LIST" -> PrintingListProcesses.render(input, true);
             case "TEXT" -> PrintingListProcesses.render(input, false);

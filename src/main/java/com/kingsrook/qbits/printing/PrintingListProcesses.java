@@ -345,7 +345,14 @@ public final class PrintingListProcesses
       {
          String title = input.getValueString("title") == null || input.getValueString("title").isBlank() ? "Screen" : input.getValueString("title");
          String subtitle = input.getValueString("subtitle");
-         return (new Rendered(title, PrintingTextDocuments.pdf(title, (subtitle == null || subtitle.isBlank() ? "" : subtitle + " - ") + PrintingRecordProcesses.printedBy(), input.getValueString("text"), pageSize, "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation"))), null));
+         boolean landscape = "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation"));
+         PrintingChrome chrome = PrintingChrome.from(input, title);
+         String sections = input.getValueString("sections");
+         if(sections != null && !sections.isBlank())
+         {
+            return (new Rendered(title, PrintingTextDocuments.sectionsPdf(title, subtitle, sections(sections), pageSize, landscape, chrome), null));
+         }
+         return (new Rendered(title, PrintingTextDocuments.pdf(title, subtitle, input.getValueString("text"), pageSize, landscape, chrome), null));
       }
       QTableMetaData table = table(input);
       List<QFieldMetaData> columns = columns(table, input.getValueString("columns"));
@@ -375,11 +382,48 @@ public final class PrintingListProcesses
       String described = input.getValueString("filterDescription");
       String sort = sortText(table, filter);
       String subtitle = scope + " - " + (described != null && !described.isBlank() ? "filter " + described : "no filter") + (sort.isEmpty() ? "" : " - sort " + sort);
-      byte[] bytes = PrintingTableDocuments.pdf(title, subtitle, (table.getLabel() == null ? table.getName() : table.getLabel()) + " - " + PrintingRecordProcesses.printedBy(),
-         columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, widths(input.getValueString("columnWidths")), pageSize, orientation(input));
+      String note = (described != null && !described.isBlank() ? "Filter: " + described : "No filter") + (sort.isEmpty() ? "" : " - sort: " + sort);
+      byte[] bytes = PrintingTableDocuments.pdf(title, subtitle, note,
+         columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, widths(input.getValueString("columnWidths")), pageSize, orientation(input),
+         PrintingChrome.from(input, table.getLabel() == null ? table.getName() : table.getLabel()));
       String message = all && total != null && total > records.size()
          ? "Printed the first " + records.size() + " of " + total + " rows: the print limit is " + filter.getLimit() + " rows. Narrow the filter to print the rest." : null;
       return (new Rendered(title, bytes, message));
+   }
+
+
+
+   /***************************************************************************
+    ** The "sections" value: a JSON array of {title, lines: [..]} (at most 500
+    ** sections), as clients send a screen's content.
+    ***************************************************************************/
+   static List<PrintingTextDocuments.Section> sections(String json) throws QException
+   {
+      try
+      {
+         org.json.JSONArray array = new org.json.JSONArray(json);
+         if(array.length() > 500)
+         {
+            throw new QException("Too many sections to print (at most 500)");
+         }
+         List<PrintingTextDocuments.Section> out = new ArrayList<>();
+         for(int i = 0; i < array.length(); i++)
+         {
+            org.json.JSONObject section = array.getJSONObject(i);
+            List<String> lines = new ArrayList<>();
+            org.json.JSONArray given = section.optJSONArray("lines");
+            for(int j = 0; given != null && j < given.length(); j++)
+            {
+               lines.add(given.optString(j, ""));
+            }
+            out.add(new PrintingTextDocuments.Section(section.optString("title", ""), lines));
+         }
+         return (out);
+      }
+      catch(org.json.JSONException exception)
+      {
+         throw new QException("The sections are not valid: " + exception.getMessage(), exception);
+      }
    }
 
 

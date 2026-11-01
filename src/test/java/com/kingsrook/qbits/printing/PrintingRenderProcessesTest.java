@@ -92,6 +92,59 @@ class PrintingRenderProcessesTest
 
 
    /***************************************************************************
+    ** Every document carries the app's header and footer from the client's
+    ** values: app, breadcrumb, server, user, printed-at; footer and page n of m;
+    ** a list adds its filter and sort above the footer.
+    ***************************************************************************/
+   @Test
+   void headerAndFooterOnEveryDocument() throws Exception
+   {
+      PrintingListProcessesTest.fixture();
+      Map<String, java.io.Serializable> chrome = Map.of("headerApp", "QQQ All", "headerTitle", "Sales › Customer › Ada Lovelace", "headerServer", "local (localhost:8078)",
+         "headerUser", "Admin", "headerPrintedAt", "2026-11-01 12:03", "footerLeft", "qqq ui 1.0.1 · local");
+      for(Map<String, java.io.Serializable> values : java.util.List.<Map<String, java.io.Serializable>>of(
+         Map.of("kind", "RECORD", "tableName", "person", "recordId", "1"),
+         Map.of("kind", "LIST", "tableName", "person", "filterDescription", "lastName = Hopper", "filterJSON", "{\"criteria\":[],\"orderBys\":[{\"fieldName\":\"id\",\"isAscending\":false}]}"),
+         Map.of("kind", "TEXT", "title", "Home", "text", "hello")))
+      {
+         java.util.HashMap<String, java.io.Serializable> all = new java.util.HashMap<>(values);
+         all.putAll(chrome);
+         String text = text(PrintingListProcessesTest.run(PrintingRenderProcesses.RENDER, all));
+         for(String expected : java.util.List.of("QQQ All", "Sales › Customer › Ada Lovelace", "local (localhost:8078) · Admin · 2026-11-01 12:03", "qqq ui 1.0.1 · local", "Page 1 of 1"))
+         {
+            assertTrue(text.contains(expected), values.get("kind") + " lacks " + expected + ":\n" + text);
+         }
+         if("LIST".equals(values.get("kind")))
+         {
+            assertTrue(text.contains("Filter: lastName = Hopper - sort: Id descending"), text);
+         }
+      }
+      String defaults = text(PrintingListProcessesTest.run(PrintingRenderProcesses.RENDER, Map.of("kind", "RECORD", "tableName", "person", "recordId", "2")));
+      assertTrue(defaults.contains("Person › Grace Hopper") && defaults.contains("QQQ printing"), defaults);
+   }
+
+
+
+   /***************************************************************************
+    ** Content documents: each section's title as a heading and its lines,
+    ** long lines wrapped, no borders.
+    ***************************************************************************/
+   @Test
+   void contentSectionsDocument() throws Exception
+   {
+      PrintingListProcessesTest.fixture();
+      String sections = "[{\"title\":\"\",\"lines\":[\"Good morning, Admin\"]},{\"title\":\"Recently viewed\",\"lines\":[\"Ada Lovelace   Customer · 1m ago\"]},{\"title\":\"Quick actions\",\"lines\":[\"" + "word ".repeat(60) + "\"]}]";
+      String text = text(PrintingListProcessesTest.run(PrintingRenderProcesses.RENDER, Map.of("kind", "TEXT", "title", "Home", "sections", sections)));
+      assertTrue(text.contains("Good morning, Admin") && text.contains("Recently viewed") && text.contains("Quick actions"), text);
+      assertTrue(text.indexOf("Recently viewed") < text.indexOf("Ada Lovelace"), text);
+      assertTrue(!text.contains("│") && !text.contains("┌"), text);
+      assertThrows(QException.class, () -> PrintingListProcessesTest.run(PrintingRenderProcesses.RENDER, Map.of("kind", "TEXT", "title", "Home", "sections", "[]")));
+      assertThrows(QException.class, () -> PrintingListProcessesTest.run(PrintingRenderProcesses.RENDER, Map.of("kind", "TEXT", "title", "Home", "sections", "{nope")));
+   }
+
+
+
+   /***************************************************************************
     ** Unknown kinds, missing records and opted-out tables are refused.
     ***************************************************************************/
    @Test

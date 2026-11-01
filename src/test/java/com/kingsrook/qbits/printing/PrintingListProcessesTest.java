@@ -138,7 +138,8 @@ class PrintingListProcessesTest
       assertTrue(text.indexOf("Hopper") < text.indexOf("Lovelace"), text);
       assertTrue(text.contains("all 2 rows"), text);
       assertTrue(text.contains("sort Last name"), text);
-      assertTrue(text.contains("Person - printed "), "the footer names the table, time and user");
+      assertTrue(text.contains("No filter - sort: Last name"), "the footer note carries the filter and sort");
+      assertTrue(text.contains("QQQ printing"), "the default footer");
       assertTrue(text.contains("2 rows"), text);
       assertTrue(fixture.service().jobs().getJSONObject(0).getString("title").startsWith("Person"));
    }
