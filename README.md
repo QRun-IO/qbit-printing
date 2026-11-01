@@ -27,7 +27,7 @@ Java/.NET WebSocket jobs and S3 checks without an installed connector or printer
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `f3cbc02e9b0fb4fdfefaa59d976c04df747cc589`; use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `42c0d249f81395f00408ec0f92638dcbbf5deb03` (the integrated contract under Gitea PR 2; the same ref CI checks out); use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd verify

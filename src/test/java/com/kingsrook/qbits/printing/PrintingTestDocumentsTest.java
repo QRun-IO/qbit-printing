@@ -221,7 +221,7 @@ class PrintingTestDocumentsTest
     ***************************************************************************/
    private static byte[] reconstructGraphicStrips(String zpl, int rowBytes, int height)
    {
-      return (reconstructGraphicStrips(zpl, rowBytes, height, 2));
+      return reconstructGraphicStrips(zpl, rowBytes, height, 2);
    }
 
 

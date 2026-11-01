@@ -40,9 +40,10 @@
 
 - [x] Merge the 4 x 1 / 4 x 2 label profiles, compact PDF/ZPL layouts, explicit PDF job paper and their tests
   onto the strict standards tree, keeping the strict headers, null contracts and Error Prone fixes.
-- [ ] Run the single cohort gate (compile, full verify, compiler guard) on the merged tree; no result is claimed yet.
-- [ ] Pin the final merged protocol fixture sha in CI and confirm version/protocol references agree across the cohort.
-- [ ] Observe hosted CI, then publish; physical confirmation of the short labels stays an owner step (4 x 6 stock is loaded).
+- [x] Cohort gate passed locally on the merged tree: strict main/test compile and full `-Pui-demo verify`, 193 tests,
+  0 failures, 0 errors, one intentional opt-in skip, 0 Checkstyle violations.
+- [x] CI and the README pin the final protocol commit `42c0d249f81395f00408ec0f92638dcbbf5deb03` (merged Gitea PR 2).
+- [ ] Observe hosted Gitea CI, then publish and install; physical confirmation of the short labels stays an owner step (4 x 6 stock is loaded).
 
 ## Current local development qualification
 

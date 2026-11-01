@@ -14,10 +14,14 @@ Its four conflicts (`PrintingProcesses`, `PrintingService`, `PrintingTestDocumen
 resolved by keeping all label behavior and tests and layering the strict contracts: `jobOptions` is
 `@Nullable` (null means the queue default applies), `validPaperMillimetres` accepts a missing value, redundant
 return wrappers are removed, and no suppression or rule change was added. Submission, authority, retained
-binding, replay and queue code paths were not edited. **Pending, not observed:** the release cohort compile and
-full verify, hosted CI, the final protocol fixture pin (the CI fixture ref still names the earlier reviewed
-commit until the merged protocol sha is pinned), publication and any physical print. The installed printer
-default is untouched; no printing was performed.
+binding, replay and queue code paths were not edited.
+
+**Local gate passed (observed):** on the merged cohort, main and test compile clean under the strict compiler and
+the full `-Pui-demo verify` passed with 193 tests, 0 failures, 0 errors, one intentional opt-in 10,000-job skip and
+0 Checkstyle violations. CI and the README pin the final protocol commit
+`42c0d249f81395f00408ec0f92638dcbbf5deb03` (merged Gitea protocol PR 2); earlier pins elsewhere in this file are
+historical. **Still pending, not observed:** hosted Gitea CI, publication, installation and any physical print. The
+installed printer default is untouched; no printing was performed.
 
 ## Echo operator/media and retained-source candidate — 2026-11-01
 

@@ -12,6 +12,14 @@ metadata, not by comparing versions. An agent that does not advertise
 `printer-media-v1` stays a three-capability peer and cannot claim a job carrying a
 media selection, whatever extension version it discovers.
 
+- Built-in test prints add 4 x 1 and 4 x 2 inch labels (203/300/600 dpi) beside the unchanged
+  4 x 6 path: compact PDF and ZPL layouts, and for short PDF labels an explicit actual-size
+  job paper (`paperWidthMm`/`paperHeightMm`, a complete positive pair up to 2000 mm, never
+  combined with a media profile). 4 x 6 and page profiles keep using the queue default.
+- Strict source standards: Error Prone 2.51.0 and NullAway run as errors with `-Werror` on
+  main and test sources, with honest `@Nullable` contracts, strict source headers and
+  development-fixture style gates. No authorization, retained-source, replay or queue
+  behavior was changed by this work.
 - Realtime shutdown now waits, with a bound, for channel workers that are already
   running before the host's durable state is released. Previously the executor was
   only told to stop, so a late drain could query a stopped file database and
