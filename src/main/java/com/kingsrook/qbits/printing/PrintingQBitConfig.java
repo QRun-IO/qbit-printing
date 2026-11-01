@@ -31,6 +31,132 @@ public class PrintingQBitConfig implements QBitConfig
 {
    private String backendName;
    private transient PrintingService service;
+   private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
+   private PrintingRetentionPolicy retentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
+   private String storageTableName;
+   private String schedulerName;
+   private String facilityPossibleValueSourceName;
+   private transient RetainedPrintSourceAuthority retainedSourceAuthority;
+
+
+   /** Explicit trusted host integration; absent means retained submissions are disabled. */
+   public PrintingQBitConfig withRetainedSourceAuthority(RetainedPrintSourceAuthority value)
+   {
+      retainedSourceAuthority = java.util.Objects.requireNonNull(value);
+      return (this);
+   }
+
+
+   /** Never serialized into client metadata or supplied by a request. */
+   public RetainedPrintSourceAuthority getRetainedSourceAuthority()
+   {
+      return (retainedSourceAuthority);
+   }
+
+
+
+   /***************************************************************************
+    ** Resource capacity is deployment-owned and independent of retention age.
+    ***************************************************************************/
+   public PrintingAdmissionLimits getAdmissionLimits()
+   {
+      return (admissionLimits);
+   }
+
+
+
+   /***************************************************************************
+    ** Positive tenant/device limits apply at the shared admission boundary.
+    ***************************************************************************/
+   public PrintingQBitConfig withAdmissionLimits(PrintingAdmissionLimits value)
+   {
+      admissionLimits = java.util.Objects.requireNonNull(value);
+      return (this);
+   }
+
+
+
+   /***************************************************************************
+    ** Reuse the host's facility selector and its existing record security.
+    ***************************************************************************/
+   public PrintingQBitConfig withFacilityPossibleValueSourceName(String value)
+   {
+      facilityPossibleValueSourceName = value;
+      return (this);
+   }
+
+
+
+   /***************************************************************************
+    ** Missing configuration uses the named standalone default facility.
+    ***************************************************************************/
+   public String getFacilityPossibleValueSourceName()
+   {
+      return (facilityPossibleValueSourceName);
+   }
+
+
+
+   /***************************************************************************
+    ** Deployment-owned dedicated S3 table; operators cannot retarget old files.
+    ***************************************************************************/
+   public PrintingQBitConfig withStorageTableName(String value)
+   {
+      storageTableName = value;
+      return (this);
+   }
+
+
+
+   /***************************************************************************
+    ** Existing storage metadata owns bucket, endpoint and credentials.
+    ***************************************************************************/
+   public String getStorageTableName()
+   {
+      return (storageTableName);
+   }
+
+
+
+   /***************************************************************************
+    ** Bind bounded five-minute maintenance to a scheduler already configured by the host.
+    ***************************************************************************/
+   public PrintingQBitConfig withSchedulerName(String value)
+   {
+      schedulerName = value;
+      return (this);
+   }
+
+
+
+   /***************************************************************************
+    ** Missing host scheduler means no automatic background maintenance.
+    ***************************************************************************/
+   public String getSchedulerName()
+   {
+      return (schedulerName);
+   }
+
+
+
+   /***************************************************************************
+    ** Host defaults are one year; setting policy does not itself run a purge.
+    ***************************************************************************/
+   public PrintingQBitConfig withRetentionPolicy(PrintingRetentionPolicy value)
+   {
+      retentionPolicy = java.util.Objects.requireNonNull(value);
+      return (this);
+   }
+
+
+
+   /***************************************************************************
+    ** The host authorizes and schedules bounded service maintenance explicitly.
+    ***************************************************************************/
+   public PrintingRetentionPolicy getRetentionPolicy()
+   {
+      return (retentionPolicy);
+   }
 
 
 

@@ -47,6 +47,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -58,6 +59,221 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *******************************************************************************/
 class PrintingProcessesTest
 {
+   /***************************************************************************
+    ** Standalone enrollment has a named default instead of accepting arbitrary raw IDs.
+    ***************************************************************************/
+   @Test
+   void standaloneFacilitySelectorRejectsForgedValues() throws Exception
+   {
+      Fixture fixture = fixture();
+      QFieldMetaData field = ((QFrontendStepMetaData) fixture.instance().getProcess("printingEnrollDevice").getStep("details")).getFormField("facilityId");
+      assertEquals("printing_facility", field.getPossibleValueSourceName());
+      assertEquals("default", field.getDefaultValue());
+      assertEquals(field.getPossibleValueSourceName(), fixture.instance().getTable(PrintingTables.DEVICE).getField("facility_id").getPossibleValueSourceName());
+      var choices = new SearchPossibleValueSourceAction().execute(new SearchPossibleValueSourceInput().withPossibleValueSourceName(field.getPossibleValueSourceName()));
+      assertEquals(1, choices.getResults().size());
+      assertEquals("Default facility", choices.getResults().getFirst().getLabel());
+      assertEquals("default", PrintingFacilities.validate("default"));
+      RunBackendStepInput forged = new RunBackendStepInput().withProcessName("printingEnrollDevice")
+         .addValue("facilityId", "invented-id").addValue("deviceName", "station");
+      assertThrows(QException.class, () -> new PrintingProcesses().run(forged, new RunBackendStepOutput()));
+      assertThrows(QException.class, () -> PrintingFacilities.validate(null));
+      assertThrows(QException.class, () -> PrintingFacilities.validate(""));
+      assertThrows(QException.class, () -> PrintingFacilities.register(fixture.instance(), new PrintingQBitConfig().withFacilityPossibleValueSourceName("missing_source")));
+   }
+
+
+
+   /***************************************************************************
+    ** A forged selection cannot bypass the host source's real tenant record lock.
+    ***************************************************************************/
+   @Test
+   void configuredFacilitySelectorHonorsRecordSecurityAtEnrollment() throws Exception
+   {
+      Fixture fixture = fixture("host_facilities");
+      assertEquals("host_facilities", PrintingFacilities.field(fixture.instance()).getPossibleValueSourceName());
+      assertEquals("host_facilities", fixture.instance().getTable(PrintingTables.DEVICE).getField("facility_id").getPossibleValueSourceName());
+      assertEquals(fixture.device(), PrintingFacilities.validate(fixture.device()));
+      RunBackendStepInput input = new RunBackendStepInput().withProcessName("printingEnrollDevice")
+         .addValue("facilityId", fixture.foreignDevice()).addValue("deviceName", "station");
+      RunBackendStepOutput prepared = new RunBackendStepOutput();
+      new PrintingProcesses.PrepareEnrollment().run(input, prepared);
+      input.addValue("printingEnrollmentCode", prepared.getValueString("printingEnrollmentCode"))
+         .addValue("printingEnrollmentExpires", prepared.getValueString("printingEnrollmentExpires"));
+      assertThrows(QException.class, () -> new PrintingProcesses().run(input, new RunBackendStepOutput()));
+      input.addValue("facilityId", fixture.device());
+      RunBackendStepOutput accepted = new RunBackendStepOutput();
+      new PrintingProcesses().run(input, accepted);
+      assertTrue(accepted.getValueString("result").startsWith("Enrollment code:"));
+   }
+
+
+
+   /***************************************************************************
+    ** The production QQQ host extension point mounts routes with host auth.
+    ***************************************************************************/
+   @Test
+   void productionApplicationHostRegistersPrintingRoutesAndPreservesAdminGate() throws Exception
+   {
+      Fixture fixture = fixture();
+      var application = new com.kingsrook.qqq.backend.core.instances.AbstractQQQApplication()
+      {
+         @Override
+         public QInstance defineQInstance()
+         {
+            return (fixture.instance());
+         }
+      };
+      var javalin = new java.util.concurrent.atomic.AtomicReference<io.javalin.Javalin>();
+      var server = new com.kingsrook.qqq.middleware.javalin.QApplicationJavalinServer(application)
+         .withPort(0).withServeFrontendNext(false).withServeFrontendMaterialDashboard(false)
+         .withJavalinConfigCustomizer(config -> config.jetty.host = "127.0.0.1")
+         .withJavalinConfigurationCustomizer(javalin::set)
+         .withAdditionalRouteProviders(List.of(new PrintingRoutes(fixture.service(), context -> "allowed".equals(context.header("X-Test-Admin")))));
+      try(java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient())
+      {
+         server.start();
+         java.net.URI url = java.net.URI.create("http://127.0.0.1:" + javalin.get().port() + "/printing/v1/admin/devices");
+         assertEquals(403, client.send(java.net.http.HttpRequest.newBuilder(url).GET().build(), java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode());
+         var response = client.send(java.net.http.HttpRequest.newBuilder(url).header("X-Test-Admin", "allowed").GET().build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+         assertEquals(200, response.statusCode());
+         assertEquals(2, new JSONObject(response.body()).getJSONArray("devices").length());
+         assertFalse(response.body().contains("token_hash"));
+      }
+      finally
+      {
+         server.stop();
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Real QQQ pause/resume phases review selections before any job is queued.
+    ***************************************************************************/
+   @Test
+   void selectedTestPausesForProfileAndReviewThenSubmitsOnce() throws Exception
+   {
+      Fixture fixture = fixture();
+      String process = "printingTestSelectedPdf";
+      var profile = new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withValue("recordIds", fixture.printerId()));
+      assertFalse(profile.getException().isPresent(), () -> profile.getException().toString());
+      assertEquals("testProfile", profile.getProcessState().getNextStepName().orElseThrow());
+      assertEquals(0, fixture.service().jobs().length());
+      var review = new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withProcessUUID(profile.getProcessUUID())
+         .withStartAfterStep("testProfile").withValue("testProfile", "LETTER"));
+      assertFalse(review.getException().isPresent(), () -> review.getException().toString());
+      assertTrue(review.getProcessState().getNextStepName().isPresent());
+      assertEquals(0, fixture.service().jobs().length());
+      var submitted = new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withProcessUUID(review.getProcessUUID())
+         .withStartAfterStep(review.getProcessState().getNextStepName().orElseThrow()).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+      assertFalse(submitted.getException().isPresent(), () -> submitted.getException().toString());
+      assertEquals(1, fixture.service().jobs().length());
+   }
+
+
+
+   /***************************************************************************
+    ** Enrollment replay cannot issue extra codes or reactivate consumed ones.
+    ***************************************************************************/
+   @Test
+   void nativeEnrollmentReplayRetainsCodeAndNeverReactivatesConsumedReceipt() throws Exception
+   {
+      Fixture fixture = fixture();
+      RunBackendStepInput input = new RunBackendStepInput().withProcessName("printingEnrollDevice")
+         .addValue("facilityId", "default").addValue("deviceName", "station");
+      RunBackendStepOutput prepared = new RunBackendStepOutput();
+      new PrintingProcesses.PrepareEnrollment().run(input, prepared);
+      input.addValue("printingEnrollmentCode", prepared.getValueString("printingEnrollmentCode"))
+         .addValue("printingEnrollmentExpires", prepared.getValueString("printingEnrollmentExpires"));
+      RunBackendStepOutput first = new RunBackendStepOutput();
+      RunBackendStepOutput second = new RunBackendStepOutput();
+      new PrintingProcesses().run(input, first);
+      new PrintingProcesses().run(input, second);
+      assertEquals(first.getValueString("result"), second.getValueString("result"));
+      JSONObject enrollment = new JSONObject().put("enrollmentCode", prepared.getValueString("printingEnrollmentCode")).put("deviceName", "station").put("agentVersion", "test");
+      fixture.service().enroll(enrollment);
+      assertThrows(QException.class, () -> new PrintingProcesses().run(input, new RunBackendStepOutput()));
+      assertThrows(PrintingException.class, () -> fixture.service().enroll(enrollment));
+      input.addValue("printingEnrollmentExpires", java.time.Instant.now().minusSeconds(1).toString());
+      assertThrows(QException.class, () -> new PrintingProcesses().run(input, new RunBackendStepOutput()));
+   }
+
+
+
+   /***************************************************************************
+    ** A lost load response must not duplicate a physical test on process replay.
+    ***************************************************************************/
+   @Test
+   void testActionsDeduplicateSingleAndSelectedLoadReplay() throws Exception
+   {
+      Fixture fixture = fixture();
+      RunBackendStepInput single = new RunBackendStepInput().withProcessName("printingTestPdf")
+         .addValue("deviceId", fixture.device()).addValue("printerId", fixture.printerId()).addValue("printingTestRequestId", "single-replay");
+      for(int attempt = 0; attempt < 2; attempt++)
+      {
+         new PrintingProcesses().run(single, new RunBackendStepOutput());
+      }
+      assertEquals(1, fixture.service().jobs().length());
+      RunBackendStepInput selected = new RunBackendStepInput().withProcessName("printingTestSelectedPdf")
+         .withRecords(List.of(new QRecord().withValue("id", fixture.printerId()), new QRecord().withValue("id", fixture.otherPrinterId())))
+         .addValue("printingTestRequestId", "selected-replay");
+      for(int attempt = 0; attempt < 2; attempt++)
+      {
+         new PrintingProcesses.SelectedLoad().runOnePage(selected, new RunBackendStepOutput());
+      }
+      assertEquals(3, fixture.service().jobs().length());
+   }
+
+
+
+   /***************************************************************************
+    ** Native actions and device requests use identical bundled label documents.
+    ***************************************************************************/
+   @Test
+   void builtInTestEntryPointsShareProfilesAndRejectChangedIdempotentRequests() throws Exception
+   {
+      Fixture fixture = fixture();
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser")
+         .put("name", "Packing test printer").put("formats", new JSONArray(List.of("PDF", "ZPL")))));
+      QRecord printer = PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device());
+      String nativeJob = PrintingProcesses.submitTest(printer, false, "LABEL_4X6_300");
+      JSONObject request = new JSONObject().put("printerId", "laser").put("format", "ZPL").put("testProfile", "LABEL_4X6_300").put("requestId", "label-profile-test");
+      String deviceJob = fixture.service().testPrint(fixture.device(), request).getString("jobId");
+      assertEquals(fixture.service().getJob(nativeJob).getString("contentSha256"), fixture.service().getJob(deviceJob).getString("contentSha256"));
+      assertEquals(deviceJob, fixture.service().testPrint(fixture.device(), request).getString("jobId"));
+      assertEquals(409, assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", "LABEL_4X6_203"))).getStatus());
+      assertEquals(nativeJob, fixture.service().claim(fixture.device()).getJSONObject("job").getString("jobId"));
+      assertArrayEquals(PrintingTestDocuments.zpl(300), fixture.service().content(fixture.device(), nativeJob));
+      assertEquals(400, assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", "LETTER"))).getStatus());
+      assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("testProfile", JSONObject.NULL)));
+      assertThrows(PrintingException.class, () -> fixture.service().testPrint(fixture.device(), request.put("format", "RAW")));
+      assertThrows(QException.class, () -> PrintingProcesses.submitTest(printer, false, "A4"));
+      assertEquals(1, fixture.service().queuedJobs(fixture.device()).length());
+   }
+
+
+
+   /***************************************************************************
+    ** Stock/resolution choices are present before both native review flows.
+    ***************************************************************************/
+   @Test
+   void nativeFormsOfferStockAndResolutionBeforeSelectedPrinterReview() throws Exception
+   {
+      Fixture fixture = fixture();
+      QFrontendStepMetaData single = (QFrontendStepMetaData) fixture.instance().getProcess("printingTestZpl").getStep("details");
+      assertEquals("printing_testProfileZpl", single.getFormField("testProfile").getPossibleValueSourceName());
+      var selected = fixture.instance().getProcess("printingTestSelectedPdf");
+      assertEquals("prepareTest", selected.getStepList().getFirst().getName());
+      assertEquals("testProfile", selected.getStepList().get(1).getName());
+      QFrontendStepMetaData form = (QFrontendStepMetaData) selected.getStep("testProfile");
+      assertEquals("printing_testProfilePdf", form.getFormField("testProfile").getPossibleValueSourceName());
+      assertEquals(3, fixture.instance().getPossibleValueSource("printing_testProfileZpl").getEnumValues().size());
+      assertEquals(5, fixture.instance().getPossibleValueSource("printing_testProfilePdf").getEnumValues().size());
+   }
+
+
+
    /***************************************************************************
     ** Native record selection requires duplicate consent and preserves the source.
     ***************************************************************************/
@@ -112,6 +328,9 @@ class PrintingProcessesTest
       assertFalse(result.getException().isPresent(), () -> result.getException().toString());
       assertTrue(fixture.service().claim(fixture.device()).isNull("job"));
       assertTrue(fixture.service().claim(fixture.otherDevice()).isNull("job"));
+      var replay = new RunProcessAction().execute(new RunProcessInput().withProcessName(PrintingJobProcesses.CANCEL)
+         .withValue("recordIds", first + "," + second).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+      assertFalse(replay.getException().isPresent(), () -> replay.getException().toString());
       String claimed = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()), true);
       fixture.service().claim(fixture.device());
       RunBackendStepInput selection = new RunBackendStepInput().withProcessName(PrintingJobProcesses.CANCEL)
@@ -235,7 +454,7 @@ class PrintingProcessesTest
    void enrollmentRejectsMissingAndWrongTenantDespiteAdminPermission() throws Exception
    {
       fixture();
-      RunBackendStepInput input = new RunBackendStepInput().withProcessName("printingEnrollDevice").addValue("facilityId", "warehouse").addValue("deviceName", "station");
+      RunBackendStepInput input = new RunBackendStepInput().withProcessName("printingEnrollDevice").addValue("facilityId", "default").addValue("deviceName", "station");
       QContext.getQSession().setSecurityKeyValues(Map.of("printing_tenant", List.of("tenant-b")));
       assertThrows(com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException.class, () -> new PrintingProcesses().run(input, new RunBackendStepOutput()));
       QContext.getQSession().setSecurityKeyValues(Map.of());
@@ -247,7 +466,17 @@ class PrintingProcessesTest
    /***************************************************************************
     ** One database, two tenants and multiple devices exercise real query scoping.
     ***************************************************************************/
-   private static Fixture fixture() throws Exception
+   static Fixture fixture() throws Exception
+   {
+      return (fixture(null));
+   }
+
+
+
+   /***************************************************************************
+    ** An optional host facility source reuses real tenant-scoped device rows as fixtures.
+    ***************************************************************************/
+   private static Fixture fixture(String facilitySource) throws Exception
    {
       String database = "printing_process_" + UUID.randomUUID();
       String jdbc = "jdbc:h2:mem:" + database + ";DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE";
@@ -265,7 +494,12 @@ class PrintingProcessesTest
       QInstance instance = new QInstance();
       instance.addBackend(new RDBMSBackendMetaData().withName(backendName).withVendor("h2").withHostName("mem").withDatabaseName(database).withJdbcUrl(jdbc).withUsername("sa").withPassword(""));
       instance.withInstanceDefaultAuthentication(new QAuthenticationMetaData().withName("mock").withType(com.kingsrook.qqq.backend.core.model.metadata.QAuthenticationType.MOCK));
-      new PrintingQBitProducer().withConfig(new PrintingQBitConfig().withBackendName(backendName).withService(service)).produce(instance, "printing");
+      if(facilitySource != null)
+      {
+         instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.DEVICE).withName(facilitySource));
+      }
+      new PrintingQBitProducer().withConfig(new PrintingQBitConfig().withBackendName(backendName).withService(service)
+         .withFacilityPossibleValueSourceName(facilitySource)).produce(instance, "printing");
       QContext.init(instance, new QSession().withUser(new QUser().withIdReference("operator")).withPermissions("printing_admin").withSecurityKeyValue("printing_tenant", "tenant-a"));
       QueryInput query = new QueryInput();
       query.setTableName(PrintingTables.PRINTER);
@@ -282,7 +516,7 @@ class PrintingProcessesTest
             foreignId = result.getString(1);
          }
       }
-      return (new Fixture(instance, service, device, otherDevice, printerId, otherPrinterId, foreignId));
+      return (new Fixture(instance, service, device, otherDevice, printerId, otherPrinterId, foreignId, foreign));
    }
 
 
@@ -311,7 +545,7 @@ class PrintingProcessesTest
    /***************************************************************************
     ** Per-test handles, without exposed device tokens.
     ***************************************************************************/
-   private record Fixture(QInstance instance, PrintingService service, String device, String otherDevice, String printerId, String otherPrinterId, String foreignPrinterId)
+   record Fixture(QInstance instance, PrintingService service, String device, String otherDevice, String printerId, String otherPrinterId, String foreignPrinterId, String foreignDevice)
    {
    }
 }
