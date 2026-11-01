@@ -209,7 +209,8 @@ class PrintingRecordProcessesTest
          assertTrue(document.getNumberOfPages() > 1);
          String text = new PDFTextStripper().getText(document);
          assertTrue(text.contains("Field 79"));
-         assertTrue(text.contains("continued, page 2"));
+         assertTrue(text.contains("(continued)"));
+         assertTrue(text.contains("Page 2 of "));
       }
       assertEquals(List.of("abc", "def"), PrintingRecordDocuments.wrap("abc def", 4));
       assertEquals(List.of("abcd", "ef"), PrintingRecordDocuments.wrap("abcdef", 4));

@@ -605,9 +605,9 @@ info:
   contact:
     email: "contact@kingsrook.com"
   description: "Native current-user printing with secondary device proof, device-control-v1\
-    \ and realtime-v1."
+    \ and realtime-v1; record, table-list and text printing processes."
   title: "QQQ Middleware API extension: printing"
-  version: "2.0.0"
+  version: "2.1.0"
 openapi: "3.0.3"
 paths:
   /qqq/v1/qbit/printing/session:
