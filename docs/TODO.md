@@ -17,9 +17,12 @@
   denied-user/wrong-Origin permissions, logout, short renewal and provider revocation.
 - [x] Include the opt-in 10,000-job pooled-SQL/cold-reopen service regression and
   preserve separate released-artifact network/idle-latency evidence.
-- [ ] Review and publish the developer tooling through repository gates. Do not
-  promote experimental core artifacts into the released application's dependency
-  set as a side effect of these tests.
+- [x] Publish developer tooling through PR #21, merged as
+  `3592decba8087439aff5d1b75a9726c72f460cb9`: hosted 40-job/65-S3 checks,
+  33 script tests on both Windows and Ubuntu, and the ordinary Java gate
+  (133 reported, 132 executed, one opt-in skip, zero failures/Checkstyle violations).
+  Keep experimental API 1.9 artifacts opt-in; this merge does not adopt them into
+  the released application or upgrade the live paired runtime.
 
 The older release checklists below are historical context. AWS/cloud-account
 provisioning is outside the user's current local-Docker-only request.
