@@ -11,6 +11,7 @@ using Qqq.PrintAgent.Core.Printing;
 internal static class Program {
  static int Completed; static readonly byte[] Expected=Encoding.ASCII.GetBytes("^XA^FO20,20^FDSYNTHETIC NOT PRINTED^FS"+new string(' ',980)+"^XZ");
  static async Task<int> Main(string[] args) {
+  if(args is ["--check-discovery"]) { await DiscoveryChecks.RunAsync(); return 0; }
   string folder=Path.GetFullPath(args[0]); string stage="input";
   using var timeout=new CancellationTokenSource(TimeSpan.FromMinutes(18));
   List<Lane> lanes=[]; long peak=0; var timer=Stopwatch.StartNew();
@@ -22,8 +23,7 @@ internal static class Program {
     Uri origin=new(value.GetProperty("origin").GetString()!);
     Require(origin.IsLoopback && origin.Port is not (18081 or 18086),"disposable origin");
     var client=new QqqSessionClient(origin,allowLoopbackHttp:true);
-    var discovery=await client.DiscoverAsync(timeout.Token);
-    Require(discovery.Extensions.Any(e=>e.Name=="printing"&&e.Version=="2.0.0"),"published native API");
+    await WorkloadDiscovery.DiscoverRealtimeAsync(client,timeout.Token);
     await client.GetAuthenticationMetadataAsync(timeout.Token);
     await client.SignInWithPasswordAsync(value.GetProperty("username").GetString()!,value.GetProperty("password").GetString()!,timeout.Token);
     await client.BindDeviceAsync(new(value.GetProperty("deviceId").GetString()!,value.GetProperty("deviceToken").GetString()!),cancellationToken:timeout.Token);

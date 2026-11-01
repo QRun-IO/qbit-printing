@@ -7,6 +7,7 @@ RUN mkdir /core && cp /client/src/Qqq.PrintAgent.Core/bin/x64/Release/net10.0/Qq
 WORKDIR /fixture
 COPY dev/client .
 RUN dotnet build -c Release --nologo -o /out
+RUN dotnet /out/Workload.dll --check-discovery
 # SDK image is reused deliberately: one pinned image, no hidden host SDK dependency.
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b
 WORKDIR /app
