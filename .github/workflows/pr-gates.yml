@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   pr:
-    uses: KofTwentyTwo/standards/.github/workflows/pr.yml@fdf5ed029603c938615a32b1beca3628b8787945 # v0.1.2
+    uses: KofTwentyTwo/standards/.github/workflows/pr.yml@70b555bd5658273090769991bfc4c9b6681dde18 # v1.2.1
     with:
       # EX-0013: reviewed unmodified H2 2.4.240; docs/H2-LICENSE-REVIEW.md.
       # The required SCA inventory guard enforces the reviewed version because
