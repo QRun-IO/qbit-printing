@@ -268,8 +268,83 @@ class PrintingProcessesTest
       assertEquals("testProfile", selected.getStepList().get(1).getName());
       QFrontendStepMetaData form = (QFrontendStepMetaData) selected.getStep("testProfile");
       assertEquals("printing_testProfilePdf", form.getFormField("testProfile").getPossibleValueSourceName());
-      assertEquals(3, fixture.instance().getPossibleValueSource("printing_testProfileZpl").getEnumValues().size());
-      assertEquals(5, fixture.instance().getPossibleValueSource("printing_testProfilePdf").getEnumValues().size());
+      // 4 x 6 choices are unchanged; each short stock adds friendly choices without raw IDs or typed sizes.
+      assertEquals(9, fixture.instance().getPossibleValueSource("printing_testProfileZpl").getEnumValues().size());
+      var pdfChoices = fixture.instance().getPossibleValueSource("printing_testProfilePdf").getEnumValues();
+      assertEquals(7, pdfChoices.size());
+      assertEquals(List.of("LETTER", "A4", "LABEL_4X6_203", "LABEL_4X6_300", "LABEL_4X6_600", "LABEL_4X2_300", "LABEL_4X1_300"),
+         pdfChoices.stream().map(choice -> String.valueOf(choice.getId())).toList());
+      assertEquals("4 x 1 in label", pdfChoices.getLast().getLabel());
+      assertEquals(TestPrintProfile.LABEL_4X6_203.name(), TestPrintProfile.resolve("ZPL", null).name());
+   }
+
+
+
+   /***************************************************************************
+    ** Job paper is one complete positive size and never mixes with a profile.
+    ***************************************************************************/
+   @Test
+   void jobPaperRequiresACompleteBoundedPairWithoutMediaProfile() throws Exception
+   {
+      Fixture fixture = fixture();
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser")
+         .put("name", "Packing test printer").put("formats", new JSONArray(List.of("PDF", "ZPL")))));
+      String content = java.util.Base64.getEncoder().encodeToString(PrintingTestDocuments.pdf(TestPrintProfile.LABEL_4X1_300));
+      JSONObject selection = new JSONObject().put("id", "default").put("revision", "a".repeat(64));
+      List<JSONObject> rejected = List.of(
+         new JSONObject().put("paperWidthMm", 101.6),
+         new JSONObject().put("paperHeightMm", 25.4),
+         new JSONObject().put("paperWidthMm", 0).put("paperHeightMm", 25.4),
+         new JSONObject().put("paperWidthMm", 101.6).put("paperHeightMm", -25.4),
+         new JSONObject().put("paperWidthMm", "101.6").put("paperHeightMm", 25.4),
+         new JSONObject().put("paperWidthMm", 101.6).put("paperHeightMm", 2000.1),
+         new JSONObject().put("paperWidthMm", 101.6).put("paperHeightMm", 25.4).put("mediaProfile", selection));
+      for(int index = 0; index < rejected.size(); index++)
+      {
+         JSONObject request = new JSONObject().put("deviceId", fixture.device()).put("printerId", "laser").put("title", "paper").put("format", "PDF")
+            .put("contentBase64", content).put("idempotencyKey", "job-paper-" + index).put("options", rejected.get(index));
+         assertEquals(400, assertThrows(PrintingException.class, () -> fixture.service().submit(request)).getStatus(), rejected.get(index).toString());
+      }
+      assertEquals(0, fixture.service().queuedJobs(fixture.device()).length());
+      JSONObject accepted = new JSONObject().put("deviceId", fixture.device()).put("printerId", "laser").put("title", "paper").put("format", "PDF")
+         .put("contentBase64", content).put("idempotencyKey", "job-paper-valid").put("options", new JSONObject().put("paperWidthMm", 101.6).put("paperHeightMm", 25.4));
+      JSONObject options = fixture.service().getJob(fixture.service().submit(accepted).getString("jobId")).getJSONObject("options");
+      assertEquals(25.4, options.getDouble("paperHeightMm"), 0.0001);
+   }
+
+
+
+   /***************************************************************************
+    ** Short PDF stock sends exact actual-size job paper and no media profile;
+    ** legacy 4 x 6 and every ZPL label keep the queue/payload-defined path.
+    ***************************************************************************/
+   @Test
+   void shortLabelPdfJobsCarryExactJobPaperOnly() throws Exception
+   {
+      Fixture fixture = fixture();
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser")
+         .put("name", "Packing test printer").put("formats", new JSONArray(List.of("PDF", "ZPL")))));
+      QRecord printer = PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device());
+      String[][] stocks = {{"LABEL_4X1_300", "25.4"}, {"LABEL_4X2_300", "50.8"}};
+      for(String[] stock : stocks)
+      {
+         JSONObject options = fixture.service().getJob(PrintingProcesses.submitTest(printer, true, stock[0])).getJSONObject("options");
+         assertEquals(101.6, options.getDouble("paperWidthMm"), 0.0001);
+         assertEquals(Double.parseDouble(stock[1]), options.getDouble("paperHeightMm"), 0.0001);
+         assertFalse(options.has("mediaProfile"));
+         assertEquals(1, options.getInt("copies"));
+         assertEquals("ACTUAL_SIZE", options.getString("scale"));
+      }
+      for(boolean pdf : new boolean[] {true, false})
+      {
+         for(String profile : pdf ? new String[] {"LABEL_4X6_300"} : new String[] {"LABEL_4X6_300", "LABEL_4X2_203", "LABEL_4X1_600"})
+         {
+            JSONObject options = fixture.service().getJob(PrintingProcesses.submitTest(printer, pdf, profile)).getJSONObject("options");
+            assertFalse(options.has("paperWidthMm"));
+            assertFalse(options.has("paperHeightMm"));
+            assertFalse(options.has("mediaProfile"));
+         }
+      }
    }
 
 

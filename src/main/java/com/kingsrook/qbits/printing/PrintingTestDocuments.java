@@ -44,6 +44,7 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 
 /*******************************************************************************
@@ -55,6 +56,10 @@ public final class PrintingTestDocuments
    static final String FONT_RESOURCE = "/com/kingsrook/qbits/printing/fonts/JetBrainsMono-Bold.ttf";
    private static final String LOGO_RESOURCE = "/com/kingsrook/qbits/printing/images/query-mascot.png";
    static final String BARCODE_VALUE = "QQQ-TEST-123456";
+   private static final int LEGACY_LABEL_HEIGHT_INCHES = 6;
+   static final int COMPACT_BARCODE_X = 16;
+   static final int COMPACT_BARCODE_Y = 118;
+   static final int COMPACT_BARCODE_HEIGHT = 16;
 
 
 
@@ -80,15 +85,20 @@ public final class PrintingTestDocuments
          identifiers.add(new COSString("QQQ-TEST-" + profile.name()));
          document.getDocument().getTrailer().setItem(COSName.ID, identifiers);
          PDType0Font font = PDType0Font.load(document, fontStream, true);
-         PDRectangle media = profile.getDpi() > 0 ? new PDRectangle(288, 432) : (profile == TestPrintProfile.A4 ? PDRectangle.A4 : PDRectangle.LETTER);
+         PDRectangle media = profile.getDpi() > 0 ? new PDRectangle(profile.getWidthPoints(), profile.getHeightPoints()) : (profile == TestPrintProfile.A4 ? PDRectangle.A4 : PDRectangle.LETTER);
          PDPage page = new PDPage(media);
          document.addPage(page);
          try(PDPageContentStream content = new PDPageContentStream(document, page))
          {
-            if(profile.getDpi() > 0)
+            if(profile.getDpi() > 0 && profile.getHeightInches() == LEGACY_LABEL_HEIGHT_INCHES)
             {
                pdfLabel(content, font);
                content.drawImage(LosslessFactory.createFromImage(document, logo()), 210, 348, 54, 54);
+            }
+            else if(profile.getDpi() > 0)
+            {
+               content.setLineWidth(1);
+               compactLabel(new PdfCanvas(content, font, LosslessFactory.createFromImage(document, logo()), profile.getHeightPoints()), profile.getHeightInches(), "PDF / ACTUAL SIZE");
             }
             else
             {
@@ -144,18 +154,30 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    public static byte[] zpl(TestPrintProfile profile) throws QException
    {
-      return (zpl(profile.getDpi()));
+      return (zpl(profile.getDpi(), profile.getHeightInches()));
    }
 
 
 
    /***************************************************************************
     ** A four-by-six-inch label at the explicitly chosen printer resolution.
-    ** Text uses the bundled font rasterized to one bit; Code 128 stays native.
     ***************************************************************************/
    public static byte[] zpl(int dpi) throws QException
    {
-      BufferedImage image = labelImage(dpi);
+      return (zpl(dpi, LEGACY_LABEL_HEIGHT_INCHES));
+   }
+
+
+
+   /***************************************************************************
+    ** A four-inch-wide label of the explicit height at the chosen resolution.
+    ** Text uses the bundled font rasterized to one bit; Code 128 stays native.
+    ** No media-type, darkness or speed commands are sent, so the printer keeps
+    ** its own direct-thermal configuration and this never changes its defaults.
+    ***************************************************************************/
+   static byte[] zpl(int dpi, int heightInches) throws QException
+   {
+      BufferedImage image = labelImage(dpi, heightInches);
       int rowBytes = (image.getWidth() + 7) / 8;
       byte[] bitmap = new byte[rowBytes * image.getHeight()];
       for(int y = 0; y < image.getHeight(); y++)
@@ -171,8 +193,17 @@ public final class PrintingTestDocuments
       int module = Math.max(2, dpi / 100);
       StringBuilder zpl = new StringBuilder("^XA^PW" + image.getWidth() + "^LL" + image.getHeight() + "^LH0,0");
       appendGraphicStrips(zpl, bitmap, rowBytes, image.getHeight());
-      zpl.append("^FO").append(dots(24, dpi)).append(',').append(dots(276, dpi)).append("^BY").append(module)
-         .append("^BCN,").append(dots(42, dpi)).append(",N,N,N^FD").append(BARCODE_VALUE).append("^FS^PQ1^XZ");
+      if(heightInches == LEGACY_LABEL_HEIGHT_INCHES)
+      {
+         zpl.append("^FO").append(dots(24, dpi)).append(',').append(dots(276, dpi)).append("^BY").append(module)
+            .append("^BCN,").append(dots(42, dpi)).append(",N,N,N^FD").append(BARCODE_VALUE).append("^FS");
+      }
+      else if(heightInches == 2)
+      {
+         zpl.append("^FO").append(dots(COMPACT_BARCODE_X, dpi)).append(',').append(dots(COMPACT_BARCODE_Y, dpi)).append("^BY").append(module)
+            .append("^BCN,").append(dots(COMPACT_BARCODE_HEIGHT, dpi)).append(",N,N,N^FD").append(BARCODE_VALUE).append("^FS");
+      }
+      zpl.append("^PQ1^XZ");
       return (zpl.toString().getBytes(StandardCharsets.US_ASCII));
    }
 
@@ -202,14 +233,28 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    static BufferedImage labelImage(int dpi) throws QException
    {
+      return (labelImage(dpi, LEGACY_LABEL_HEIGHT_INCHES));
+   }
+
+
+
+   /***************************************************************************
+    ** Four-inch-wide label raster of an explicit supported height.
+    ***************************************************************************/
+   static BufferedImage labelImage(int dpi, int heightInches) throws QException
+   {
       if(!Set.of(203, 300, 600).contains(dpi))
       {
          throw new IllegalArgumentException("Label resolution must be 203, 300 or 600 dpi");
       }
+      if(!Set.of(1, 2, LEGACY_LABEL_HEIGHT_INCHES).contains(heightInches))
+      {
+         throw new IllegalArgumentException("Label height must be 1, 2 or 6 inches");
+      }
       try(InputStream stream = fontStream())
       {
          Font font = Font.createFont(Font.TRUETYPE_FONT, stream);
-         BufferedImage image = new BufferedImage(dpi * 4, dpi * 6, BufferedImage.TYPE_BYTE_BINARY);
+         BufferedImage image = new BufferedImage(dpi * 4, dpi * heightInches, BufferedImage.TYPE_BYTE_BINARY);
          Graphics2D graphics = image.createGraphics();
          try
          {
@@ -218,6 +263,12 @@ public final class PrintingTestDocuments
             graphics.scale(dpi / 72.0, dpi / 72.0);
             graphics.setColor(Color.BLACK);
             graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+            if(heightInches != LEGACY_LABEL_HEIGHT_INCHES)
+            {
+               compactLabel(new ImageCanvas(graphics, font, logo()), heightInches, dpi + " dpi / 1 copy");
+               scanText(graphics, font, heightInches);
+               return (image);
+            }
             graphics.drawRect(12, 12, 264, 408);
             graphics.drawImage(logo(), 210, 30, 54, 54, null);
             labelText(graphics, font, 43, 24, 58, "QQQ");
@@ -377,6 +428,204 @@ public final class PrintingTestDocuments
       content.lineTo(96, 71);
       content.addRect(12, 12, 264, 408);
       content.stroke();
+   }
+
+
+
+   /***************************************************************************
+    ** Top-left origin drawing surface in points, shared by the PDF and raster
+    ** paths so the compact 4 x 1 and 4 x 2 layouts cannot drift apart.
+    ***************************************************************************/
+   private interface LabelCanvas
+   {
+      /************************************************************************
+       ** Draw a text baseline at the given point size and position.
+       ************************************************************************/
+      void text(int size, int x, int y, String text) throws IOException;
+
+
+
+      /************************************************************************
+       ** Stroke a one-point line between two points.
+       ************************************************************************/
+      void line(int x1, int y1, int x2, int y2) throws IOException;
+
+
+
+      /************************************************************************
+       ** Stroke a rectangle outline from its top-left corner.
+       ************************************************************************/
+      void rect(int x, int y, int width, int height) throws IOException;
+
+
+
+      /************************************************************************
+       ** Draw the square Query mascot from its top-left corner.
+       ************************************************************************/
+      void logo(int x, int y, int size) throws IOException;
+   }
+
+
+
+   /***************************************************************************
+    ** Own layouts for the short stocks; the 4 x 6 layout is never scaled down.
+    ** Text starts at 7 pt (about 20 dots at 203 dpi); only a 4 x 2 label has
+    ** room for the native barcode, which the ZPL path places at COMPACT_BARCODE_*.
+    ***************************************************************************/
+   private static void compactLabel(LabelCanvas canvas, int heightInches, String medium) throws IOException
+   {
+      String stock = "4 x " + heightInches + " in / " + medium;
+      if(heightInches == 2)
+      {
+         canvas.rect(5, 5, 278, 134);
+         canvas.logo(240, 11, 36);
+         canvas.text(26, 12, 38, "QQQ");
+         canvas.text(9, 70, 26, "TEST PRINT - NOT POSTAGE");
+         canvas.text(8, 70, 38, stock);
+         canvas.line(12, 54, 232, 54);
+         canvas.text(16, 12, 72, "0O  1Il  5S  8B  2Z");
+         canvas.text(9, 12, 86, "BIN A01-I1 / SKU O0-5S8B");
+         canvas.text(9, 12, 98, "ORDER QQQ-123456 / QTY 02");
+         ruler(canvas, 108, 8, 92, 111);
+      }
+      else
+      {
+         canvas.rect(5, 5, 278, 62);
+         canvas.logo(248, 9, 28);
+         canvas.text(20, 12, 28, "QQQ");
+         canvas.text(8, 56, 17, "TEST PRINT - NOT POSTAGE");
+         canvas.text(7, 56, 27, stock);
+         canvas.line(12, 33, 240, 33);
+         canvas.text(12, 12, 46, "0O  1Il  5S  8B  2Z");
+         canvas.text(7, 158, 44, "BIN A01-I1 / SKU O0-5S8B");
+         ruler(canvas, 57, 7, 92, 60);
+         canvas.text(7, 165, 60, "ORDER QQQ-123456 / QTY 02");
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** One-inch (25.4 mm) measuring line with end ticks and its caption.
+    ***************************************************************************/
+   private static void ruler(LabelCanvas canvas, int y, int size, int captionX, int captionY) throws IOException
+   {
+      canvas.line(12, y, 84, y);
+      canvas.line(12, y - 3, 12, y + 3);
+      canvas.line(84, y - 3, 84, y + 3);
+      canvas.text(size, captionX, captionY, "25.4 mm / 1 inch");
+   }
+
+
+
+   /***************************************************************************
+    ** Caption beside the native 4 x 2 barcode; it exists only in the ZPL raster.
+    ***************************************************************************/
+   private static void scanText(Graphics2D graphics, Font font, int heightInches)
+   {
+      if(heightInches == 2)
+      {
+         labelText(graphics, font, 8, 170, 130, "SCAN: " + BARCODE_VALUE);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Vector PDF surface; converts the top-left layout to PDF's bottom-left origin.
+    ***************************************************************************/
+   private static final class PdfCanvas implements LabelCanvas
+   {
+      private final PDPageContentStream content;
+      private final PDType0Font font;
+      private final PDImageXObject mascot;
+      private final int height;
+
+
+
+      /************************************************************************
+       ** Draw onto one page whose height converts top-left layout coordinates.
+       ************************************************************************/
+      PdfCanvas(PDPageContentStream content, PDType0Font font, PDImageXObject mascot, int height)
+      {
+         this.content = content;
+         this.font = font;
+         this.mascot = mascot;
+         this.height = height;
+      }
+
+
+
+      @Override
+      public void text(int size, int x, int y, String text) throws IOException
+      {
+         pdfText(content, font, size, x, height - y, text);
+      }
+
+
+
+      @Override
+      public void line(int x1, int y1, int x2, int y2) throws IOException
+      {
+         content.moveTo(x1, height - y1);
+         content.lineTo(x2, height - y2);
+         content.stroke();
+      }
+
+
+
+      @Override
+      public void rect(int x, int y, int width, int rectHeight) throws IOException
+      {
+         content.addRect(x, height - y - rectHeight, width, rectHeight);
+         content.stroke();
+      }
+
+
+
+      @Override
+      public void logo(int x, int y, int size) throws IOException
+      {
+         content.drawImage(mascot, x, height - y - size, size, size);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** One-bit raster surface drawing the same layout with the same bundled font.
+    ***************************************************************************/
+   private record ImageCanvas(Graphics2D graphics, Font font, BufferedImage mascot) implements LabelCanvas
+   {
+      @Override
+      public void text(int size, int x, int y, String text)
+      {
+         labelText(graphics, font, size, x, y, text);
+      }
+
+
+
+      @Override
+      public void line(int x1, int y1, int x2, int y2)
+      {
+         graphics.drawLine(x1, y1, x2, y2);
+      }
+
+
+
+      @Override
+      public void rect(int x, int y, int width, int height)
+      {
+         graphics.drawRect(x, y, width, height);
+      }
+
+
+
+      @Override
+      public void logo(int x, int y, int size)
+      {
+         graphics.drawImage(mascot, x, y, size, size, null);
+      }
    }
 }
 
