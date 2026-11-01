@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (0.3.1-SNAPSHOT)
+
+- Add record printing: `PrintingRecordProcesses.register(instance, table)` adds a
+  **Print** process (`printingPrintRecords_{table}`) to a host table's records and
+  selections. It asks for an approved, exposed PDF printer and a copy count, shows
+  the standard review, then renders each selected record as a Letter record sheet
+  (`PrintingRecordDocuments`: heading, visible non-binary fields with display
+  values, wrapped and continued across pages) and queues one PDF job per record.
+  The queued job IDs are returned in the process value `printingJobIds`.
+- Fix selection actions whose first step is a form (**Print a test page**,
+  **Print a test label** on selected printers, and **Print**): over the UI API the
+  record selection reaches only the init call, so the review answered "No records
+  were selected". The prepare step now keeps the selection as `queryFilterJson`.
+
 ## 0.3.0-rc.1 — 2026-10-31
 
 Upgrade the server before the matching Windows connector. Native printing API
