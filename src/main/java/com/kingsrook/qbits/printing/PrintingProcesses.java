@@ -376,6 +376,24 @@ public class PrintingProcesses implements BackendStep
          currentService();
          String request = input.getValueString(TEST_REQUEST_ID);
          output.addValue(TEST_REQUEST_ID, request == null || request.isBlank() ? UUID.randomUUID().toString() : request);
+         keepSelection(input, output);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** A selection action whose first step is a form loses the init request's
+    ** record selection: the UI API passes it only to the init call (as the
+    ** callback filter) and the extract step, which would store it, runs after
+    ** the form. Keep it as the extract step's own queryFilterJson value.
+    ***************************************************************************/
+   static void keepSelection(RunBackendStepInput input, RunBackendStepOutput output)
+   {
+      String kept = input.getValueString("queryFilterJson");
+      if((kept == null || kept.isBlank()) && input.getCallback() != null && input.getCallback().getQueryFilter() != null)
+      {
+         output.addValue("queryFilterJson", com.kingsrook.qqq.backend.core.utils.JsonUtils.toJson(input.getCallback().getQueryFilter()));
       }
    }
 
