@@ -2,6 +2,11 @@
 
 ## Current local development qualification
 
+- [x] Reuse production discovery and the shared major-2 gate in the optional
+  native-auth probe; reproduce the old 2.1.0 rejection, then pass 12 native and
+  nine default workload fake-HTTP compatibility checks without provider launch.
+- [x] Rerun the eight-check native provider profile once against printing API 2.1.0
+  after review; all eight passed with unchanged source hashes and owned cleanup.
 - [x] Supply portable, owned Docker Start/Test/Stop commands with private synthetic
   credentials and explicit cleanup; leave the installed pairing untouched.
 - [x] Run the 40-job smoke, 65 real S3 backend checks and 10,000 network jobs with

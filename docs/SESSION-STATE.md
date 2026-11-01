@@ -2,6 +2,17 @@
 
 ## Local Docker development — 2026-11-01
 
+The optional native-auth probe now shares production Core discovery and the
+default workload's printing-major-2 gate, accepting stable 2.1.0 while retaining
+the exact experimental API 1.9/native grant requirement. Its previous exact-2.0.0
+check reproduced a rejection before the fix. Native and default client image
+builds pass 12 and nine fake-HTTP compatibility checks respectively, with zero
+warnings/errors. One fresh provider run against server source `3592dec`
+(printing API 2.1.0) and the reviewed probe correction passed all eight checks.
+All source hashes remained unchanged through completion; independent cleanup
+found zero owned containers, volumes and networks. No installed runtime,
+physical printer or host trust setting changed.
+
 The current qualification scope is local Docker only. The new `dev/Invoke-Dev.ps1`
 provides owned Start/Test/Stop commands for a native QQQ TABLE host, dedicated
 MinIO storage and optional real Authentik/PostgreSQL. Source images and the client
