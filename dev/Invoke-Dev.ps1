@@ -244,6 +244,40 @@ function Wait-OwnedContainer([string]$Id, [int]$Seconds)
    } while ([DateTime]::UtcNow -lt $deadline)
    throw 'Bounded fixture deadline expired; owned resources will be cleaned.'
 }
+function Assert-WorkloadClientSucceeded([string]$Id, [int]$ExitCode, [string]$Run, [string]$Reports)
+{
+   <# .SYNOPSIS Preserves private client evidence and reports only fixed failure classifications. #>
+   if ($ExitCode -eq 0) { return }
+   $stage = 'unknown'
+   $failureType = 'UnknownFailure'
+   try
+   {
+      $path = Join-Path $Reports 'result.json'
+      & docker cp "${Id}:/work/$Run/result.json" $path 2>&1 | Out-Null
+      if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $path -PathType Leaf) -and (Get-Item -LiteralPath $path).Length -le 65536)
+      {
+         $result = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
+         if ($result -is [Collections.IDictionary] -and $result['success'] -ceq $false)
+         {
+            if ($result['stage'] -is [string] -and $result['stage'] -cin @('input', 'native_login_and_channels', 'workload', 'logout'))
+            {
+               $stage = $result['stage']
+            }
+            if ($result['error'] -is [string] -and $result['error'] -cin @('QqqSessionException', 'HttpRequestException', 'IOException', 'InvalidDataException', 'JsonException', 'OperationCanceledException', 'TaskCanceledException', 'UnauthorizedAccessException', 'WebSocketException', 'TimeoutException', 'InvalidOperationException'))
+            {
+               $failureType = $result['error']
+            }
+         }
+      }
+   }
+   catch
+   {
+      # Missing or malformed diagnostics must not hide the failed client or expose raw exception text.
+      $stage = 'unknown'
+      $failureType = 'UnknownFailure'
+   }
+   throw "Workload client failed at $stage ($failureType); see protected results."
+}
 
 if ([string]::IsNullOrWhiteSpace($StateDirectory))
 {
@@ -420,6 +454,7 @@ try
       throw 'Owned fixture identity missing.'
    }
    $clientExit = Wait-OwnedContainer $client 1200
+   Assert-WorkloadClientSucceeded -Id $client -ExitCode $clientExit -Run $testRun -Reports $reports
    $serverExit = Wait-OwnedContainer $server 45
    foreach ($file in @('result.json', 'server-result.json', 'stopped.json', 's3/results.json', 's3/completed-checks.json'))
    {
