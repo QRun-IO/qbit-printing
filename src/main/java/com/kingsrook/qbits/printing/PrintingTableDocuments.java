@@ -47,19 +47,43 @@ public final class PrintingTableDocuments
 
    /***************************************************************************
     ** Render columns and rows (display text) on LETTER or A4, portrait or
-    ** landscape. The footer line says how many rows were printed.
+    ** landscape, without preferred widths or a footer.
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, List<String> columns, List<List<String>> rows, String pageSize, boolean landscape) throws QException
+   {
+      return (pdf(title, subtitle, null, columns, rows, null, pageSize, landscape ? "LANDSCAPE" : "PORTRAIT"));
+   }
+
+
+
+   /***************************************************************************
+    ** Render a table list. Preferred widths (the grid's, in characters) are
+    ** the starting column widths, else the content decides; either way they
+    ** shrink to fit the page. Orientation AUTO turns the page landscape when
+    ** the columns do not fit portrait. The header repeats on every page; the
+    ** footer text goes at the bottom left of every page.
+    ***************************************************************************/
+   public static byte[] pdf(String title, String subtitle, String footer, List<String> columns, List<List<String>> rows, int[] preferredWidths, String pageSize, String orientation) throws QException
    {
       if(columns.isEmpty())
       {
          throw new QException("A table list needs at least one column");
       }
+      int[] natural = PrintingLayout.naturalWidths(columns, rows);
+      if(preferredWidths != null && preferredWidths.length == columns.size())
+      {
+         for(int c = 0; c < natural.length; c++)
+         {
+            natural[c] = Math.max(4, Math.min(60, preferredWidths[c]));
+         }
+      }
+      boolean landscape = isLandscape(orientation, natural, pageSize);
       try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle))
       {
-         int[] widths = PrintingLayout.columnWidths(columns, rows, layout.columns(FONT_SIZE));
+         layout.footer(footer);
+         int[] widths = PrintingLayout.fit(natural, layout.columns(FONT_SIZE));
          String header = PrintingLayout.row(columns, widths);
-         String rule = "-".repeat(Math.min(layout.columns(FONT_SIZE), header.length()));
+         String rule = "-".repeat(Math.min(layout.columns(FONT_SIZE), Math.max(1, header.length())));
          layout.line(header, FONT_SIZE);
          layout.line(rule, FONT_SIZE);
          layout.repeatOnNewPages(List.of(header, rule), FONT_SIZE);
@@ -76,5 +100,25 @@ public final class PrintingTableDocuments
       {
          throw new QException("Could not render the table list: " + exception.getMessage(), exception);
       }
+   }
+
+
+
+   /***************************************************************************
+    ** PORTRAIT, LANDSCAPE, or AUTO: landscape when the natural widths do not
+    ** fit across a portrait page.
+    ***************************************************************************/
+   static boolean isLandscape(String orientation, int[] natural, String pageSize)
+   {
+      if("LANDSCAPE".equalsIgnoreCase(orientation))
+      {
+         return (true);
+      }
+      if(!"AUTO".equalsIgnoreCase(orientation))
+      {
+         return (false);
+      }
+      float width = ("A4".equalsIgnoreCase(pageSize) ? 595.28f : 612f) - 2 * PrintingLayout.MARGIN;
+      return (PrintingLayout.lineWidth(natural) > (int) (width / (0.6f * FONT_SIZE)));
    }
 }

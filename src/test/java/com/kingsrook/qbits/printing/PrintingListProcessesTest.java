@@ -136,7 +136,9 @@ class PrintingListProcessesTest
       assertTrue(text.contains("Last name"), text);
       assertTrue(text.indexOf("Last name") < text.indexOf("First name"), text);
       assertTrue(text.indexOf("Hopper") < text.indexOf("Lovelace"), text);
-      assertTrue(text.contains("all rows of 2"), text);
+      assertTrue(text.contains("all 2 rows"), text);
+      assertTrue(text.contains("sort Last name"), text);
+      assertTrue(text.contains("Person - printed "), "the footer names the table, time and user");
       assertTrue(text.contains("2 rows"), text);
       assertTrue(fixture.service().jobs().getJSONObject(0).getString("title").startsWith("Person"));
    }
@@ -159,6 +161,45 @@ class PrintingListProcessesTest
       assertTrue(text.contains("Grace") && !text.contains("Lovelace"), text);
       assertTrue(text.contains("Email"), "default columns are the visible fields");
       assertFalse(text.contains("Secret"), text);
+   }
+
+
+
+   /***************************************************************************
+    ** All rows of a result larger than the limit: the first rows, read a page
+    ** at a time, with a message saying how many were left out; the grid's
+    ** widths are used and AUTO turns wide lists landscape.
+    ***************************************************************************/
+   @Test
+   void tableListOfAllRowsBeyondTheLimitSaysSo() throws Exception
+   {
+      PrintingProcessesTest.Fixture fixture = fixture();
+      List<QRecord> more = new java.util.ArrayList<>();
+      for(int i = 3; i <= 2500; i++)
+      {
+         more.add(new QRecord().withValue("id", i).withValue("firstName", "First" + i).withValue("lastName", "Last" + i).withValue("email", "p" + i + "@example.test").withValue("note", "note " + i));
+      }
+      new InsertAction().execute(new InsertInput("person").withRecords(more));
+      RunProcessOutput output = run(PrintingListProcesses.TABLE_LIST, Map.of("tableName", "person", "scope", "ALL", "maxRows", 2100,
+         "columnWidths", "4,40,40,40,40", "filterDescription", "id > 0", PrintingRecordProcesses.PRINTER_FIELD, fixture.printerId()));
+      assertEquals(true, output.getValues().get("printingTruncated"));
+      assertTrue(String.valueOf(output.getValues().get("printingMessage")).contains("first 2100 of 2500 rows"), () -> String.valueOf(output.getValues()));
+      String job = fixture.service().jobs().getJSONObject(0).getString("jobId");
+      fixture.service().claimForJob(fixture.device(), job);
+      try(PDDocument document = PDDocument.load(fixture.service().content(fixture.device(), job)))
+      {
+         assertTrue(document.getPage(0).getMediaBox().getWidth() > document.getPage(0).getMediaBox().getHeight(), "AUTO chose landscape");
+         assertTrue(document.getNumberOfPages() > 30, "pages: " + document.getNumberOfPages());
+         String text = new PDFTextStripper().getText(document);
+         assertTrue(text.contains("first 2100 of 2500 rows (print limit 2100)"), text.substring(0, 400));
+         assertTrue(text.contains("filter id > 0"));
+         assertTrue(text.contains("2100 rows"));
+         assertTrue(text.contains("First2100") && !text.contains("First2101 "), "rows stop at the limit");
+         PDFTextStripper last = new PDFTextStripper();
+         last.setStartPage(document.getNumberOfPages());
+         String lastPage = last.getText(document);
+         assertTrue(lastPage.contains("Id") && lastPage.contains("First name"), "the header repeats on every page");
+      }
    }
 
 
