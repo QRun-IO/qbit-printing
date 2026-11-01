@@ -1,5 +1,61 @@
 # Session state — 2026-10-31
 
+## Local Docker development — 2026-11-01
+
+The current qualification scope is local Docker only. The new `dev/Invoke-Dev.ps1`
+provides owned Start/Test/Stop commands for a native QQQ TABLE host, dedicated
+MinIO storage and optional real Authentik/PostgreSQL. Source images and the client
+Core archive are pinned. Generated credentials stay in private state outside the
+checkout; no installed connector, live database or physical printer is used.
+
+Portable Docker checks passed: the default 40-job smoke, 65 actual QQQ S3 backend
+checks, and an opt-in 10,000-job/two-tenant/eight-client run with 30,000 durable
+server receipts and 400 submission plus 400 receipt replays. The burst completed
+in 147.856 seconds (about 67.63 jobs/second); its enqueue-to-ACK p95 was 32.984
+seconds while work intentionally queued. This is HTTP/WS with a fake file printer
+and a simple fixture client journal, not TLS, hardware or a long soak claim.
+
+Native TABLE login, identity, frontend asset and logout passed. Real Authentik
+configuration/discovery passed; a registered redirect continued to login and the
+otherwise-identical unregistered redirect was rejected. The released RC.20 host
+still advertises API 1.8 without the native session grant: browser login, renewal
+and the Windows callback are not established by these checks. All owned test
+containers, volumes and networks were removed. Lifecycle/bootstrap regressions
+passed 28 cases including experimental-profile refusal and diagnostic-redaction
+checks; scripts passed parser and PSScriptAnalyzer checks.
+
+The separate opt-in native-auth profile passed eight actual checks against the
+immutable upstream API 1.9 candidate `ecf0f550a0357cec6387c2b54efca128a405a629`:
+ordinary TLS refusal before container-only CA installation, typed-grant discovery,
+real Authentik login through the production Core PKCE client, wrong-Origin cookie
+rejection, denied-user permissions, logout replay refusal, server-side renewal
+after access-token expiry and denial after provider refresh-token revocation.
+The final run exited zero and all owned containers, volumes and networks were
+removed. Earlier failed fixture attempts remain in private evidence; their fixes
+were standard-flow readiness/binding, bounded provider redirects and the correct
+Authentik CSRF header. No authentication check was disabled.
+
+This experimental candidate is not the default released RC.20 runtime or a
+published production dependency upgrade. Container HTTPS and automated real
+provider flows do not qualify the Windows browser callback UI, host trust,
+months-long operation or physical printing. See [local development](../dev/README.md),
+[provider limits](../dev/AUTHENTIK.md) and [native qualification](../dev/native-auth/README.md).
+Earlier release checkpoints below are historical; no publication or live change
+was performed by this development-tooling lane.
+
+## Opt-in service workload regression — 2026-11-01
+
+The combined test/development change also includes a 10,000-job, two-tenant,
+eight-lane file-backed service regression with replay, exact accounting,
+pagination and cold reopen checks. It is opt-in and never accesses a printer.
+The original isolated full gate passed 119 tests with zero Checkstyle violations;
+the final exact receipt-count assertion passed its focused rerun. Its source is
+unchanged when integrated here, and the combined checkout passed one focused
+workload test with zero Checkstyle violations. The earlier released-artifact
+network run and
+40-job idle latency measurements are recorded in
+[qualification evidence](QUALIFICATION-2026-11-01.md), separately from the portable
+Docker run above. No runtime source, dependencies or version changed.
 ## Active device controls and standard QQQ authentication
 
 Implementation is in the isolated device-controls worktree. Native device/table actions support pause, resume, disconnect, reconnect, revoke, inventory refresh and queued-job clearing; job records support exact owned Windows-job cancellation. Related printers, jobs, pending queue and bounded command history are registered. Derived status separates connection presence, desired state and observed revision. Domain writes use current QQQ permissions; clearing a queue checks every affected job before the transactional mutation.

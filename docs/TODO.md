@@ -1,5 +1,24 @@
 # Follow-up
 
+## Current local development qualification
+
+- [x] Supply portable, owned Docker Start/Test/Stop commands with private synthetic
+  credentials and explicit cleanup; leave the installed pairing untouched.
+- [x] Run the 40-job smoke, 65 real S3 backend checks and 10,000 network jobs with
+  30,000 durable server receipts and replay/isolation assertions.
+- [x] Qualify real Authentik provider discovery and registered/unregistered redirect
+  controls while reporting the released QQQ 1.8 native-grant absence honestly.
+- [x] Qualify the separate experimental API 1.9/container-TLS native login,
+  denied-user/wrong-Origin permissions, logout, short renewal and provider revocation.
+- [x] Include the opt-in 10,000-job pooled-SQL/cold-reopen service regression and
+  preserve separate released-artifact network/idle-latency evidence.
+- [ ] Review and publish the developer tooling through repository gates. Do not
+  promote experimental core artifacts into the released application's dependency
+  set as a side effect of these tests.
+
+The older release checklists below are historical context. AWS/cloud-account
+provisioning is outside the user's current local-Docker-only request.
+
 - [x] Complete native device controls, per-record/selection actions, queue/history, dashboard and legacy-boundary integration tests; 110 tests pass with zero Checkstyle violations.
 - [x] Complete 25 actual Windows Core client/native QQQ interoperability checks with table-based authentication, no printers and no jobs.
 - [ ] Complete installed candidate acceptance after protected CI.
@@ -46,7 +65,9 @@
 - [x] Implement the dedicated QQQ object-storage document backend; live S3/IAM qualification remains pending configuration.
 - [ ] Logical destination mappings.
 - [x] Run the coordinated Java gate for profile migration, long text and 10,000-row bounded-history regressions; included in the passing 28-test v0.1.3-rc.1 gate.
-- [ ] Qualify sustained throughput separately from synthetic bounded-history tests.
+- [ ] Qualify long-duration soak and sustained physical throughput separately
+  from the completed bounded network/fake-printer workloads; see
+  [qualification evidence](QUALIFICATION-2026-11-01.md).
 - [x] Device-scoped test/retry/cancel/queued-job routes and native record/table cancellation/reprint review, explicit duplicate-risk consent and retry idempotency.
 - [x] Implement admin document retention and bounded scheduled cleanup, default 365 days.
 - [ ] Server-side job expiry and operational alerts.
