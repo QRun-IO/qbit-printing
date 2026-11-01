@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased (0.3.1-SNAPSHOT)
+## Unreleased (0.4.0-SNAPSHOT)
+
+Printing extension **2.1.0** (additive; the agent contract is unchanged).
+
+- Print anything: `PrintingRecordProcesses.registerAll(instance)` adds **Print** to
+  every table that can be read one record at a time (call it after the host's
+  tables are in the instance). Hidden tables, tables without a primary key or
+  `TABLE_GET`, and tables carrying `PrintingTableSettings().withPrintable(false)`
+  are skipped.
+- The record sheet now follows the table's metadata: field sections in tier order
+  with their labels, remaining fields under "Other fields", and a summary of each
+  child list (association): its label, row count and first ten rows.
+- New `printingPrintTableList`: a table list (grid) of any readable table with the
+  caller's columns (in order), filter, sort and either the current page (`scope`
+  `PAGE`, the filter's skip/limit) or all rows up to `maxRows` (1000 by default,
+  5000 at most); Letter or A4, portrait or landscape; the header repeats on every
+  page. `printingRowCount` reports the matching rows before printing.
+- New `printingPrintText`: any text (a capture of a terminal screen) as a
+  monospace PDF, wrapped and broken across pages.
+- All documents share one page writer with "Page n of m" footers and a running
+  title on later pages. Table and record reads enforce the user's permissions.
+
+## 0.3.1-SNAPSHOT
 
 - Add record printing: `PrintingRecordProcesses.register(instance, table)` adds a
   **Print** process (`printingPrintRecords_{table}`) to a host table's records and

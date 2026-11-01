@@ -21,32 +21,25 @@
 package com.kingsrook.qbits.printing;
 
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
 
 
 /*******************************************************************************
- ** A plain Letter "record sheet": a heading, a subtitle and one label/value line
- ** per field, wrapped and continued across pages. It is the generic document a
- ** record print renders when the host supplies no template of its own.
+ ** A Letter "record sheet": a heading and subtitle, then each section of the
+ ** record (label/value lines, wrapped and continued across pages), then a
+ ** summary of each child list (its label, how many rows, and the first rows as
+ ** a small table). It is the generic document a record print renders when the
+ ** host supplies no template of its own.
  *******************************************************************************/
 public final class PrintingRecordDocuments
 {
-   static final int MAX_LINES = 2000;
-   private static final float MARGIN = 54;
-   private static final int TITLE_SIZE = 16;
+   static final int MAX_LINES = 4000;
    private static final int BODY_SIZE = 10;
-   private static final float LEADING = 14;
+   private static final int CHILD_SIZE = 8;
 
 
 
@@ -60,60 +53,91 @@ public final class PrintingRecordDocuments
 
 
    /***************************************************************************
-    ** Render one record as a PDF. Field order is the map's order; values are the
-    ** display text the caller already formatted (null values print blank).
+    ** One section: a label (blank for none) and label/value lines in order.
+    ***************************************************************************/
+   public record Section(String label, Map<String, String> fields)
+   {
+   }
+
+
+
+   /***************************************************************************
+    ** One child list: its label, total row count, column headings and the
+    ** first rows (display text).
+    ***************************************************************************/
+   public record ChildList(String label, int total, List<String> columns, List<List<String>> rows)
+   {
+   }
+
+
+
+   /***************************************************************************
+    ** One section without children (the original record sheet).
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, Map<String, String> fields) throws QException
    {
-      try(PDDocument document = new PDDocument(); InputStream fontStream = fontStream())
+      return (pdf(title, subtitle, List.of(new Section("", fields)), List.of()));
+   }
+
+
+
+   /***************************************************************************
+    ** Render sections and child list summaries as a PDF.
+    ***************************************************************************/
+   public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children) throws QException
+   {
+      try(PrintingLayout layout = new PrintingLayout("LETTER", false, title, subtitle))
       {
-         PDType0Font font = PDType0Font.load(document, fontStream, true);
-         float width = PDRectangle.LETTER.getWidth() - 2 * MARGIN;
-         int columns = Math.max(20, (int) (width / (font.getStringWidth("0") / 1000 * BODY_SIZE)));
-         int labelWidth = Math.min(28, Math.max(8, fields.keySet().stream().mapToInt(String::length).max().orElse(8) + 1));
-         List<String> lines = new ArrayList<>();
-         for(Map.Entry<String, String> field : fields.entrySet())
+         int columns = layout.columns(BODY_SIZE);
+         int labelWidth = Math.min(28, Math.max(8, sections.stream().flatMap(s -> s.fields().keySet().stream()).mapToInt(String::length).max().orElse(8) + 1));
+         int lines = 0;
+         for(Section section : sections)
          {
-            List<String> wrapped = wrap(field.getValue() == null ? "" : field.getValue(), columns - labelWidth - 1);
-            for(int i = 0; i < wrapped.size() && lines.size() < MAX_LINES; i++)
+            if(section.fields().isEmpty())
             {
-               String label = i == 0 ? truncate(field.getKey(), labelWidth - 1) : "";
-               lines.add(String.format("%-" + labelWidth + "s %s", label, wrapped.get(i)));
+               continue;
             }
-         }
-         int index = 0;
-         int pageNumber = 0;
-         do
-         {
-            pageNumber++;
-            PDPage page = new PDPage(PDRectangle.LETTER);
-            document.addPage(page);
-            try(PDPageContentStream content = new PDPageContentStream(document, page))
+            if(section.label() != null && !section.label().isBlank())
             {
-               float y = PDRectangle.LETTER.getHeight() - MARGIN;
-               text(content, font, TITLE_SIZE, MARGIN, y, truncate(title, (int) (width / (font.getStringWidth("0") / 1000 * TITLE_SIZE))));
-               y -= LEADING + 6;
-               text(content, font, BODY_SIZE, MARGIN, y, truncate(subtitle + (pageNumber > 1 ? " (continued, page " + pageNumber + ")" : ""), columns));
-               y -= 6;
-               content.moveTo(MARGIN, y);
-               content.lineTo(MARGIN + width, y);
-               content.stroke();
-               y -= LEADING + 4;
-               while(index < lines.size() && y > MARGIN)
+               layout.gap(4);
+               layout.keep(3, BODY_SIZE);
+               layout.line(section.label(), BODY_SIZE + 1);
+            }
+            for(Map.Entry<String, String> field : section.fields().entrySet())
+            {
+               List<String> wrapped = wrap(field.getValue() == null ? "" : field.getValue(), columns - labelWidth - 1);
+               for(int i = 0; i < wrapped.size() && lines++ < MAX_LINES; i++)
                {
-                  text(content, font, BODY_SIZE, MARGIN, y, lines.get(index++));
-                  y -= LEADING;
+                  layout.line(String.format("%-" + labelWidth + "s %s", i == 0 ? truncate(field.getKey(), labelWidth - 1) : "", wrapped.get(i)), BODY_SIZE);
                }
             }
          }
-         while(index < lines.size());
-         ByteArrayOutputStream output = new ByteArrayOutputStream();
-         document.save(output);
-         return (output.toByteArray());
+         for(ChildList child : children)
+         {
+            layout.gap(8);
+            layout.keep(4, CHILD_SIZE);
+            layout.line(child.label() + " (" + child.total() + ")", BODY_SIZE + 1);
+            if(child.rows().isEmpty())
+            {
+               layout.line("(none)", CHILD_SIZE);
+               continue;
+            }
+            int[] widths = PrintingLayout.columnWidths(child.columns(), child.rows(), layout.columns(CHILD_SIZE));
+            layout.line(PrintingLayout.row(child.columns(), widths), CHILD_SIZE);
+            for(List<String> row : child.rows())
+            {
+               layout.line(PrintingLayout.row(row, widths), CHILD_SIZE);
+            }
+            if(child.total() > child.rows().size())
+            {
+               layout.line("... and " + (child.total() - child.rows().size()) + " more", CHILD_SIZE);
+            }
+         }
+         return (layout.finish());
       }
       catch(IOException exception)
       {
-         throw new QException("Could not render the record document", exception);
+         throw new QException("Could not render the record document: " + exception.getMessage(), exception);
       }
    }
 
@@ -158,48 +182,5 @@ public final class PrintingRecordDocuments
    {
       String value = text == null ? "" : text.replace('\n', ' ').replace('\r', ' ');
       return (value.length() <= length ? value : value.substring(0, Math.max(0, length - 1)) + "~");
-   }
-
-
-
-   /***************************************************************************
-    ** Draw one line, replacing characters the bundled font cannot encode.
-    ***************************************************************************/
-   private static void text(PDPageContentStream content, PDType0Font font, int size, float x, float y, String text) throws IOException
-   {
-      StringBuilder safe = new StringBuilder();
-      text.codePoints().forEach(codePoint ->
-      {
-         String character = new String(Character.toChars(codePoint));
-         try
-         {
-            font.encode(character);
-            safe.append(character);
-         }
-         catch(IllegalArgumentException | IOException exception)
-         {
-            safe.append('?');
-         }
-      });
-      content.beginText();
-      content.setFont(font, size);
-      content.newLineAtOffset(x, y);
-      content.showText(safe.toString());
-      content.endText();
-   }
-
-
-
-   /***************************************************************************
-    ** The licensed font shipped for the diagnostic documents.
-    ***************************************************************************/
-   private static InputStream fontStream() throws IOException
-   {
-      InputStream stream = PrintingRecordDocuments.class.getResourceAsStream(PrintingTestDocuments.FONT_RESOURCE);
-      if(stream == null)
-      {
-         throw new IOException("Bundled document font is missing");
-      }
-      return (stream);
    }
 }

@@ -49,11 +49,11 @@ public final class PrintingUiApi
       MiddlewareSpecExtensionsMetaData.ofOrWithNew(instance).withExtension(extension());
    }
 
-   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims. */
+   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims; 2.1.0 adds the record, table-list and text print processes. */
    public static MiddlewareSpecExtension extension()
    {
-      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.0.0")
-         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1.")
+      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.1.0")
+         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes.")
          .withSpec(Session.class)
          .withSpec(Bind.class)
          .withSpec(Enroll.class)
