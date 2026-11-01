@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Fail closed unless scanners cover Maven's selected UI-host runtime graph."""
 import argparse
 from collections import Counter

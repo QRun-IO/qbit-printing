@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 case "$TEST_RUN" in run-[a-f0-9]*) ;; *) echo 'Invalid owned test run' >&2; exit 2;; esac
 mkdir -p "/work/$TEST_RUN/s3"

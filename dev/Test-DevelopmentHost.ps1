@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 <# .SYNOPSIS Checks the owned local QQQ development host without enrolling or printing. #>
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$StateDirectory)
