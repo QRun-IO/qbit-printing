@@ -176,6 +176,7 @@ public class PrintingQBitProducer implements QBitProducer
       PrintingProcesses.register(instance, app);
       PrintingOperatorProcesses.register(instance);
       PrintingListProcesses.register(instance);
+      PrintingRenderProcesses.register(instance);
       PrintingDeviceProcesses.register(instance);
       PrintingUiApi.register(instance);
       PrintingRetentionProcesses.register(instance, config);

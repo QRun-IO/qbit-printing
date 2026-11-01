@@ -30,7 +30,10 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import com.kingsrook.qqq.middleware.javalin.QApplicationLauncher;
 import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
@@ -99,6 +102,40 @@ public class PrintingRealtimeTest
       {
          launcher.stop();
       }
+   }
+
+
+   /**
+    * Closing the routes waits for a channel worker that is already running. A drain that outlived the host could query a stopped file
+    * database and recreate it empty, which previously left a test's temporary directory populated after cleanup.
+    */
+   @Test
+   void closeWaitsForChannelWorkersAlreadyRunning() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:routes-close-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "close-tenant");
+      PrintingRealtimeRoutes routes = new PrintingRealtimeRoutes(service);
+      java.lang.reflect.Field field = PrintingRealtimeRoutes.class.getDeclaredField("workers");
+      field.setAccessible(true);
+      ExecutorService workers = (ExecutorService) field.get(routes);
+      CountDownLatch started = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean();
+      workers.execute(() ->
+      {
+         started.countDown();
+         try
+         {
+            Thread.sleep(400);
+            finished.set(true);
+         }
+         catch(InterruptedException expected)
+         {
+            Thread.currentThread().interrupt();
+         }
+      });
+      assertTrue(started.await(5, TimeUnit.SECONDS));
+      routes.close();
+      assertTrue(finished.get(), "close() returned while a channel worker was still running");
+      assertTrue(workers.isTerminated());
    }
 
 

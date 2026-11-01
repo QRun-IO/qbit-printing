@@ -1,6 +1,6 @@
 # Operator catalog and queue media
 
-This source adds native printing extension 2.2.0. Publication and Windows media
+This source adds native printing extension 2.3.0 (2.2.0 is the rendering extension and carries no media negotiation). Publication and Windows media
 agent qualification are pending. Existing administrator and device routes keep
 their permissions; this is an additive operator API, not a device bearer API.
 

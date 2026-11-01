@@ -216,9 +216,20 @@ public final class PrintingRecordProcesses
    /***************************************************************************
     ** Render one record (display values, visible non-binary fields) and queue it.
     ***************************************************************************/
-   static String submit(QTableMetaData table, QRecord selected, QRecord printer, int copies, String request) throws QException
+   static String submit(QTableMetaData table, QRecord selected, QRecord printer, int copies, String request, PrintingChrome chrome) throws QException
    {
       Serializable primaryKey = selected.getValue(table.getPrimaryKeyField());
+      PrintingListProcesses.Rendered rendered = render(table, primaryKey, chrome);
+      return (queue(printer, rendered.title(), rendered.bytes(), copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id")));
+   }
+
+
+
+   /***************************************************************************
+    ** The record sheet of one record (read with the caller's permissions).
+    ***************************************************************************/
+   static PrintingListProcesses.Rendered render(QTableMetaData table, Serializable primaryKey, PrintingChrome chrome) throws QException
+   {
       GetInput get = new GetInput();
       get.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
       get.setTableName(table.getName());
@@ -232,9 +243,10 @@ public final class PrintingRecordProcesses
       }
       String label = record.getRecordLabel() != null ? record.getRecordLabel() : String.valueOf(primaryKey);
       String tableLabel = table.getLabel() == null ? table.getName() : table.getLabel();
-      String subtitle = tableLabel + " " + primaryKey + " - " + printedBy();
-      byte[] bytes = PrintingRecordDocuments.pdf(tableLabel + ": " + label, subtitle, sections(table, record), children(table, record));
-      return (queue(printer, tableLabel + ": " + label, bytes, copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id")));
+      String subtitle = tableLabel + " " + primaryKey;
+      PrintingChrome pageChrome = chrome == null ? PrintingChrome.defaults(tableLabel + " › " + label) : chrome.withTitleIfBlank(tableLabel + " › " + label);
+      byte[] bytes = PrintingRecordDocuments.pdf(tableLabel + ": " + label, subtitle, sections(table, record), children(table, record), pageChrome);
+      return (new PrintingListProcesses.Rendered(tableLabel + ": " + label, bytes, null));
    }
 
 
@@ -489,7 +501,7 @@ public final class PrintingRecordProcesses
          QTableMetaData table = QContext.getQInstance().getTable(input.getValueString(StreamedETLWithFrontendProcess.FIELD_SOURCE_TABLE));
          for(QRecord record : input.getRecords())
          {
-            jobIds.add(submit(table, record, printer, copies, request));
+            jobIds.add(submit(table, record, printer, copies, request, PrintingChrome.from(input, null)));
             done.incrementCountAndAddPrimaryKey(record.getValue(table.getPrimaryKeyField()));
             output.getRecords().add(record);
          }

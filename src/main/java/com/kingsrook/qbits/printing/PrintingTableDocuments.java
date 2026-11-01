@@ -51,7 +51,7 @@ public final class PrintingTableDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, List<String> columns, List<List<String>> rows, String pageSize, boolean landscape) throws QException
    {
-      return (pdf(title, subtitle, null, columns, rows, null, pageSize, landscape ? "LANDSCAPE" : "PORTRAIT"));
+      return (pdf(title, subtitle, null, columns, rows, null, pageSize, landscape ? "LANDSCAPE" : "PORTRAIT", null));
    }
 
 
@@ -63,7 +63,7 @@ public final class PrintingTableDocuments
     ** the columns do not fit portrait. The header repeats on every page; the
     ** footer text goes at the bottom left of every page.
     ***************************************************************************/
-   public static byte[] pdf(String title, String subtitle, String footer, List<String> columns, List<List<String>> rows, int[] preferredWidths, String pageSize, String orientation) throws QException
+   public static byte[] pdf(String title, String subtitle, String footer, List<String> columns, List<List<String>> rows, int[] preferredWidths, String pageSize, String orientation, PrintingChrome chrome) throws QException
    {
       if(columns.isEmpty())
       {
@@ -78,7 +78,7 @@ public final class PrintingTableDocuments
          }
       }
       boolean landscape = isLandscape(orientation, natural, pageSize);
-      try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle))
+      try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle, chrome))
       {
          layout.footer(footer);
          int[] widths = PrintingLayout.fit(natural, layout.columns(FONT_SIZE));

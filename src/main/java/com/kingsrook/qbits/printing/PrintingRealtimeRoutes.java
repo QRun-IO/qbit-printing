@@ -252,7 +252,31 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       }
       finally
       {
-         workers.shutdown();
+         stopWorkers();
+      }
+   }
+
+
+   /**
+    * Stop accepting channel work and wait, bounded, for drains already running. Every channel was fenced and its session closed first, so
+    * an in-flight drain fails quickly; without this wait it could query durable state after the host has stopped (and, for a file database,
+    * recreate it empty), which is what left a test's temporary directory populated after cleanup.
+    */
+   private void stopWorkers()
+   {
+      workers.shutdown();
+      try
+      {
+         if(!workers.awaitTermination(5, TimeUnit.SECONDS))
+         {
+            workers.shutdownNow();
+            workers.awaitTermination(5, TimeUnit.SECONDS);
+         }
+      }
+      catch(InterruptedException exception)
+      {
+         workers.shutdownNow();
+         Thread.currentThread().interrupt();
       }
    }
 
