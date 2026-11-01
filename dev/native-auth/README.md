@@ -41,6 +41,13 @@ Success is recorded only when every check passes. A failure report contains
 the stage and exception type, without callback URLs, credentials or response
 bodies. This short renewal test does not prove months of unattended operation.
 
+Printing discovery accepts stable semantic versions in major 2, including
+2.0.0 and 2.1.0, through the same production Core validation and shared major
+gate as the default workload. The experimental upstream API must still be
+exactly 1.9.0 with `nativeSessionLogin`; typed metadata, PKCE, TLS, callback and
+permission checks are unchanged. The native-client image build runs 12 fake-HTTP
+compatibility checks before any provider or fixture input is used.
+
 ## Isolation and source pins
 
 The upstream source is
@@ -80,3 +87,10 @@ On 2026-11-01 the full disposable profile passed all eight checks and exited zer
 Independent inventory confirmed zero owned containers, volumes and networks after
 cleanup. This is evidence for the pinned experimental tuple above, not adoption
 into the default released runtime or installed Windows UI acceptance.
+
+A fresh run against server source `3592dec` (printing API 2.1.0) and the reviewed
+probe compatibility correction also passed all eight checks on 2026-11-01.
+All source files matched the pre-run hash manifest through completion, and
+independent cleanup again found no owned containers, volumes or networks.
+The native image's 12 discovery checks and default workload's nine checks pass.
+The unreleased upstream and installed-browser limitations above still apply.

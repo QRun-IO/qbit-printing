@@ -13,5 +13,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Qqq.PrintAgent.Core"><HintPath>/core/Qqq.PrintAgent.Core.dll</HintPath></Reference>
+    <Compile Include="../../client/WorkloadDiscovery.cs" Link="WorkloadDiscovery.cs" />
   </ItemGroup>
 </Project>

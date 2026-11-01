@@ -7,9 +7,11 @@ ADD --checksum=sha256:82fcdbf7240760939a63b219aeb15a2333b3a8a02b52307a8a328500fc
 RUN mkdir /client && tar -xzf /tmp/client.tar.gz -C /client --strip-components=1 && rm /tmp/client.tar.gz
 RUN dotnet build /client/src/Qqq.PrintAgent.Core/Qqq.PrintAgent.Core.csproj -c Release -p:Platform=x64 -p:Version=0.3.1-rc.1 -p:RestoreLockedMode=true --nologo
 RUN mkdir /core && cp /client/src/Qqq.PrintAgent.Core/bin/x64/Release/net10.0/Qqq.PrintAgent.Core.dll /core/
-WORKDIR /fixture
+WORKDIR /fixture/dev/native-auth/client
 COPY dev/native-auth/client .
+COPY dev/client/WorkloadDiscovery.cs /fixture/dev/client/WorkloadDiscovery.cs
 RUN dotnet build -c Release --nologo -o /out
+RUN dotnet /out/NativeAuth.dll --check-discovery
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b
 WORKDIR /app

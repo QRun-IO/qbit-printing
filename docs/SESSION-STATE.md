@@ -2,6 +2,17 @@
 
 ## Local Docker development — 2026-11-01
 
+The optional native-auth probe now shares production Core discovery and the
+default workload's printing-major-2 gate, accepting stable 2.1.0 while retaining
+the exact experimental API 1.9/native grant requirement. Its previous exact-2.0.0
+check reproduced a rejection before the fix. Native and default client image
+builds pass 12 and nine fake-HTTP compatibility checks respectively, with zero
+warnings/errors. One fresh provider run against server source `3592dec`
+(printing API 2.1.0) and the reviewed probe correction passed all eight checks.
+All source hashes remained unchanged through completion; independent cleanup
+found zero owned containers, volumes and networks. No installed runtime,
+physical printer or host trust setting changed.
+
 The developer tooling is published on `main` through [PR #21](https://github.com/QRun-IO/qbit-printing/pull/21),
 merged as `3592decba8087439aff5d1b75a9726c72f460cb9`; its tree matches tested
 head `def8d961f3d82a1235f8e45ffbeacb0fbe79c421`. The final hosted
