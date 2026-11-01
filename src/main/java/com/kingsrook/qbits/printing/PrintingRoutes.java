@@ -28,6 +28,7 @@ import io.javalin.config.JavalinConfig;
 import io.javalin.http.Context;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -192,7 +193,7 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
     ***************************************************************************/
    private String device(Context context) throws java.sql.SQLException
    {
-      return (service.authenticate(bearer(context)));
+      return service.authenticate(bearer(context));
    }
 
 
@@ -216,7 +217,7 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    public static String bearer(Context context)
    {
       String header = context.header("Authorization");
-      return (header != null && header.startsWith("Bearer ") ? header.substring(7) : "");
+      return header != null && header.startsWith("Bearer ") ? header.substring(7) : "";
    }
 
 
@@ -233,7 +234,7 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
       {
          throw new PrintingException(413, "Request is too large");
       }
-      return (new JSONObject(context.body()));
+      return new JSONObject(context.body());
    }
 
 
@@ -247,14 +248,14 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
       {
          throw new PrintingException(413, "Control request is too large");
       }
-      return (new JSONObject(context.body()));
+      return new JSONObject(context.body());
    }
 
 
    /** Standard mutation acknowledgment. */
    private static JSONObject accepted()
    {
-      return (new JSONObject().put("accepted", true));
+      return new JSONObject().put("accepted", true);
    }
 
 
@@ -292,7 +293,7 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
    /***************************************************************************
     ** Emit the shared protocol error envelope.
     ***************************************************************************/
-   private static void error(Context context, int status, String message)
+   private static void error(Context context, int status, @Nullable String message)
    {
       context.status(status).contentType("application/json").result(new JSONObject().put("code", "PRINTING_" + status).put("message", message).toString());
    }
@@ -308,7 +309,7 @@ public class PrintingRoutes implements QJavalinRouteProviderInterface
       /************************************************************************
        ** Execute the route's service operation.
        ************************************************************************/
-      JSONObject run() throws Exception;
+      @Nullable JSONObject run() throws Exception;
    }
 }
 

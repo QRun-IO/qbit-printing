@@ -1,18 +1,27 @@
 // Copyright 2026 Kingsrook, LLC
 // SPDX-License-Identifier: Apache-2.0
-
 using System.Net;
 using System.Threading.Channels;
-
 namespace Printing.NativeAuth;
+
+
 
 /// <summary>Receives the actual HTTPS-proxied callback only inside this test network.</summary>
 internal sealed class CallbackReceiver : IDisposable
 {
    private readonly HttpListener _listener = new();
+
+
+
    private readonly Channel<Uri> _callbacks = Channel.CreateBounded<Uri>(1);
+
+
+
    private readonly Uri _callback;
 
+
+
+   /// <summary>Receive callbacks only inside the owned native-auth container.</summary>
    internal CallbackReceiver(Uri callback)
    {
       _callback = callback;
@@ -21,6 +30,9 @@ internal sealed class CallbackReceiver : IDisposable
       _ = ReceiveAsync();
    }
 
+
+
+   /// <summary>Accept only the configured callback path and publish one bounded result.</summary>
    private async Task ReceiveAsync()
    {
       try
@@ -29,10 +41,12 @@ internal sealed class CallbackReceiver : IDisposable
          {
             HttpListenerContext context = await _listener.GetContextAsync();
             Uri? request = context.Request.Url;
-            bool valid = request is not null && request.AbsolutePath == _callback.AbsolutePath
-               && context.Request.Headers["Host"] == _callback.Authority
-               && context.Request.Headers["X-Forwarded-Proto"] == "https"
-               && context.Request.HttpMethod == "GET" && request.Query.Length is > 0 and < 16384;
+            bool valid = request is not null
+               && string.Equals(request.AbsolutePath, _callback.AbsolutePath, StringComparison.Ordinal)
+               && string.Equals(context.Request.Headers["Host"], _callback.Authority, StringComparison.Ordinal)
+               && string.Equals(context.Request.Headers["X-Forwarded-Proto"], "https", StringComparison.Ordinal)
+               && string.Equals(context.Request.HttpMethod, "GET", StringComparison.Ordinal)
+               && request.Query.Length is > 0 and < 16384;
             if(valid)
             {
                var actual = new UriBuilder(_callback) { Query = request!.Query.TrimStart('?') };
@@ -49,6 +63,13 @@ internal sealed class CallbackReceiver : IDisposable
       }
    }
 
+
+
+   /// <summary>Await the actual provider callback under the caller deadline.</summary>
    internal ValueTask<Uri> ReadAsync(CancellationToken token) => _callbacks.Reader.ReadAsync(token);
+
+
+
+   /// <summary>Close the owned callback listener.</summary>
    public void Dispose() => _listener.Close();
 }

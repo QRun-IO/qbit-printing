@@ -59,7 +59,7 @@ public class PrintingCommandStatus implements TableCustomizerInterface
       Set<String> selected = input instanceof QueryInput query ? query.getFieldNamesToInclude() : null;
       if(selected != null && !selected.contains("command_status"))
       {
-         return (records);
+         return records;
       }
       if(selected != null && !selected.contains("id"))
       {
@@ -72,7 +72,7 @@ public class PrintingCommandStatus implements TableCustomizerInterface
          QRecord values = dependencies.getOrDefault(record.getValueString("id"), record);
          record.setValue("command_status", effective(values, now));
       }
-      return (records);
+      return records;
    }
 
 
@@ -103,7 +103,7 @@ public class PrintingCommandStatus implements TableCustomizerInterface
             result.put(row.getValueString("id"), row);
          }
       }
-      return (result);
+      return result;
    }
 
 
@@ -116,24 +116,24 @@ public class PrintingCommandStatus implements TableCustomizerInterface
       String status = record.getValueString("status");
       if(status != null && TERMINAL.contains(status))
       {
-         return (status);
+         return status;
       }
       if(!"PENDING".equals(status))
       {
-         return ("UNKNOWN");
+         return "UNKNOWN";
       }
       String expiresAt = record.getValueString("expires_at");
       if(expiresAt == null || expiresAt.isBlank())
       {
-         return ("UNKNOWN");
+         return "UNKNOWN";
       }
       try
       {
-         return (Instant.parse(expiresAt).isBefore(now) ? "EXPIRED" : "PENDING");
+         return Instant.parse(expiresAt).isBefore(now) ? "EXPIRED" : "PENDING";
       }
       catch(DateTimeParseException exception)
       {
-         return ("UNKNOWN");
+         return "UNKNOWN";
       }
    }
 }

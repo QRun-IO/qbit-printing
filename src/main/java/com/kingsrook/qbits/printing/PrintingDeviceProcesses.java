@@ -162,7 +162,7 @@ public final class PrintingDeviceProcesses
       {
          if(action.process.equals(input.getProcessName()))
          {
-            return (action);
+            return action;
          }
       }
       throw new QException("Unknown printing control action");
@@ -182,7 +182,7 @@ public final class PrintingDeviceProcesses
       {
          throw new QException("Sign in with an authorized QQQ user before controlling a print device");
       }
-      return (QContext.getQSession().getUser().getIdReference());
+      return QContext.getQSession().getUser().getIdReference();
    }
 
 
@@ -206,7 +206,7 @@ public final class PrintingDeviceProcesses
       {
          throw new QException("Use Cancel queued jobs for work that has not been dispatched to Windows");
       }
-      return (record);
+      return record;
    }
 
 
@@ -268,10 +268,12 @@ public final class PrintingDeviceProcesses
       /************************************************************************
        ** Standard summary links preserve the native record/table workflow.
        ************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(ready)));
+         return new ArrayList<>(List.of(ready));
       }
    }
 
@@ -342,10 +344,12 @@ public final class PrintingDeviceProcesses
       /************************************************************************
        ** Pending requests are never presented as completed Windows operations.
        ************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(applied, pending, unresolved)));
+         return new ArrayList<>(List.of(applied, pending, unresolved));
       }
    }
 }

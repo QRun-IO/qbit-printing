@@ -61,6 +61,7 @@ import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwith
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ProcessSummaryProviderInterface;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -99,7 +100,7 @@ public final class PrintingRecordProcesses
     ***************************************************************************/
    public static String processName(String tableName)
    {
-      return (PREFIX + tableName);
+      return PREFIX + tableName;
    }
 
 
@@ -154,7 +155,7 @@ public final class PrintingRecordProcesses
          register(instance, table.getName());
          added.add(table.getName());
       }
-      return (added);
+      return added;
    }
 
 
@@ -167,8 +168,8 @@ public final class PrintingRecordProcesses
       QQueryFilter filter = new QQueryFilter(new QFilterCriteria("enabled", QCriteriaOperator.EQUALS, 1))
          .withCriteria(new QFilterCriteria("available", QCriteriaOperator.EQUALS, 1))
          .withCriteria(new QFilterCriteria("formats", QCriteriaOperator.CONTAINS, "PDF"));
-      return (new QFieldMetaData(PRINTER_FIELD, QFieldType.STRING).withLabel("Printer").withIsRequired(true)
-         .withPossibleValueSourceName(PrintingTables.PRINTER).withPossibleValueSourceFilter(filter));
+      return new QFieldMetaData(PRINTER_FIELD, QFieldType.STRING).withLabel("Printer").withIsRequired(true)
+         .withPossibleValueSourceName(PrintingTables.PRINTER).withPossibleValueSourceFilter(filter);
    }
 
 
@@ -189,7 +190,7 @@ public final class PrintingRecordProcesses
       {
          throw new QException("Printer " + printer.getValueString("name") + " must be exposed by its device, approved, and support PDF");
       }
-      return (printer);
+      return printer;
    }
 
 
@@ -202,13 +203,13 @@ public final class PrintingRecordProcesses
       Integer copies = input.getValueInteger(COPIES_FIELD);
       if(copies == null)
       {
-         return (1);
+         return 1;
       }
       if(copies < 1 || copies > 100)
       {
          throw new QException("Copies must be between 1 and 100");
       }
-      return (copies);
+      return copies;
    }
 
 
@@ -216,11 +217,11 @@ public final class PrintingRecordProcesses
    /***************************************************************************
     ** Render one record (display values, visible non-binary fields) and queue it.
     ***************************************************************************/
-   static String submit(QTableMetaData table, QRecord selected, QRecord printer, int copies, String request, PrintingChrome chrome) throws QException
+   static String submit(QTableMetaData table, QRecord selected, QRecord printer, int copies, String request, @Nullable PrintingChrome chrome) throws QException
    {
       Serializable primaryKey = selected.getValue(table.getPrimaryKeyField());
       PrintingListProcesses.Rendered rendered = render(table, primaryKey, chrome);
-      return (queue(printer, rendered.title(), rendered.bytes(), copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id")));
+      return queue(printer, rendered.title(), rendered.bytes(), copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id"));
    }
 
 
@@ -228,7 +229,7 @@ public final class PrintingRecordProcesses
    /***************************************************************************
     ** The record sheet of one record (read with the caller's permissions).
     ***************************************************************************/
-   static PrintingListProcesses.Rendered render(QTableMetaData table, Serializable primaryKey, PrintingChrome chrome) throws QException
+   static PrintingListProcesses.Rendered render(QTableMetaData table, Serializable primaryKey, @Nullable PrintingChrome chrome) throws QException
    {
       GetInput get = new GetInput();
       get.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
@@ -246,7 +247,7 @@ public final class PrintingRecordProcesses
       String subtitle = tableLabel + " " + primaryKey;
       PrintingChrome pageChrome = chrome == null ? PrintingChrome.defaults(tableLabel + " › " + label) : chrome.withTitleIfBlank(tableLabel + " › " + label);
       byte[] bytes = PrintingRecordDocuments.pdf(tableLabel + ": " + label, subtitle, sections(table, record), children(table, record), pageChrome);
-      return (new PrintingListProcesses.Rendered(tableLabel + ": " + label, bytes, null));
+      return new PrintingListProcesses.Rendered(tableLabel + ": " + label, bytes, null);
    }
 
 
@@ -257,7 +258,7 @@ public final class PrintingRecordProcesses
    static String printedBy()
    {
       String user = QContext.getQSession() == null || QContext.getQSession().getUser() == null ? null : QContext.getQSession().getUser().getFullName();
-      return ("printed " + Instant.now().truncatedTo(ChronoUnit.SECONDS) + (user == null ? "" : " by " + user));
+      return "printed " + Instant.now().truncatedTo(ChronoUnit.SECONDS) + (user == null ? "" : " by " + user);
    }
 
 
@@ -265,11 +266,11 @@ public final class PrintingRecordProcesses
    /***************************************************************************
     ** Display text of one field of a record (display value, else raw value).
     ***************************************************************************/
-   static String text(QRecord record, QFieldMetaData field)
+   static @Nullable String text(QRecord record, QFieldMetaData field)
    {
       String display = record.getDisplayValue(field.getName());
       Serializable raw = record.getValue(field.getName());
-      return (display != null ? display : raw == null ? null : String.valueOf(raw));
+      return display != null ? display : raw == null ? null : String.valueOf(raw);
    }
 
 
@@ -277,9 +278,9 @@ public final class PrintingRecordProcesses
    /***************************************************************************
     ** Whether a field belongs on paper: visible and not binary.
     ***************************************************************************/
-   static boolean printable(QFieldMetaData field)
+   static boolean printable(@Nullable QFieldMetaData field)
    {
-      return (field != null && !Boolean.TRUE.equals(field.getIsHidden()) && field.getType() != QFieldType.BLOB);
+      return field != null && !Boolean.TRUE.equals(field.getIsHidden()) && field.getType() != QFieldType.BLOB;
    }
 
 
@@ -289,20 +290,22 @@ public final class PrintingRecordProcesses
     ** view shows them; fields in no section follow under "Other fields". A
     ** table without sections prints one unlabeled section of every field.
     ***************************************************************************/
+   // QQQ declares record-section display tiers in their required presentation order.
+   @SuppressWarnings("EnumOrdinal")
    static List<PrintingRecordDocuments.Section> sections(QTableMetaData table, QRecord record)
    {
       List<PrintingRecordDocuments.Section> out = new ArrayList<>();
       java.util.Set<String> placed = new java.util.HashSet<>();
       List<com.kingsrook.qqq.backend.core.model.metadata.tables.QFieldSection> sections = new ArrayList<>(table.getSections() == null ? List.of() : table.getSections());
       sections.removeIf(section -> Boolean.TRUE.equals(section.getIsHidden()) || section.getFieldNames() == null || section.getFieldNames().isEmpty());
-      sections.sort(java.util.Comparator.comparing(section -> section.getTier() == null ? 9 : section.getTier().ordinal()));
+      sections.sort(java.util.Comparator.comparingInt(section -> section.getTier() == null ? 9 : section.getTier().ordinal()));
       for(var section : sections)
       {
          Map<String, String> fields = new LinkedHashMap<>();
          for(String name : section.getFieldNames())
          {
             QFieldMetaData field = table.getFields().get(name);
-            if(printable(field) && placed.add(name))
+            if(field != null && printable(field) && placed.add(name))
             {
                fields.put(field.getLabel() == null ? name : field.getLabel(), text(record, field));
             }
@@ -321,7 +324,7 @@ public final class PrintingRecordProcesses
       {
          out.add(new PrintingRecordDocuments.Section(out.isEmpty() ? "" : "Other fields", rest));
       }
-      return (out);
+      return out;
    }
 
 
@@ -383,7 +386,7 @@ public final class PrintingRecordProcesses
             // a child list the user may not read (or that cannot load) is left out of the sheet
          }
       }
-      return (out);
+      return out;
    }
 
 
@@ -401,7 +404,7 @@ public final class PrintingRecordProcesses
             .put("contentBase64", Base64.getEncoder().encodeToString(bytes))
             .put("idempotencyKey", idempotencyKey)
             .put("options", new JSONObject().put("copies", copies).put("scale", "FIT")));
-         return (job.getString("jobId"));
+         return job.getString("jobId");
       }
       catch(java.sql.SQLException | PrintingException exception)
       {
@@ -464,10 +467,12 @@ public final class PrintingRecordProcesses
       /***************************************************************************
        ** Standard review summary.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(ready)));
+         return new ArrayList<>(List.of(ready));
       }
    }
 
@@ -513,6 +518,8 @@ public final class PrintingRecordProcesses
       /***************************************************************************
        ** Result summary: what was sent, and the job IDs to follow.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
@@ -521,7 +528,7 @@ public final class PrintingRecordProcesses
          {
             lines.add(new ProcessSummaryLine(Status.INFO, null, "Print job" + (jobIds.size() == 1 ? " " : "s ") + String.join(", ", jobIds) + " queued; follow them in Print jobs."));
          }
-         return (lines);
+         return lines;
       }
    }
 }

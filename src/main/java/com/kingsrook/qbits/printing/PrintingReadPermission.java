@@ -30,6 +30,7 @@ import com.kingsrook.qqq.backend.core.model.actions.tables.count.CountInput;
 import com.kingsrook.qqq.backend.core.model.actions.tables.get.GetInput;
 import com.kingsrook.qqq.backend.core.model.actions.tables.query.QueryInput;
 import com.kingsrook.qqq.backend.core.model.metadata.permissions.MetaDataWithPermissionRules;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -41,7 +42,7 @@ public class PrintingReadPermission extends PrintingAdminPermission
     ** Require explicit printing administrator access and reject generic writes.
     ***************************************************************************/
    @Override
-   public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
+   public void checkPermissionsThrowing(AbstractActionInput input, @Nullable MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
    {
       if(metadata instanceof com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData table
          && (PrintingTables.DEVICE.equals(table.getName()) || PrintingTables.PRINTER.equals(table.getName())))

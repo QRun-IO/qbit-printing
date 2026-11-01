@@ -27,6 +27,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -37,7 +38,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public Connection getConnection() throws SQLException
    {
-      return (DriverManager.getConnection(url, user, password));
+      return DriverManager.getConnection(url, user, password);
    }
 
 
@@ -45,15 +46,15 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public Connection getConnection(String username, String secret) throws SQLException
    {
-      return (DriverManager.getConnection(url, username, secret));
+      return DriverManager.getConnection(url, username, secret);
    }
 
 
 
    @Override
-   public PrintWriter getLogWriter()
+   public @Nullable PrintWriter getLogWriter()
    {
-      return (null);
+      return null;
    }
 
 
@@ -77,7 +78,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public int getLoginTimeout()
    {
-      return (DriverManager.getLoginTimeout());
+      return DriverManager.getLoginTimeout();
    }
 
 
@@ -85,7 +86,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public Logger getParentLogger()
    {
-      return (Logger.getLogger("com.kingsrook.qbits.printing"));
+      return Logger.getLogger("com.kingsrook.qbits.printing");
    }
 
 
@@ -95,7 +96,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    {
       if(type.isInstance(this))
       {
-         return (type.cast(this));
+         return type.cast(this);
       }
       throw new SQLException("Not a wrapper");
    }
@@ -105,7 +106,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public boolean isWrapperFor(Class<?> type)
    {
-      return (type.isInstance(this));
+      return type.isInstance(this);
    }
 
 
@@ -113,7 +114,7 @@ public record DriverDataSource(String url, String user, String password) impleme
    @Override
    public String toString()
    {
-      return ("DriverDataSource[credentials redacted]");
+      return "DriverDataSource[credentials redacted]";
    }
 }
 

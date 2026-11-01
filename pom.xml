@@ -25,6 +25,9 @@
       <dependency><groupId>org.junit</groupId><artifactId>junit-bom</artifactId><version>6.0.1</version><type>pom</type><scope>import</scope></dependency>
    </dependencies></dependencyManagement>
    <dependencies>
+      <dependency><groupId>com.uber.nullaway</groupId><artifactId>nullaway-annotations</artifactId><version>0.14.3</version><scope>provided</scope></dependency>
+      <!-- Direct nullable contracts reuse the already-resolved runtime annotation version. -->
+      <dependency><groupId>org.jspecify</groupId><artifactId>jspecify</artifactId><version>1.0.0</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-core</artifactId><version>${qqq.version}</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-module-rdbms</artifactId><version>${qqq.version}</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-module-filesystem</artifactId><version>${qqq.version}</version></dependency>
@@ -49,10 +52,57 @@
       <plugins>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><version>3.3.1</version>
          <dependencies><dependency><groupId>com.puppycrawl.tools</groupId><artifactId>checkstyle</artifactId><version>10.12.6</version></dependency></dependencies>
-         <configuration><configLocation>checkstyle/config.xml</configLocation><includeTestSourceDirectory>true</includeTestSourceDirectory><consoleOutput>true</consoleOutput><violationSeverity>warning</violationSeverity><failOnViolation>true</failOnViolation></configuration>
+         <configuration>
+            <configLocation>checkstyle/config.xml</configLocation>
+            <!-- Development fixtures use distinct runtime tuples, but share the source style gate. -->
+            <sourceDirectories>
+               <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+               <sourceDirectory>${project.basedir}/dev/java</sourceDirectory>
+               <sourceDirectory>${project.basedir}/dev/native-auth/java</sourceDirectory>
+            </sourceDirectories>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <consoleOutput>true</consoleOutput>
+            <violationSeverity>warning</violationSeverity>
+            <failOnViolation>true</failOnViolation>
+         </configuration>
          <executions><execution><phase>validate</phase><goals><goal>check</goal></goals></execution></executions>
       </plugin>
-      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version></plugin>
+      <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-compiler-plugin</artifactId>
+         <version>3.14.1</version>
+         <configuration>
+            <release>21</release>
+            <proc>none</proc>
+            <fork>true</fork>
+            <executable>${java.home}/bin/javac</executable>
+            <showWarnings>true</showWarnings>
+            <failOnWarning>true</failOnWarning>
+            <compilerArgs>
+               <arg>-Werror</arg>
+               <arg>-Xlint:deprecation</arg>
+               <arg>-Xlint:unchecked</arg>
+               <arg>-XDcompilePolicy=simple</arg>
+               <arg>--should-stop=ifError=FLOW</arg>
+               <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+               <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=com.kingsrook.qbits.printing</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+               <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+               <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+               <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+            </compilerArgs>
+            <annotationProcessorPaths>
+               <path><groupId>com.google.errorprone</groupId><artifactId>error_prone_core</artifactId><version>2.51.0</version></path>
+               <path><groupId>com.uber.nullaway</groupId><artifactId>nullaway</artifactId><version>0.14.3</version></path>
+            </annotationProcessorPaths>
+         </configuration>
+      </plugin>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.4</version></plugin>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>3.4.2</version><configuration><archive><manifestEntries><Implementation-Version>${project.version}</Implementation-Version></manifestEntries></archive></configuration></plugin>
       <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.6.3</version><configuration><mainClass>com.kingsrook.qbits.printing.PrintingDemo</mainClass></configuration></plugin>

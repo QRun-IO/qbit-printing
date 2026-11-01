@@ -48,11 +48,11 @@ public class PrintEnqueueEffectTarget implements EffectTarget
       try
       {
          JSONObject job = serviceForEffect().submit(payload);
-         return (EffectResult.sent(job.getString("jobId")));
+         return EffectResult.sent(job.getString("jobId"));
       }
       catch(PrintingException exception)
       {
-         return (EffectResult.failed(exception.getMessage()));
+         return EffectResult.failed(exception.getMessage());
       }
    }
 
@@ -65,7 +65,7 @@ public class PrintEnqueueEffectTarget implements EffectTarget
    public ReconcileResult reconcile(EffectRequest request) throws Exception
    {
       JSONObject job = serviceForEffect().findByIdempotencyKey(request.idempotencyKey());
-      return (job == null ? ReconcileResult.notFound() : ReconcileResult.found(job.getString("jobId")));
+      return job == null ? ReconcileResult.notFound() : ReconcileResult.found(job.getString("jobId"));
    }
 
 
@@ -79,13 +79,13 @@ public class PrintEnqueueEffectTarget implements EffectTarget
    {
       if(!(QContext.getQSession() instanceof QSystemUserSession))
       {
-         return (PrintingProcesses.currentService());
+         return PrintingProcesses.currentService();
       }
       for(QBitMetaData metadata : QContext.getQInstance().getQBits().values())
       {
          if(metadata.getConfig() instanceof PrintingQBitConfig config && config.getService() != null)
          {
-            return (config.getService());
+            return config.getService();
          }
       }
       throw new QException("Printing QBit is not configured for this effect dispatcher");

@@ -54,6 +54,8 @@ import com.kingsrook.qqq.backend.core.model.metadata.tables.QSupplementalTableMe
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.Tier;
 import com.kingsrook.qqq.backend.module.rdbms.model.metadata.RDBMSTableBackendDetails;
+import com.uber.nullaway.annotations.RequiresNonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -61,7 +63,7 @@ import com.kingsrook.qqq.backend.module.rdbms.model.metadata.RDBMSTableBackendDe
  *******************************************************************************/
 public class PrintingQBitProducer implements QBitProducer
 {
-   private PrintingQBitConfig config;
+   private @Nullable PrintingQBitConfig config;
 
 
 
@@ -71,7 +73,7 @@ public class PrintingQBitProducer implements QBitProducer
    public PrintingQBitProducer withConfig(PrintingQBitConfig value)
    {
       config = value;
-      return (this);
+      return this;
    }
 
 
@@ -223,7 +225,7 @@ public class PrintingQBitProducer implements QBitProducer
    private static String version()
    {
       String version = PrintingQBitProducer.class.getPackage().getImplementationVersion();
-      return (version == null || version.isBlank() ? "development" : version);
+      return version == null || version.isBlank() ? "development" : version;
    }
 
 
@@ -231,6 +233,7 @@ public class PrintingQBitProducer implements QBitProducer
    /***************************************************************************
     ** Produce read-only table metadata protected by tenant and administrator keys.
     ***************************************************************************/
+   @RequiresNonNull("config")
    private QTableMetaData table(String name, String label, List<String> columns)
    {
       QTableMetaData table = new QTableMetaData().withName(name).withLabel(label).withBackendName(config.getBackendName()).withPrimaryKeyField("id")
@@ -243,7 +246,7 @@ public class PrintingQBitProducer implements QBitProducer
       {
          table.withField(new QFieldMetaData(column, QFieldType.STRING).withLabel(column.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + column.substring(1).replace('_', ' ')));
       }
-      return (table);
+      return table;
    }
 
 
@@ -323,7 +326,7 @@ public class PrintingQBitProducer implements QBitProducer
       @Override
       public String getType()
       {
-         return ("nextUi");
+         return "nextUi";
       }
 
 
@@ -334,7 +337,7 @@ public class PrintingQBitProducer implements QBitProducer
       @Override
       public boolean includeInFullFrontendMetaData()
       {
-         return (true);
+         return true;
       }
 
 
@@ -344,7 +347,7 @@ public class PrintingQBitProducer implements QBitProducer
        ***************************************************************************/
       public List<String> getDefaultColumns()
       {
-         return (defaultColumns);
+         return defaultColumns;
       }
 
 
@@ -355,7 +358,7 @@ public class PrintingQBitProducer implements QBitProducer
       @Override
       protected QSupplementalTableMetaData finishClone(QSupplementalTableMetaData clone)
       {
-         return (clone);
+         return clone;
       }
    }
 

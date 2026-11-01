@@ -41,6 +41,7 @@ import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
 import io.javalin.Javalin;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -104,12 +105,12 @@ class PrintingLocalHostTest
             host.configure(server, false);
             server.withJavalinConfigurationCustomizer(javalin::set);
          }));
-      String base = "http://127.0.0.1:" + javalin.get().port();
+      String base = "http://127.0.0.1:" + java.util.Objects.requireNonNull(javalin.get(), "Test HTTP server was not started").port();
       try(HttpClient client = HttpClient.newHttpClient())
       {
          assertTrue(launcher.getStartedServiceNames().contains(QApplicationLauncher.SCHEDULE_MANAGER_SERVICE_NAME));
          assertEquals("0 */5 * * * ?", launcher.getQInstance().getProcess(PrintingRetentionProcesses.SCHEDULED).getSchedule().getCronExpression());
-         assertRejectedHost(javalin.get().port());
+         assertRejectedHost(java.util.Objects.requireNonNull(javalin.get(), "Test HTTP server was not started").port());
          assertEquals(401, send(client, base, "/qqq/v1/table/printing_device/count", null, null, null).statusCode());
          assertEquals(401, send(client, base, "/qqq/v1/manageSession", basic("operator", "wrong"), null, null).statusCode());
          HttpResponse<String> login = send(client, base, "/qqq/v1/manageSession", basic("operator", PASSWORD), null, base);
@@ -163,7 +164,7 @@ class PrintingLocalHostTest
     ***************************************************************************/
    private static void assertRejectedHost(int port) throws Exception
    {
-      try(var socket = new java.net.Socket("127.0.0.1", port))
+      try(var socket = new java.net.Socket(java.net.InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), port))
       {
          socket.setSoTimeout(5000);
          socket.getOutputStream().write("GET / HTTP/1.1\r\nHost: unrelated.invalid\r\nConnection: close\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
@@ -214,9 +215,9 @@ class PrintingLocalHostTest
    /***************************************************************************
     ** One synthetic account and ephemeral port, never physical printer access.
     ***************************************************************************/
-   private static PrintingLocalSettings settings(String jdbc, String password)
+   private static PrintingLocalSettings settings(String jdbc, @Nullable String password)
    {
-      return (new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, TOKEN, "operator", password));
+      return new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, TOKEN, "operator", password);
    }
 
 
@@ -229,7 +230,7 @@ class PrintingLocalHostTest
       try(var connection = source.getConnection(); var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT passwordHash FROM printing_admin_user WHERE username='operator'"))
       {
          rows.next();
-         return (rows.getString(1));
+         return rows.getString(1);
       }
    }
 
@@ -240,7 +241,7 @@ class PrintingLocalHostTest
     ***************************************************************************/
    private static String basic(String user, String password)
    {
-      return ("Basic " + Base64.getEncoder().encodeToString((user + ":" + password).getBytes(StandardCharsets.UTF_8)));
+      return "Basic " + Base64.getEncoder().encodeToString((user + ":" + password).getBytes(StandardCharsets.UTF_8));
    }
 
 
@@ -248,7 +249,7 @@ class PrintingLocalHostTest
    /***************************************************************************
     ** Native routes use JSON POST and explicit cookies/origin in these fixtures.
     ***************************************************************************/
-   private static HttpResponse<String> send(HttpClient client, String base, String path, String authorization, String cookie, String origin) throws Exception
+   private static HttpResponse<String> send(HttpClient client, String base, String path, @Nullable String authorization, @Nullable String cookie, @Nullable String origin) throws Exception
    {
       var request = HttpRequest.newBuilder(URI.create(base + path)).header("Content-Type", "application/json");
       if(authorization != null)
@@ -263,6 +264,6 @@ class PrintingLocalHostTest
       {
          request.header("Origin", origin);
       }
-      return (client.send(request.POST(HttpRequest.BodyPublishers.ofString("{}")).build(), HttpResponse.BodyHandlers.ofString()));
+      return client.send(request.POST(HttpRequest.BodyPublishers.ofString("{}")).build(), HttpResponse.BodyHandlers.ofString());
    }
 }

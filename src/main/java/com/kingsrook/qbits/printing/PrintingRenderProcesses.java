@@ -135,10 +135,11 @@ public final class PrintingRenderProcesses
             output.addValue("serverFilePath", ProcessFileDownload.register(file));
             output.addValue("printingTitle", rendered.title());
             output.addValue("printingBytes", rendered.bytes().length);
-            if(rendered.message() != null)
+            String message = rendered.message();
+            if(message != null)
             {
                output.addValue("printingTruncated", true);
-               output.addValue("printingMessage", rendered.message().replace("Printed the first", "Saved the first").replace("the print limit", "the limit").replace("to print the rest", "to save the rest"));
+               output.addValue("printingMessage", message.replace("Printed the first", "Saved the first").replace("the print limit", "the limit").replace("to print the rest", "to save the rest"));
             }
          }
          catch(IOException exception)

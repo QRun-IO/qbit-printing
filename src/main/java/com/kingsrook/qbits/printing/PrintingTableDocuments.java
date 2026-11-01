@@ -24,6 +24,7 @@ package com.kingsrook.qbits.printing;
 import java.io.IOException;
 import java.util.List;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -51,7 +52,7 @@ public final class PrintingTableDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, List<String> columns, List<List<String>> rows, String pageSize, boolean landscape) throws QException
    {
-      return (pdf(title, subtitle, null, columns, rows, null, pageSize, landscape ? "LANDSCAPE" : "PORTRAIT", null));
+      return pdf(title, subtitle, null, columns, rows, null, pageSize, landscape ? "LANDSCAPE" : "PORTRAIT", null);
    }
 
 
@@ -63,7 +64,7 @@ public final class PrintingTableDocuments
     ** the columns do not fit portrait. The header repeats on every page; the
     ** footer text goes at the bottom left of every page.
     ***************************************************************************/
-   public static byte[] pdf(String title, String subtitle, String footer, List<String> columns, List<List<String>> rows, int[] preferredWidths, String pageSize, String orientation, PrintingChrome chrome) throws QException
+   public static byte[] pdf(String title, String subtitle, @Nullable String footer, List<String> columns, List<List<String>> rows, int @Nullable [] preferredWidths, String pageSize, String orientation, @Nullable PrintingChrome chrome) throws QException
    {
       if(columns.isEmpty())
       {
@@ -94,7 +95,7 @@ public final class PrintingTableDocuments
          layout.repeatOnNewPages(List.of(), FONT_SIZE);
          layout.gap(4);
          layout.line(rows.size() + (rows.size() == 1 ? " row" : " rows"), FONT_SIZE);
-         return (layout.finish());
+         return layout.finish();
       }
       catch(IOException exception)
       {
@@ -112,13 +113,13 @@ public final class PrintingTableDocuments
    {
       if("LANDSCAPE".equalsIgnoreCase(orientation))
       {
-         return (true);
+         return true;
       }
       if(!"AUTO".equalsIgnoreCase(orientation))
       {
-         return (false);
+         return false;
       }
       float width = ("A4".equalsIgnoreCase(pageSize) ? 595.28f : 612f) - 2 * PrintingLayout.MARGIN;
-      return (PrintingLayout.lineWidth(natural) > (int) (width / (0.6f * FONT_SIZE)));
+      return PrintingLayout.lineWidth(natural) > (int) (width / (0.6f * FONT_SIZE));
    }
 }

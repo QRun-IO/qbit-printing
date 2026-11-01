@@ -87,7 +87,7 @@ public class PrintingRetentionProcesses implements BackendStep
     ***************************************************************************/
    private static QProcessMetaData manual(String name, String label)
    {
-      return (new QProcessMetaData().withName(name).withLabel(label).withPermissionRules(PrintingProcesses.permissionRules()).withStep(backend("prepare")));
+      return new QProcessMetaData().withName(name).withLabel(label).withPermissionRules(PrintingProcesses.permissionRules()).withStep(backend("prepare"));
    }
 
 
@@ -97,7 +97,7 @@ public class PrintingRetentionProcesses implements BackendStep
     ***************************************************************************/
    private static QBackendStepMetaData backend(String name)
    {
-      return (new QBackendStepMetaData().withName(name).withCode(new QCodeReference(PrintingRetentionProcesses.class)));
+      return new QBackendStepMetaData().withName(name).withCode(new QCodeReference(PrintingRetentionProcesses.class));
    }
 
 
@@ -107,9 +107,9 @@ public class PrintingRetentionProcesses implements BackendStep
     ***************************************************************************/
    private static QFrontendStepMetaData review(String label)
    {
-      return (new QFrontendStepMetaData().withName("review").withLabel(label)
+      return new QFrontendStepMetaData().withName("review").withLabel(label)
          .withViewFields(List.of(text("policy", "Retention policy"), text("storage", "Document storage"), text("schedule", "Automatic schedule"), text("progress", "Cleanup progress"), text("safety", "What cleanup does")))
-         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM)));
+         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM));
    }
 
 
@@ -119,8 +119,8 @@ public class PrintingRetentionProcesses implements BackendStep
     ***************************************************************************/
    private static QFrontendStepMetaData result()
    {
-      return (new QFrontendStepMetaData().withName("result").withLabel("Result").withViewFields(List.of(text("result", "Result")))
-         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM)));
+      return new QFrontendStepMetaData().withName("result").withLabel("Result").withViewFields(List.of(text("result", "Result")))
+         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM));
    }
 
 
@@ -130,7 +130,7 @@ public class PrintingRetentionProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData text(String name, String label)
    {
-      return (new QFieldMetaData(name, QFieldType.STRING).withLabel(label));
+      return new QFieldMetaData(name, QFieldType.STRING).withLabel(label);
    }
 
 
@@ -149,7 +149,7 @@ public class PrintingRetentionProcesses implements BackendStep
          {
             throw new QPermissionDeniedException("The scheduled retention entrypoint requires the system session; use Run retention cleanup instead");
          }
-         service = configuration().getService();
+         service = configuredService();
       }
       else
       {
@@ -218,6 +218,22 @@ public class PrintingRetentionProcesses implements BackendStep
 
 
    /***************************************************************************
+    ** Capture the configured service for this invocation, retaining the existing
+    ** missing-configuration exception if the host has withdrawn it.
+    ***************************************************************************/
+   private static PrintingService configuredService() throws QException
+   {
+      PrintingService service = configuration().getService();
+      if(service == null)
+      {
+         throw new QException("Printing QBit is not configured");
+      }
+      return service;
+   }
+
+
+
+   /***************************************************************************
     ** Avoid static service caches and prevent a scheduler from crossing instance boundaries.
     ***************************************************************************/
    private static PrintingQBitConfig configuration() throws QException
@@ -226,7 +242,7 @@ public class PrintingRetentionProcesses implements BackendStep
       {
          if(metadata.getConfig() instanceof PrintingQBitConfig config && config.getService() != null)
          {
-            return (config);
+            return config;
          }
       }
       throw new QException("Printing QBit is not configured");

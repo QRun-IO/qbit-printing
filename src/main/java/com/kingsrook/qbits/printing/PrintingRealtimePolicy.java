@@ -46,7 +46,7 @@ public final class PrintingRealtimePolicy
    {
       JSONObject values = new JSONObject();
       FIELDS.forEach((name, range) -> values.put(name, range[0]));
-      return (new PrintingRealtimePolicy(values));
+      return new PrintingRealtimePolicy(values);
    }
 
 
@@ -86,21 +86,21 @@ public final class PrintingRealtimePolicy
       policy.atLeast("downloadTimeoutMillis", Math.max(policy.get("downloadConnectTimeoutMillis"), policy.get("downloadIdleTimeoutMillis")));
       policy.atLeast("heartbeatTimeoutSeconds", 2 * policy.get("heartbeatIntervalSeconds"));
       policy.atLeast("reconnectMaxDelayMillis", policy.get("reconnectMinDelayMillis"));
-      return (policy);
+      return policy;
    }
 
 
    /** Read a validated named setting without exposing mutable JSON. */
    public long get(String name)
    {
-      return (values.getLong(name));
+      return values.getLong(name);
    }
 
 
    /** Wire settings include a server-generated durable revision. */
    public JSONObject toJson(long revision)
    {
-      return (new JSONObject(values.toString()).put("revision", revision));
+      return new JSONObject(values.toString()).put("revision", revision);
    }
 
 
@@ -111,7 +111,7 @@ public final class PrintingRealtimePolicy
       {
          throw new PrintingException(400, "Only PDF and ZPL are supported");
       }
-      return (get("PDF".equals(format) ? "maxPdfBytes" : "maxZplBytes"));
+      return get("PDF".equals(format) ? "maxPdfBytes" : "maxZplBytes");
    }
 
 
@@ -167,6 +167,6 @@ public final class PrintingRealtimePolicy
       fields.put("reconnectMinDelayMillis", new long[] {1000, 100, 60000});
       fields.put("reconnectMaxDelayMillis", new long[] {30000, 1000, 300000});
       fields.put("reconnectJitterPercent", new long[] {20, 0, 50});
-      return (java.util.Collections.unmodifiableMap(fields));
+      return java.util.Collections.unmodifiableMap(fields);
    }
 }

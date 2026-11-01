@@ -36,6 +36,7 @@ import com.kingsrook.qqq.backend.core.model.actions.tables.query.QCriteriaOperat
 import com.kingsrook.qqq.backend.core.model.actions.tables.query.QQueryFilter;
 import com.kingsrook.qqq.backend.core.model.actions.tables.query.QueryInput;
 import com.kingsrook.qqq.backend.core.model.data.QRecord;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -56,7 +57,7 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
       Set<String> selected = input instanceof QueryInput query ? query.getFieldNamesToInclude() : null;
       if(selected != null && !selected.contains("device_status") && !selected.contains("control_status"))
       {
-         return (records);
+         return records;
       }
       if(selected != null && !selected.contains("id"))
       {
@@ -76,7 +77,7 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
             record.setValue("control_status", application(values));
          }
       }
-      return (records);
+      return records;
    }
 
 
@@ -108,7 +109,7 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
             result.put(row.getValueString("id"), row);
          }
       }
-      return (result);
+      return result;
    }
 
 
@@ -120,24 +121,24 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
    {
       if(record.getValueInteger("enabled") != null && record.getValueInteger("enabled") == 0)
       {
-         return ("REVOKED");
+         return "REVOKED";
       }
       if("DISCONNECTED".equals(record.getValueString("connection_state")))
       {
-         return ("DISCONNECTED");
+         return "DISCONNECTED";
       }
       Instant heartbeat = timestamp(record.getValueString("last_seen_at"));
       Instant control = timestamp(record.getValueString("control_last_poll_at"));
       Instant seen = heartbeat == null || (control != null && control.isAfter(heartbeat)) ? control : heartbeat;
       if(seen == null || seen.isAfter(now.plusSeconds(30)))
       {
-         return ("UNKNOWN");
+         return "UNKNOWN";
       }
       if(seen.isBefore(now.minusSeconds(90)))
       {
-         return ("OFFLINE");
+         return "OFFLINE";
       }
-      return (Integer.valueOf(1).equals(record.getValueInteger("dispatch_paused")) ? "PAUSED" : "ONLINE");
+      return Integer.valueOf(1).equals(record.getValueInteger("dispatch_paused")) ? "PAUSED" : "ONLINE";
    }
 
 
@@ -149,11 +150,11 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
    {
       if(!Integer.valueOf(1).equals(record.getValueInteger("control_version")))
       {
-         return ("UNKNOWN");
+         return "UNKNOWN";
       }
       Long desired = record.getValueLong("control_revision");
       Long observed = record.getValueLong("control_applied_revision");
-      return (desired != null && observed != null && desired.equals(observed) ? "APPLIED" : "PENDING");
+      return desired != null && observed != null && desired.equals(observed) ? "APPLIED" : "PENDING";
    }
 
 
@@ -161,19 +162,19 @@ public class PrintingDeviceStatus implements TableCustomizerInterface
    /***************************************************************************
     ** Bad observations must remain unknown rather than imply a healthy device.
     ***************************************************************************/
-   private static Instant timestamp(String value)
+   private static @Nullable Instant timestamp(@Nullable String value)
    {
       if(value == null || value.isBlank())
       {
-         return (null);
+         return null;
       }
       try
       {
-         return (Instant.parse(value));
+         return Instant.parse(value);
       }
       catch(DateTimeParseException exception)
       {
-         return (null);
+         return null;
       }
    }
 }

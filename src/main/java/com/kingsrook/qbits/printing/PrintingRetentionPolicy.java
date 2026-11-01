@@ -44,7 +44,7 @@ public record PrintingRetentionPolicy(boolean enabled, int days, int batchSize)
     ***************************************************************************/
    public static PrintingRetentionPolicy disabled()
    {
-      return (new PrintingRetentionPolicy(false, 365, 200));
+      return new PrintingRetentionPolicy(false, 365, 200);
    }
 }
 

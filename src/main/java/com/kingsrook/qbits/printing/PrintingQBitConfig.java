@@ -22,6 +22,7 @@ package com.kingsrook.qbits.printing;
 
 
 import com.kingsrook.qqq.backend.core.model.metadata.qbits.QBitConfig;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -29,28 +30,35 @@ import com.kingsrook.qqq.backend.core.model.metadata.qbits.QBitConfig;
  *******************************************************************************/
 public class PrintingQBitConfig implements QBitConfig
 {
-   private String backendName;
-   private transient PrintingService service;
+   private @Nullable String backendName;
+   private transient @Nullable PrintingService service;
    private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
    private PrintingRetentionPolicy retentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
-   private String storageTableName;
-   private String schedulerName;
-   private String facilityPossibleValueSourceName;
-   private transient RetainedPrintSourceAuthority retainedSourceAuthority;
+   private @Nullable String storageTableName;
+   private @Nullable String schedulerName;
+   private @Nullable String facilityPossibleValueSourceName;
+   private transient @Nullable RetainedPrintSourceAuthority retainedSourceAuthority;
 
 
-   /** Explicit trusted host integration; absent means retained submissions are disabled. */
+
+   /***************************************************************************
+    ** Explicit trusted host integration; absent means retained submissions are disabled.
+    ***************************************************************************/
    public PrintingQBitConfig withRetainedSourceAuthority(RetainedPrintSourceAuthority value)
    {
       retainedSourceAuthority = java.util.Objects.requireNonNull(value);
-      return (this);
+      return this;
    }
 
 
-   /** Never serialized into client metadata or supplied by a request. */
-   public RetainedPrintSourceAuthority getRetainedSourceAuthority()
+
+   /***************************************************************************
+    ** Never serialized into client metadata or supplied by a request; null
+    ** means the host did not enable retained submissions.
+    ***************************************************************************/
+   public @Nullable RetainedPrintSourceAuthority getRetainedSourceAuthority()
    {
-      return (retainedSourceAuthority);
+      return retainedSourceAuthority;
    }
 
 
@@ -60,7 +68,7 @@ public class PrintingQBitConfig implements QBitConfig
     ***************************************************************************/
    public PrintingAdmissionLimits getAdmissionLimits()
    {
-      return (admissionLimits);
+      return admissionLimits;
    }
 
 
@@ -71,7 +79,7 @@ public class PrintingQBitConfig implements QBitConfig
    public PrintingQBitConfig withAdmissionLimits(PrintingAdmissionLimits value)
    {
       admissionLimits = java.util.Objects.requireNonNull(value);
-      return (this);
+      return this;
    }
 
 
@@ -79,10 +87,10 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Reuse the host's facility selector and its existing record security.
     ***************************************************************************/
-   public PrintingQBitConfig withFacilityPossibleValueSourceName(String value)
+   public PrintingQBitConfig withFacilityPossibleValueSourceName(@Nullable String value)
    {
       facilityPossibleValueSourceName = value;
-      return (this);
+      return this;
    }
 
 
@@ -90,9 +98,9 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Missing configuration uses the named standalone default facility.
     ***************************************************************************/
-   public String getFacilityPossibleValueSourceName()
+   public @Nullable String getFacilityPossibleValueSourceName()
    {
-      return (facilityPossibleValueSourceName);
+      return facilityPossibleValueSourceName;
    }
 
 
@@ -100,10 +108,10 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Deployment-owned dedicated S3 table; operators cannot retarget old files.
     ***************************************************************************/
-   public PrintingQBitConfig withStorageTableName(String value)
+   public PrintingQBitConfig withStorageTableName(@Nullable String value)
    {
       storageTableName = value;
-      return (this);
+      return this;
    }
 
 
@@ -111,9 +119,9 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Existing storage metadata owns bucket, endpoint and credentials.
     ***************************************************************************/
-   public String getStorageTableName()
+   public @Nullable String getStorageTableName()
    {
-      return (storageTableName);
+      return storageTableName;
    }
 
 
@@ -121,10 +129,10 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Bind bounded five-minute maintenance to a scheduler already configured by the host.
     ***************************************************************************/
-   public PrintingQBitConfig withSchedulerName(String value)
+   public PrintingQBitConfig withSchedulerName(@Nullable String value)
    {
       schedulerName = value;
-      return (this);
+      return this;
    }
 
 
@@ -132,9 +140,9 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Missing host scheduler means no automatic background maintenance.
     ***************************************************************************/
-   public String getSchedulerName()
+   public @Nullable String getSchedulerName()
    {
-      return (schedulerName);
+      return schedulerName;
    }
 
 
@@ -145,7 +153,7 @@ public class PrintingQBitConfig implements QBitConfig
    public PrintingQBitConfig withRetentionPolicy(PrintingRetentionPolicy value)
    {
       retentionPolicy = java.util.Objects.requireNonNull(value);
-      return (this);
+      return this;
    }
 
 
@@ -155,7 +163,7 @@ public class PrintingQBitConfig implements QBitConfig
     ***************************************************************************/
    public PrintingRetentionPolicy getRetentionPolicy()
    {
-      return (retentionPolicy);
+      return retentionPolicy;
    }
 
 
@@ -163,10 +171,10 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Bind metadata reads to the host's existing RDBMS backend.
     ***************************************************************************/
-   public PrintingQBitConfig withBackendName(String value)
+   public PrintingQBitConfig withBackendName(@Nullable String value)
    {
       backendName = value;
-      return (this);
+      return this;
    }
 
 
@@ -177,7 +185,7 @@ public class PrintingQBitConfig implements QBitConfig
    public PrintingQBitConfig withService(PrintingService value)
    {
       service = value;
-      return (this);
+      return this;
    }
 
 
@@ -185,9 +193,9 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Return the table backend name.
     ***************************************************************************/
-   public String getBackendName()
+   public @Nullable String getBackendName()
    {
-      return (backendName);
+      return backendName;
    }
 
 
@@ -195,9 +203,9 @@ public class PrintingQBitConfig implements QBitConfig
    /***************************************************************************
     ** Return the printing runtime without serializing credentials or connections.
     ***************************************************************************/
-   public PrintingService getService()
+   public @Nullable PrintingService getService()
    {
-      return (service);
+      return service;
    }
 }
 

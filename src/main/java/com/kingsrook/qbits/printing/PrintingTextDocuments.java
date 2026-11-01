@@ -23,6 +23,7 @@ package com.kingsrook.qbits.printing;
 
 import java.io.IOException;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -49,9 +50,9 @@ public final class PrintingTextDocuments
    /***************************************************************************
     ** Render text on LETTER or A4, portrait or landscape.
     ***************************************************************************/
-   public static byte[] pdf(String title, String subtitle, String text, String pageSize, boolean landscape) throws QException
+   public static byte[] pdf(String title, String subtitle, @Nullable String text, String pageSize, boolean landscape) throws QException
    {
-      return (pdf(title, subtitle, text, pageSize, landscape, null));
+      return pdf(title, subtitle, text, pageSize, landscape, null);
    }
 
 
@@ -59,7 +60,7 @@ public final class PrintingTextDocuments
    /***************************************************************************
     ** Render text under the app's header/footer.
     ***************************************************************************/
-   public static byte[] pdf(String title, String subtitle, String text, String pageSize, boolean landscape, PrintingChrome chrome) throws QException
+   public static byte[] pdf(String title, String subtitle, @Nullable String text, String pageSize, boolean landscape, @Nullable PrintingChrome chrome) throws QException
    {
       if(text == null || text.isEmpty())
       {
@@ -85,7 +86,7 @@ public final class PrintingTextDocuments
             }
             while(!rest.isEmpty());
          }
-         return (layout.finish());
+         return layout.finish();
       }
       catch(IOException exception)
       {
@@ -107,7 +108,7 @@ public final class PrintingTextDocuments
          widest = Math.max(widest, line.stripTrailing().length());
       }
       float fits = charactersAtOnePoint / widest;
-      return (Math.max(MIN_FONT_SIZE, Math.min(FONT_SIZE, (float) Math.floor(fits * 2) / 2)));
+      return Math.max(MIN_FONT_SIZE, Math.min(FONT_SIZE, (float) Math.floor(fits * 2) / 2));
    }
 
 
@@ -160,7 +161,7 @@ public final class PrintingTextDocuments
                }
             }
          }
-         return (layout.finish());
+         return layout.finish();
       }
       catch(IOException exception)
       {

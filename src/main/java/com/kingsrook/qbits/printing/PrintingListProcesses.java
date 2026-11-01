@@ -53,6 +53,7 @@ import com.kingsrook.qqq.backend.core.model.metadata.processes.QFrontendStepMeta
 import com.kingsrook.qqq.backend.core.model.metadata.processes.QProcessMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData;
 import com.kingsrook.qqq.backend.core.utils.JsonUtils;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -125,14 +126,14 @@ public final class PrintingListProcesses
       fields.add(PrintingRecordProcesses.printerField());
       fields.add(new QFieldMetaData(PrintingRecordProcesses.COPIES_FIELD, QFieldType.INTEGER).withLabel("Copies").withIsRequired(true).withDefaultValue(1));
       fields.add(new QFieldMetaData("pageSize", QFieldType.STRING).withLabel("Paper").withPossibleValueSourceName("printing_pageSize").withDefaultValue("LETTER"));
-      return (new QProcessMetaData().withName(name).withLabel(label).withPermissionRules(PrintingProcesses.permissionRules())
+      return new QProcessMetaData().withName(name).withLabel(label).withPermissionRules(PrintingProcesses.permissionRules())
          .withStep(new QBackendStepMetaData().withName("prepare").withCode(new QCodeReference(Prepare.class)))
          .withStep(new QFrontendStepMetaData().withName("options").withLabel("Choose a printer").withFormFields(fields)
             .withComponent(new QFrontendComponentMetaData().withType(QComponentType.EDIT_FORM)))
          .withStep(new QBackendStepMetaData().withName("execute").withCode(new QCodeReference(Execute.class)))
          .withStep(new QFrontendStepMetaData().withName("result").withLabel("Result")
             .withViewFields(List.of(new QFieldMetaData("result", QFieldType.STRING).withLabel("Result")))
-            .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM))));
+            .withComponent(new QFrontendComponentMetaData().withType(QComponentType.VIEW_FORM)));
    }
 
 
@@ -168,7 +169,7 @@ public final class PrintingListProcesses
       {
          throw new QException(table.getLabel() + " is not printable");
       }
-      return (table);
+      return table;
    }
 
 
@@ -206,7 +207,7 @@ public final class PrintingListProcesses
             filter.setLimit(filter.getLimit() == null ? 50 : MAX_ROWS);
          }
       }
-      return (filter);
+      return filter;
    }
 
 
@@ -220,7 +221,7 @@ public final class PrintingListProcesses
       if(given == null || given.isBlank())
       {
          table.getFields().values().stream().filter(PrintingRecordProcesses::printable).forEach(out::add);
-         return (out);
+         return out;
       }
       for(String name : Arrays.stream(given.split(",")).map(String::trim).filter(n -> !n.isEmpty()).toList())
       {
@@ -238,7 +239,7 @@ public final class PrintingListProcesses
       {
          throw new QException("None of the columns can be printed");
       }
-      return (out);
+      return out;
    }
 
 
@@ -268,7 +269,7 @@ public final class PrintingListProcesses
             break;
          }
       }
-      return (out);
+      return out;
    }
 
 
@@ -280,7 +281,7 @@ public final class PrintingListProcesses
    {
       if(filter.getOrderBys() == null)
       {
-         return ("");
+         return "";
       }
       List<String> parts = new ArrayList<>();
       for(var orderBy : filter.getOrderBys())
@@ -289,7 +290,7 @@ public final class PrintingListProcesses
          QFieldMetaData field = name == null ? null : table.getFields().get(name);
          parts.add((field == null || field.getLabel() == null ? name : field.getLabel()) + (orderBy.getIsAscending() ? "" : " descending"));
       }
-      return (String.join(", ", parts));
+      return String.join(", ", parts);
    }
 
 
@@ -297,19 +298,19 @@ public final class PrintingListProcesses
    /***************************************************************************
     ** The grid's column widths ("12,30,8"), or null.
     ***************************************************************************/
-   static int[] widths(String text)
+   static int @Nullable [] widths(@Nullable String text)
    {
       if(text == null || text.isBlank())
       {
-         return (null);
+         return null;
       }
       try
       {
-         return (Arrays.stream(text.split(",")).map(String::trim).mapToInt(Integer::parseInt).toArray());
+         return Arrays.stream(text.split(",")).map(String::trim).mapToInt(Integer::parseInt).toArray();
       }
       catch(NumberFormatException exception)
       {
-         return (null);
+         return null;
       }
    }
 
@@ -321,7 +322,7 @@ public final class PrintingListProcesses
    static String orientation(RunBackendStepInput input)
    {
       String value = input.getValueString("orientation");
-      return (value == null || value.isBlank() ? "AUTO" : value.toUpperCase(Locale.ROOT));
+      return value == null || value.isBlank() ? "AUTO" : value.toUpperCase(Locale.ROOT);
    }
 
 
@@ -329,8 +330,54 @@ public final class PrintingListProcesses
    /***************************************************************************
     ** A rendered document: its title, the PDF, and a note (rows left out).
     ***************************************************************************/
-   public record Rendered(String title, byte[] bytes, String message)
+   public static final class Rendered
    {
+      private final String title;
+      private final byte[] bytes;
+      private final @Nullable String message;
+
+
+
+      /***********************************************************************
+       ** Hold one finished document. The PDF array is handed over, not copied,
+       ** exactly as the former record component was.
+       ***********************************************************************/
+      public Rendered(String title, byte[] bytes, @Nullable String message)
+      {
+         this.title = title;
+         this.bytes = bytes;
+         this.message = message;
+      }
+
+
+
+      /***********************************************************************
+       ** The document title.
+       ***********************************************************************/
+      public String title()
+      {
+         return title;
+      }
+
+
+
+      /***********************************************************************
+       ** The PDF bytes (the same array, not a copy).
+       ***********************************************************************/
+      public byte[] bytes()
+      {
+         return bytes;
+      }
+
+
+
+      /***********************************************************************
+       ** A note such as rows left out, or null when nothing was omitted.
+       ***********************************************************************/
+      public @Nullable String message()
+      {
+         return message;
+      }
    }
 
 
@@ -350,9 +397,9 @@ public final class PrintingListProcesses
          String sections = input.getValueString("sections");
          if(sections != null && !sections.isBlank())
          {
-            return (new Rendered(title, PrintingTextDocuments.sectionsPdf(title, subtitle, sections(sections), pageSize, landscape, chrome), null));
+            return new Rendered(title, PrintingTextDocuments.sectionsPdf(title, subtitle, sections(sections), pageSize, landscape, chrome), null);
          }
-         return (new Rendered(title, PrintingTextDocuments.pdf(title, subtitle, input.getValueString("text"), pageSize, landscape, chrome), null));
+         return new Rendered(title, PrintingTextDocuments.pdf(title, subtitle, input.getValueString("text"), pageSize, landscape, chrome), null);
       }
       QTableMetaData table = table(input);
       List<QFieldMetaData> columns = columns(table, input.getValueString("columns"));
@@ -388,7 +435,7 @@ public final class PrintingListProcesses
          PrintingChrome.from(input, table.getLabel() == null ? table.getName() : table.getLabel()));
       String message = all && total != null && total > records.size()
          ? "Printed the first " + records.size() + " of " + total + " rows: the print limit is " + filter.getLimit() + " rows. Narrow the filter to print the rest." : null;
-      return (new Rendered(title, bytes, message));
+      return new Rendered(title, bytes, message);
    }
 
 
@@ -418,7 +465,7 @@ public final class PrintingListProcesses
             }
             out.add(new PrintingTextDocuments.Section(section.optString("title", ""), lines));
          }
-         return (out);
+         return out;
       }
       catch(org.json.JSONException exception)
       {

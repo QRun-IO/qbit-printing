@@ -168,7 +168,7 @@ class PrintingCommandStatusTest
    private static DriverDataSource source(PrintingProcessesTest.Fixture fixture)
    {
       RDBMSBackendMetaData backend = (RDBMSBackendMetaData) fixture.instance().getBackend(fixture.instance().getTable(PrintingTables.COMMAND).getBackendName());
-      return (new DriverDataSource(backend.getJdbcUrl(), "sa", ""));
+      return new DriverDataSource(backend.getJdbcUrl(), "sa", "");
    }
 
 
@@ -199,7 +199,7 @@ class PrintingCommandStatusTest
          offline.setString(2, device);
          offline.executeUpdate();
       }
-      return (id);
+      return id;
    }
 
 
@@ -213,6 +213,6 @@ class PrintingCommandStatusTest
       input.setTableName(PrintingTables.COMMAND);
       input.setPrimaryKey(id);
       input.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
-      return (new GetAction().execute(input).getRecord());
+      return new GetAction().execute(input).getRecord();
    }
 }

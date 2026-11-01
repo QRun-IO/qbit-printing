@@ -50,6 +50,48 @@ jobs:
           $configuration.TestRegistry.Enabled = $false
           Invoke-Pester -Configuration $configuration
 
+  clients:
+    name: development-clients (${{ matrix.fixture }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - fixture: workload
+            dockerfile: dev/Dockerfile.client
+          - fixture: native-auth
+            dockerfile: dev/native-auth/Dockerfile.client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build strict fixtures and run fake-HTTP discovery checks
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+        run: docker build --target build --file "$DOCKERFILE" .
+
+  servers:
+    name: development-servers (${{ matrix.fixture }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - fixture: workload
+            dockerfile: dev/Dockerfile.server
+          - fixture: native-auth
+            dockerfile: dev/native-auth/Dockerfile.server
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build strict Maven project and compile the fixture Java without starting it
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+        run: docker build --target build --file "$DOCKERFILE" .
+
   docker:
     name: development-docker
     runs-on: ubuntu-24.04

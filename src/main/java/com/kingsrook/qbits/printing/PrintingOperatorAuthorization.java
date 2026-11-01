@@ -53,6 +53,7 @@ import com.kingsrook.qqq.backend.core.model.session.QSession;
 import com.kingsrook.qqq.backend.core.model.session.QUser;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -165,7 +166,7 @@ public final class PrintingOperatorAuthorization
    /***************************************************************************
     ** Page through authorized rows; hidden parent devices never leak through joins.
     ***************************************************************************/
-   public static JSONObject catalog(int limit, String after) throws QException
+   public static JSONObject catalog(int limit, @Nullable String after) throws QException
    {
       CallContext caller = capture();
       if(limit < 1 || limit > 200 || (after != null && !after.matches("[A-Za-z0-9._-]{1,200}")))
@@ -311,18 +312,33 @@ public final class PrintingOperatorAuthorization
    }
 
 
+
+   /***************************************************************************
+    ** Exact instance identity for the captured caller authority. A replaced
+    ** instance, session, user or service must fail even when value equality
+    ** would hold, so this is deliberately not equals().
+    ***************************************************************************/
+   // Identity of the captured authority objects is the security contract; equals() would weaken it.
+   @SuppressWarnings("ReferenceEquality")
+   private static boolean same(@Nullable Object captured, @Nullable Object current)
+   {
+      return captured == current;
+   }
+
+
+
    /***************************************************************************
     ** Native customizers cannot replace the caller or its row-security scope.
     ** Permissions and credential/channel ceilings are separately checked live.
     ***************************************************************************/
    private record CallContext(QInstance instance, QSession session, QUser user, String actor, PrintingService service,
-      Map<String, List<Serializable>> keys, Map<String, Serializable> variants)
+      Map<String, List<Serializable>> keys, @Nullable Map<String, Serializable> variants)
    {
       /** Fail before consuming callback results under a different native authority. */
       void check() throws QException
       {
-         if(instance != QContext.getQInstance() || session != QContext.getQSession() || user != session.getUser()
-            || !actor.equals(principal()) || service != PrintingProcesses.currentService()
+         if(!same(instance, QContext.getQInstance()) || !same(session, QContext.getQSession()) || !same(user, session.getUser())
+            || !actor.equals(principal()) || !same(service, PrintingProcesses.currentService())
             || !keys.equals(session.getSecurityKeyValues() == null ? Map.of() : session.getSecurityKeyValues())
             || !Objects.equals(variants, session.getBackendVariants()))
          {

@@ -136,7 +136,7 @@ class PrintingRecordProcessesTest
          @Override
          public QQueryFilter getQueryFilter()
          {
-            return (new QQueryFilter(new QFilterCriteria("id", QCriteriaOperator.IN, List.of(2))));
+            return new QQueryFilter(new QFilterCriteria("id", QCriteriaOperator.IN, List.of(2)));
          }
 
 
@@ -144,7 +144,7 @@ class PrintingRecordProcessesTest
          @Override
          public Map<String, Serializable> getFieldValues(List<QFieldMetaData> fields)
          {
-            return (Map.of());
+            return Map.of();
          }
       }));
       var review = new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withProcessUUID(form.getProcessUUID())
@@ -171,7 +171,7 @@ class PrintingRecordProcessesTest
       var form = new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withValue("recordIds", "1"));
       QException refused = assertThrows(QException.class, () -> new RunProcessAction().execute(new RunProcessInput().withProcessName(process).withProcessUUID(form.getProcessUUID())
          .withStartAfterStep("printer").withValue(PrintingRecordProcesses.PRINTER_FIELD, fixture.printerId())));
-      assertTrue(refused.getMessage().contains("approved"), refused::getMessage);
+      assertTrue(java.util.Objects.requireNonNull(refused.getMessage()).contains("approved"), refused::getMessage);
       assertEquals(0, fixture.service().jobs().length());
    }
 
@@ -237,6 +237,6 @@ class PrintingRecordProcessesTest
       new InsertAction().execute(new InsertInput("person").withRecords(List.of(
          new QRecord().withValue("id", 1).withValue("firstName", "Ada").withValue("lastName", "Lovelace").withValue("secret", "x"),
          new QRecord().withValue("id", 2).withValue("firstName", "Grace").withValue("lastName", "Hopper"))));
-      return (fixture);
+      return fixture;
    }
 }

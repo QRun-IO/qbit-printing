@@ -1,0 +1,30 @@
+<!-- Copyright 2026 Kingsrook, LLC; SPDX-License-Identifier: Apache-2.0 -->
+<Project>
+   <PropertyGroup>
+      <Nullable>enable</Nullable>
+      <ImplicitUsings>enable</ImplicitUsings>
+      <LangVersion>latest</LangVersion>
+      <IsPackable>false</IsPackable>
+      <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+      <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+      <AnalysisLevel>latest-recommended</AnalysisLevel>
+      <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
+      <Deterministic>true</Deterministic>
+      <NuGetAudit>true</NuGetAudit>
+      <NuGetAuditMode>all</NuGetAuditMode>
+      <NuGetAuditLevel>low</NuGetAuditLevel>
+      <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+      <CoreAssemblyPath Condition="'$(CoreAssemblyPath)' == ''">/core/Qqq.PrintAgent.Core.dll</CoreAssemblyPath>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true' or '$(CI)' == 'true'">
+      <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+      <RestoreLockedMode>true</RestoreLockedMode>
+   </PropertyGroup>
+   <ItemGroup>
+      <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+   </ItemGroup>
+   <Target Name="RequireProductionCore" BeforeTargets="ResolveAssemblyReferences">
+      <Error Condition="!Exists('$(CoreAssemblyPath)')" Text="Build the pinned production Core source first and provide CoreAssemblyPath; fixture stubs are not supported." />
+   </Target>
+</Project>

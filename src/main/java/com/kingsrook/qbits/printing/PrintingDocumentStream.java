@@ -60,7 +60,7 @@ final class PrintingDocumentStream extends FilterInputStream
    public int read() throws IOException
    {
       byte[] one = new byte[1];
-      return (read(one, 0, 1) == -1 ? -1 : Byte.toUnsignedInt(one[0]));
+      return read(one, 0, 1) == -1 ? -1 : Byte.toUnsignedInt(one[0]);
    }
 
 
@@ -85,6 +85,6 @@ final class PrintingDocumentStream extends FilterInputStream
             throw new IOException("Stored print document integrity check failed");
          }
       }
-      return (read);
+      return read;
    }
 }

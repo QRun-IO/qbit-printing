@@ -194,7 +194,7 @@ public class PrintingRealtimeProcesses implements BackendStep
       }
       try
       {
-         return (new BigDecimal(value.toString()).multiply(BigDecimal.valueOf(setting.unit())).longValueExact());
+         return new BigDecimal(value.toString()).multiply(BigDecimal.valueOf(setting.unit())).longValueExact();
       }
       catch(NumberFormatException | ArithmeticException exception)
       {
@@ -209,7 +209,7 @@ public class PrintingRealtimeProcesses implements BackendStep
     ***************************************************************************/
    private static List<List<Setting>> groups(boolean admission)
    {
-      return (admission ? List.of(ADMISSION_COUNTS, ADMISSION_STORAGE) : List.of(DOCUMENTS, TRANSFERS, CONNECTION, CONTROL));
+      return admission ? List.of(ADMISSION_COUNTS, ADMISSION_STORAGE) : List.of(DOCUMENTS, TRANSFERS, CONNECTION, CONTROL);
    }
 
 
@@ -219,10 +219,10 @@ public class PrintingRealtimeProcesses implements BackendStep
     ***************************************************************************/
    private static QFrontendStepMetaData form(String name, String label, List<Setting> settings)
    {
-      return (new QFrontendStepMetaData().withName(name).withLabel(label)
+      return new QFrontendStepMetaData().withName(name).withLabel(label)
          .withFormFields(settings.stream().map(setting -> new QFieldMetaData(setting.input(), setting.unit() == 1 ? QFieldType.INTEGER : QFieldType.DECIMAL)
             .withLabel(setting.label()).withIsRequired(true)).toList())
-         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.EDIT_FORM)));
+         .withComponent(new QFrontendComponentMetaData().withType(QComponentType.EDIT_FORM));
    }
 
 
@@ -232,7 +232,7 @@ public class PrintingRealtimeProcesses implements BackendStep
     ***************************************************************************/
    private static QBackendStepMetaData backend(String name)
    {
-      return (new QBackendStepMetaData().withName(name).withCode(new QCodeReference(PrintingRealtimeProcesses.class)));
+      return new QBackendStepMetaData().withName(name).withCode(new QCodeReference(PrintingRealtimeProcesses.class));
    }
 
 
@@ -242,7 +242,7 @@ public class PrintingRealtimeProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData text(String name, String label)
    {
-      return (new QFieldMetaData(name, QFieldType.STRING).withLabel(label));
+      return new QFieldMetaData(name, QFieldType.STRING).withLabel(label);
    }
 
 

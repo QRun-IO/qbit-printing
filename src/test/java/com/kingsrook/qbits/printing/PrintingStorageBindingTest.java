@@ -229,7 +229,7 @@ class PrintingStorageBindingTest
     ***************************************************************************/
    private static List<String> incompatibleBindings()
    {
-      return (List.of(LEGACY_BINDING, File.separatorChar == '\\' ? POSIX_BINDING : WINDOWS_BINDING));
+      return List.of(LEGACY_BINDING, File.separatorChar == '\\' ? POSIX_BINDING : WINDOWS_BINDING);
    }
 
 
@@ -247,7 +247,7 @@ class PrintingStorageBindingTest
       String device = service.enroll(service.createEnrollment("warehouse", "station").put("deviceName", "station").put("agentVersion", "test")).getString("deviceId");
       service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic").put("formats", new JSONArray(List.of("ZPL")))));
       service.enablePrinter(device, "queue", true);
-      return (new Fixture(source, service, storage, device));
+      return new Fixture(source, service, storage, device);
    }
 
 
@@ -262,7 +262,7 @@ class PrintingStorageBindingTest
       backend.setPathStyleAccess(false);
       instance.addBackend(backend);
       instance.addTable(new QTableMetaData().withName("printing_documents").withBackendName("s3").withBackendDetails(new S3TableBackendDetails()));
-      return (instance);
+      return instance;
    }
 
 
@@ -272,8 +272,8 @@ class PrintingStorageBindingTest
     ***************************************************************************/
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key);
    }
 
 
@@ -283,7 +283,7 @@ class PrintingStorageBindingTest
     ***************************************************************************/
    private static JSONObject retryRequest()
    {
-      return (new JSONObject().put("requestId", "retry").put("confirmDuplicateRisk", true));
+      return new JSONObject().put("requestId", "retry").put("confirmDuplicateRisk", true);
    }
 
 
@@ -347,7 +347,7 @@ class PrintingStorageBindingTest
             {
                result.put(rows.getMetaData().getColumnLabel(index), rows.getObject(index) == null ? JSONObject.NULL : rows.getObject(index));
             }
-            return (result);
+            return result;
          }
       }
    }
@@ -408,7 +408,7 @@ class PrintingStorageBindingTest
       public byte[] get(String table, String reference, int maximum)
       {
          calls.add("GET " + reference);
-         return (objects.get(reference).clone());
+         return java.util.Objects.requireNonNull(objects.get(reference), "Expected synthetic stored document").clone();
       }
 
 

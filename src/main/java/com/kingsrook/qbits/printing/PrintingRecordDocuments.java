@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -76,7 +77,7 @@ public final class PrintingRecordDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, Map<String, String> fields) throws QException
    {
-      return (pdf(title, subtitle, List.of(new Section("", fields)), List.of()));
+      return pdf(title, subtitle, List.of(new Section("", fields)), List.of());
    }
 
 
@@ -86,7 +87,7 @@ public final class PrintingRecordDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children) throws QException
    {
-      return (pdf(title, subtitle, sections, children, null));
+      return pdf(title, subtitle, sections, children, null);
    }
 
 
@@ -94,7 +95,7 @@ public final class PrintingRecordDocuments
    /***************************************************************************
     ** Render sections and child list summaries under the app's header/footer.
     ***************************************************************************/
-   public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children, PrintingChrome chrome) throws QException
+   public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children, @Nullable PrintingChrome chrome) throws QException
    {
       try(PrintingLayout layout = new PrintingLayout("LETTER", false, title, subtitle, chrome))
       {
@@ -143,7 +144,7 @@ public final class PrintingRecordDocuments
                layout.line("... and " + (child.total() - child.rows().size()) + " more", CHILD_SIZE);
             }
          }
-         return (layout.finish());
+         return layout.finish();
       }
       catch(IOException exception)
       {
@@ -180,7 +181,7 @@ public final class PrintingRecordDocuments
          }
          lines.add(rest);
       }
-      return (lines);
+      return lines;
    }
 
 
@@ -191,6 +192,6 @@ public final class PrintingRecordDocuments
    static String truncate(String text, int length)
    {
       String value = text == null ? "" : text.replace('\n', ' ').replace('\r', ' ');
-      return (value.length() <= length ? value : value.substring(0, Math.max(0, length - 1)) + "~");
+      return value.length() <= length ? value : value.substring(0, Math.max(0, length - 1)) + "~";
    }
 }

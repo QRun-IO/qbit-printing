@@ -218,7 +218,7 @@ class PrintingHomeTest
     ***************************************************************************/
    private static Object render(QInstance instance, String name) throws Exception
    {
-      return (new PrintingHome().render(new RenderWidgetInput().withWidgetMetaData(instance.getWidget(name))).getWidgetData());
+      return new PrintingHome().render(new RenderWidgetInput().withWidgetMetaData(instance.getWidget(name))).getWidgetData();
    }
 
 
@@ -236,7 +236,7 @@ class PrintingHomeTest
       instance.addBackend(new RDBMSBackendMetaData().withName(backend).withVendor("h2").withHostName("mem").withDatabaseName("test").withUsername("sa").withPassword("").withJdbcUrl(source.url()));
       new PrintingQBitProducer().withConfig(new PrintingQBitConfig().withBackendName(backend).withService(service)).produce(instance, "printing");
       new QInstanceValidator().validate(instance);
-      return (instance);
+      return instance;
    }
 
 
@@ -251,7 +251,7 @@ class PrintingHomeTest
       {
          session.withPermission("printing_admin");
       }
-      return (session);
+      return session;
    }
 
 
@@ -261,7 +261,7 @@ class PrintingHomeTest
     ***************************************************************************/
    private static DriverDataSource source()
    {
-      return (new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE", "sa", ""));
+      return new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE", "sa", "");
    }
 
 

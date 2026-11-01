@@ -277,22 +277,22 @@ class PrintingDeviceControlsTest
    /** Explicit fresh action identity, retained unchanged by callers when retrying. */
    private static JSONObject action(String action)
    {
-      return (new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString()).put("action", action));
+      return new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString()).put("action", action);
    }
 
 
    /** Advertise only the two implemented remote operations. */
    private static JSONObject poll()
    {
-      return (new JSONObject().put("controlVersion", 1).put("agentVersion", "test").put("lastAppliedRevision", 0)
-         .put("capabilities", new JSONArray(List.of("REFRESH_INVENTORY", "CANCEL_SPOOL"))));
+      return new JSONObject().put("controlVersion", 1).put("agentVersion", "test").put("lastAppliedRevision", 0)
+         .put("capabilities", new JSONArray(List.of("REFRESH_INVENTORY", "CANCEL_SPOOL")));
    }
 
 
    /** A synthetic command observation carries no arbitrary executable data. */
    private static JSONObject receipt(String outcome)
    {
-      return (new JSONObject().put("receiptId", UUID.randomUUID().toString()).put("outcome", outcome).put("completedAt", Instant.now().toString()));
+      return new JSONObject().put("receiptId", UUID.randomUUID().toString()).put("outcome", outcome).put("completedAt", Instant.now().toString());
    }
 
 
@@ -318,20 +318,20 @@ class PrintingDeviceControlsTest
       /** Pair without sharing another device's credential. */
       private JSONObject enroll() throws Exception
       {
-         return (service.enroll(service.createEnrollment("warehouse", "station").put("deviceName", "station").put("agentVersion", "test")));
+         return service.enroll(service.createEnrollment("warehouse", "station").put("deviceName", "station").put("agentVersion", "test"));
       }
 
       /** Use normal admission and retained document accounting. */
       private String submit(String key) throws Exception
       {
-         return (service.submit(new JSONObject().put("deviceId", device).put("printerId", "zebra").put("title", "Synthetic")
-            .put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", key)).getString("jobId"));
+         return service.submit(new JSONObject().put("deviceId", device).put("printerId", "zebra").put("title", "Synthetic")
+            .put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", key)).getString("jobId");
       }
 
       /** Apply through the same facade used by authenticated native and HTTP adapters. */
       private JSONObject act(String action) throws Exception
       {
-         return (service.deviceAction(device, action(action), "admin"));
+         return service.deviceAction(device, action(action), "admin");
       }
    }
 }

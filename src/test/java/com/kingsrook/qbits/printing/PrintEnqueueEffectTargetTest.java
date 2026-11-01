@@ -93,7 +93,7 @@ class PrintEnqueueEffectTargetTest
       assertEquals(EffectResult.Outcome.SENT, sent.outcome());
       assertNotNull(sent.providerRef());
       assertEquals(sent.providerRef(), target.deliver(request).providerRef());
-      assertEquals(sent.providerRef(), service.findByIdempotencyKey(request.idempotencyKey()).getString("jobId"));
+      assertEquals(sent.providerRef(), java.util.Objects.requireNonNull(service.findByIdempotencyKey(request.idempotencyKey()), "Expected durable idempotency receipt").getString("jobId"));
       ReconcileResult reconciled = target.reconcile(request);
       assertEquals(ReconcileResult.Outcome.FOUND, reconciled.outcome());
       assertEquals(sent.providerRef(), reconciled.providerRef());
@@ -144,7 +144,7 @@ class PrintEnqueueEffectTargetTest
       instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withNamespace("printing").withVersion("0.1.0-rc.1")
          .withConfig(new PrintingQBitConfig().withService(service)));
       instance.withSupplementalMetaData(new DurableJobsMetaData().withEffectTarget(TARGET, new QCodeReference(PrintEnqueueEffectTarget.class)));
-      return (instance);
+      return instance;
    }
 
 
@@ -158,7 +158,7 @@ class PrintEnqueueEffectTargetTest
       String device = service.enroll(code.put("deviceName", "Packing station").put("agentVersion", "test")).getString("deviceId");
       service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "zebra").put("name", "Packing Zebra").put("formats", new JSONArray(List.of("ZPL")))));
       service.enablePrinter(device, "zebra", true);
-      return (device);
+      return device;
    }
 
 
@@ -170,6 +170,6 @@ class PrintEnqueueEffectTargetTest
    {
       Map<String, Serializable> payload = Map.of("deviceId", device, "printerId", "zebra", "title", "Durable test", "format", "ZPL",
          "contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.UTF_8)), "idempotencyKey", "ignored-payload-key");
-      return (new EffectRequest(key, "print", JobEffectType.IDEMPOTENT_EXTERNAL, 42, 0, "shipment-1", payload, null, 1));
+      return new EffectRequest(key, "print", JobEffectType.IDEMPOTENT_EXTERNAL, 42, 0, "shipment-1", payload, null, 1);
    }
 }

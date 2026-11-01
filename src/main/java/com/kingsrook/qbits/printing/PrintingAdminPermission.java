@@ -26,6 +26,7 @@ import com.kingsrook.qqq.backend.core.context.QContext;
 import com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException;
 import com.kingsrook.qqq.backend.core.model.actions.AbstractActionInput;
 import com.kingsrook.qqq.backend.core.model.metadata.permissions.MetaDataWithPermissionRules;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -47,7 +48,7 @@ public class PrintingAdminPermission extends UseOtherPermissionNameCustomPermiss
     ** Enforce authorization even for direct backend-step invocation.
     ***************************************************************************/
    @Override
-   public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
+   public void checkPermissionsThrowing(AbstractActionInput input, @Nullable MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
    {
       if(QContext.getQSession() == null || !QContext.getQSession().hasPermission("printing_admin"))
       {

@@ -1,0 +1,10 @@
+<!-- Copyright 2026 Kingsrook, LLC; SPDX-License-Identifier: Apache-2.0 -->
+<Project>
+   <PropertyGroup>
+      <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+      <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+   </PropertyGroup>
+   <ItemGroup>
+      <PackageVersion Include="Meziantou.Analyzer" Version="3.0.296" />
+   </ItemGroup>
+</Project>

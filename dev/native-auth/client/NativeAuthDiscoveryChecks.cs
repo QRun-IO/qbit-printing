@@ -2,17 +2,22 @@
  * Copyright 2026 Kingsrook, LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-
 using System.Net;
 using System.Text.Json;
 using Qqq.PrintAgent.Core.Authentication;
-
 namespace Printing.NativeAuth;
+
+
 
 /// <summary>Exercises the real native probe gate against bounded, credential-free HTTP responses.</summary>
 internal static class NativeAuthDiscoveryChecks
 {
    /// <summary>Accepts compatible printing releases while preserving the exact upstream grant requirement.</summary>
+   private static readonly string[] s_channels = ["api"];
+
+
+
+   /// <summary>Check the native grant and compatible extension using fake discovery responses.</summary>
    internal static async Task RunAsync()
    {
       (string PrintingVersion, string ApiVersion, bool NativeGrant, bool Accepted)[] cases =
@@ -42,12 +47,15 @@ internal static class NativeAuthDiscoveryChecks
          }
          catch(QqqSessionException error) when(error.Failure == QqqSessionException.FailureKind.ConfigurationRequired)
          {
+            // Expected for incompatible discovery: the case stays rejected and the comparison below judges it.
          }
          catch(InvalidDataException)
          {
+            // Expected for malformed discovery values: the case stays rejected and the comparison below judges it.
          }
          catch(InvalidOperationException)
          {
+            // Expected when native-session discovery is absent: the case stays rejected and judged below.
          }
          if(accepted != expected || handler.Requests != 1)
          {
@@ -63,15 +71,24 @@ internal static class NativeAuthDiscoveryChecks
    private sealed class DiscoveryHandler(string printingVersion, string apiVersion, bool nativeGrant) : HttpMessageHandler
    {
       /// <summary>Ensures rejected metadata still traversed the public HTTP discovery boundary.</summary>
-      internal int Requests { get; private set; }
+      internal int Requests
+      {
+         get;
+
+
+
+         private set;
+      }
 
 
 
       /// <summary>Refuses any credential or request outside the public discovery boundary.</summary>
       protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
       {
-         if(request.Method != HttpMethod.Get || request.RequestUri?.AbsoluteUri != "https://printing.example.invalid/qqq/v1/version"
-            || request.Headers.Contains("Cookie") || request.Headers.Contains("Authorization")
+         if(request.Method != HttpMethod.Get
+            || !string.Equals(request.RequestUri?.AbsoluteUri, "https://printing.example.invalid/qqq/v1/version", StringComparison.Ordinal)
+            || request.Headers.Contains("Cookie")
+            || request.Headers.Contains("Authorization")
             || request.Headers.Contains("X-QQQ-Device-Id") || request.Headers.Contains("X-QQQ-Device-Token"))
          {
             throw new InvalidOperationException("Native discovery must precede authentication and device proof.");
@@ -84,7 +101,7 @@ internal static class NativeAuthDiscoveryChecks
          {
             apiVersion,
             features,
-            clientChannels = new[] { "api" },
+            clientChannels = s_channels,
             extensions = new[] { new { name = "printing", version = printingVersion, pathPrefix = "/qbit/printing" } }
          });
          return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) });

@@ -63,7 +63,7 @@ public class PrintingAdmissionSettings
    {
       try(Connection connection = source.getConnection())
       {
-         return (json(effective(connection)));
+         return json(effective(connection));
       }
    }
 
@@ -85,7 +85,7 @@ public class PrintingAdmissionSettings
             throw new SQLException("The tenant admission settings row is unavailable");
          }
       }
-      return (value);
+      return value;
    }
 
 
@@ -102,10 +102,10 @@ public class PrintingAdmissionSettings
          {
             if(!rows.next())
             {
-               return (defaults);
+               return defaults;
             }
             String stored = rows.getString(1);
-            return (stored == null ? defaults : parse(new JSONObject(stored)));
+            return stored == null ? defaults : parse(new JSONObject(stored));
          }
       }
    }
@@ -123,9 +123,9 @@ public class PrintingAdmissionSettings
       }
       try
       {
-         return (new PrintingAdmissionLimits(integer(value, "deviceOutstandingJobs"), integer(value, "tenantOutstandingJobs"),
+         return new PrintingAdmissionLimits(integer(value, "deviceOutstandingJobs"), integer(value, "tenantOutstandingJobs"),
             number(value, "deviceOutstandingBytes"), number(value, "tenantOutstandingBytes"), number(value, "deviceRetainedBytes"), number(value, "tenantRetainedBytes"),
-            integer(value, "deviceJobsPerHour"), integer(value, "tenantJobsPerHour"), integer(value, "devicePrinters"), integer(value, "tenantPrinters")));
+            integer(value, "deviceJobsPerHour"), integer(value, "tenantJobsPerHour"), integer(value, "devicePrinters"), integer(value, "tenantPrinters"));
       }
       catch(ArithmeticException exception)
       {
@@ -140,7 +140,7 @@ public class PrintingAdmissionSettings
     ***************************************************************************/
    private static int integer(JSONObject value, String field)
    {
-      return (Math.toIntExact(number(value, field)));
+      return Math.toIntExact(number(value, field));
    }
 
 
@@ -159,7 +159,7 @@ public class PrintingAdmissionSettings
       {
          throw new IllegalArgumentException(field + " is outside the supported positive range");
       }
-      return (parsed);
+      return parsed;
    }
 
 
@@ -169,10 +169,10 @@ public class PrintingAdmissionSettings
     ***************************************************************************/
    private static JSONObject json(PrintingAdmissionLimits value)
    {
-      return (new JSONObject().put("deviceOutstandingJobs", value.deviceOutstandingJobs()).put("tenantOutstandingJobs", value.tenantOutstandingJobs())
+      return new JSONObject().put("deviceOutstandingJobs", value.deviceOutstandingJobs()).put("tenantOutstandingJobs", value.tenantOutstandingJobs())
          .put("deviceOutstandingBytes", value.deviceOutstandingBytes()).put("tenantOutstandingBytes", value.tenantOutstandingBytes())
          .put("deviceRetainedBytes", value.deviceRetainedBytes()).put("tenantRetainedBytes", value.tenantRetainedBytes())
          .put("deviceJobsPerHour", value.deviceJobsPerHour()).put("tenantJobsPerHour", value.tenantJobsPerHour())
-         .put("devicePrinters", value.devicePrinters()).put("tenantPrinters", value.tenantPrinters()));
+         .put("devicePrinters", value.devicePrinters()).put("tenantPrinters", value.tenantPrinters());
    }
 }

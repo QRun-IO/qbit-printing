@@ -326,7 +326,7 @@ class PrintingAdmissionTest
    {
       PrintingService service = new PrintingService(fixture.source, "tenant-a").withAdmissionLimits(limits);
       service.configureStorage(fixture.documents, "printing_documents");
-      return (service);
+      return service;
    }
 
 
@@ -341,7 +341,7 @@ class PrintingAdmissionTest
       service.initialize();
       CountingDocuments documents = new CountingDocuments();
       service.configureStorage(documents, "printing_documents");
-      return (new Fixture(source, service, documents, enroll(service, "first"), enroll(service, "second")));
+      return new Fixture(source, service, documents, enroll(service, "first"), enroll(service, "second"));
    }
 
 
@@ -354,7 +354,7 @@ class PrintingAdmissionTest
       String device = service.enroll(service.createEnrollment("warehouse", name).put("deviceName", name).put("agentVersion", "test")).getString("deviceId");
       service.inventory(device, new JSONArray().put(printer("queue")));
       service.enablePrinter(device, "queue", true);
-      return (device);
+      return device;
    }
 
 
@@ -364,7 +364,7 @@ class PrintingAdmissionTest
     ***************************************************************************/
    private static JSONObject printer(String id)
    {
-      return (new JSONObject().put("printerId", id).put("name", "Synthetic " + id).put("status", "READY").put("formats", new JSONArray(List.of("ZPL"))));
+      return new JSONObject().put("printerId", id).put("name", "Synthetic " + id).put("status", "READY").put("formats", new JSONArray(List.of("ZPL")));
    }
 
 
@@ -374,8 +374,8 @@ class PrintingAdmissionTest
     ***************************************************************************/
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Admission regression").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Admission regression").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key);
    }
 
 
@@ -385,7 +385,7 @@ class PrintingAdmissionTest
     ***************************************************************************/
    private static JSONObject retry(String key)
    {
-      return (new JSONObject().put("requestId", key).put("confirmDuplicateRisk", true));
+      return new JSONObject().put("requestId", key).put("confirmDuplicateRisk", true);
    }
 
 
@@ -408,7 +408,7 @@ class PrintingAdmissionTest
    {
       PrintingException exception = assertThrows(PrintingException.class, operation::call);
       assertEquals(429, exception.getStatus());
-      assertFalse(exception.getMessage().isBlank());
+      assertFalse(java.util.Objects.requireNonNull(exception.getMessage()).isBlank());
    }
 
 
@@ -439,12 +439,12 @@ class PrintingAdmissionTest
       try
       {
          operation.call();
-         return ("accepted");
+         return "accepted";
       }
       catch(PrintingException exception)
       {
          assertEquals(429, exception.getStatus());
-         return ("quota");
+         return "quota";
       }
    }
 
@@ -456,7 +456,7 @@ class PrintingAdmissionTest
    private static PrintingAdmissionLimits limits(int deviceJobs, int tenantJobs, long deviceBytes, long tenantBytes, long deviceRetained,
       long tenantRetained, int deviceRate, int tenantRate, int devicePrinters, int tenantPrinters)
    {
-      return (new PrintingAdmissionLimits(deviceJobs, tenantJobs, deviceBytes, tenantBytes, deviceRetained, tenantRetained, deviceRate, tenantRate, devicePrinters, tenantPrinters));
+      return new PrintingAdmissionLimits(deviceJobs, tenantJobs, deviceBytes, tenantBytes, deviceRetained, tenantRetained, deviceRate, tenantRate, devicePrinters, tenantPrinters);
    }
 
 
@@ -466,7 +466,7 @@ class PrintingAdmissionTest
     ***************************************************************************/
    private static int count(DriverDataSource source, String table) throws Exception
    {
-      return (Integer.parseInt(scalar(source, "SELECT COUNT(*) FROM " + table)));
+      return Integer.parseInt(scalar(source, "SELECT COUNT(*) FROM " + table));
    }
 
 
@@ -485,7 +485,7 @@ class PrintingAdmissionTest
          try(var rows = statement.executeQuery())
          {
             assertTrue(rows.next());
-            return (rows.getString(1));
+            return rows.getString(1);
          }
       }
    }
@@ -547,7 +547,7 @@ class PrintingAdmissionTest
       @Override
       public String binding(String table)
       {
-         return ("quota-fixture");
+         return "quota-fixture";
       }
 
 
@@ -580,7 +580,7 @@ class PrintingAdmissionTest
          {
             throw new SQLException("Synthetic object was removed");
          }
-         return (content.clone());
+         return content.clone();
       }
 
 

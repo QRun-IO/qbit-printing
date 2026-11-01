@@ -160,7 +160,7 @@ class PrintingRetentionProcessesTest
       PrintingRetentionProcesses.register(instance, config);
       instance.withInstanceDefaultAuthentication(new QAuthenticationMetaData().withName("mock").withType(com.kingsrook.qqq.backend.core.model.metadata.QAuthenticationType.MOCK));
       QContext.init(instance, new QSession().withUser(new QUser().withIdReference("operator")).withPermissions("printing_admin").withSecurityKeyValue("printing_tenant", "tenant-a"));
-      return (service);
+      return service;
    }
 
 
@@ -172,7 +172,7 @@ class PrintingRetentionProcessesTest
    {
       RunBackendStepInput input = new RunBackendStepInput().withProcessName(process);
       input.setStepName(step);
-      return (input);
+      return input;
    }
 
 

@@ -46,7 +46,7 @@ public class PrintingException extends RuntimeException
     ***************************************************************************/
    public int getStatus()
    {
-      return (status);
+      return status;
    }
 }
 

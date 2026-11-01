@@ -184,7 +184,7 @@ class PrintingProfilesTest
     ***************************************************************************/
    private static DriverDataSource source()
    {
-      return (new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""));
+      return new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
    }
 
 
@@ -194,7 +194,7 @@ class PrintingProfilesTest
     ***************************************************************************/
    private static JSONObject printer(String queue)
    {
-      return (new JSONObject().put("printerId", "queue-id").put("name", queue).put("status", "READY").put("formats", new JSONArray().put("ZPL")));
+      return new JSONObject().put("printerId", "queue-id").put("name", queue).put("status", "READY").put("formats", new JSONArray().put("ZPL"));
    }
 
 
@@ -204,7 +204,7 @@ class PrintingProfilesTest
     ***************************************************************************/
    private static String enroll(PrintingService service) throws Exception
    {
-      return (service.enroll(service.createEnrollment("warehouse", "computer").put("deviceName", "computer").put("agentVersion", "test")).getString("deviceId"));
+      return service.enroll(service.createEnrollment("warehouse", "computer").put("deviceName", "computer").put("agentVersion", "test")).getString("deviceId");
    }
 
 
@@ -214,7 +214,7 @@ class PrintingProfilesTest
     ***************************************************************************/
    private static JSONObject request(String device)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue-id").put("title", "Synthetic job").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", UUID.randomUUID().toString()));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue-id").put("title", "Synthetic job").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", UUID.randomUUID().toString());
    }
 }

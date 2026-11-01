@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement;
@@ -52,6 +53,7 @@ import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
 import io.javalin.Javalin;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -256,7 +258,8 @@ class PrintingOperatorTest
    @Test
    void catalogPagesAndLegacyProfilesRemainHonest() throws Exception
    {
-      var f = PrintingProcessesTest.fixture();
+      // The fixture installs the native context and rows this test reads; its handle is not needed.
+      PrintingProcessesTest.fixture();
       QContext.getQSession().setPermissions(Set.of("printing_operator"));
       JSONObject first = PrintingOperatorAuthorization.catalog(1, null);
       JSONObject last = PrintingOperatorAuthorization.catalog(1, first.getString("nextCursor"));
@@ -300,7 +303,7 @@ class PrintingOperatorTest
          host.configure(value, false);
          value.withJavalinConfigurationCustomizer(server::set);
       }));
-      String base = "http://127.0.0.1:" + server.get().port();
+      String base = "http://127.0.0.1:" + Objects.requireNonNull(server.get(), "Test HTTP server was not started").port();
       String prefix = "/qqq/v1/qbit/printing";
       try(HttpClient client = HttpClient.newHttpClient())
       {
@@ -350,7 +353,7 @@ class PrintingOperatorTest
    /***************************************************************************
     ** Fixed test-only same-origin HTTP; no device proof or real network target.
     ***************************************************************************/
-   private static HttpResponse<String> http(HttpClient client, String base, String path, String cookie, JSONObject body, String origin) throws Exception
+   private static HttpResponse<String> http(HttpClient client, String base, String path, @Nullable String cookie, @Nullable JSONObject body, @Nullable String origin) throws Exception
    {
       HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path)).timeout(java.time.Duration.ofSeconds(10));
       if(cookie != null)
@@ -393,7 +396,7 @@ class PrintingOperatorTest
    /***************************************************************************
     ** Existing queue identity is preserved through inventory refreshes.
     ***************************************************************************/
-   private static JSONObject printer(JSONObject media)
+   private static JSONObject printer(@Nullable JSONObject media)
    {
       JSONObject printer = new JSONObject().put("printerId", "laser").put("name", "Synthetic").put("formats", new JSONArray(List.of("PDF")));
       if(media != null)

@@ -1,10 +1,14 @@
 // Copyright 2026 Kingsrook, LLC
-
 // SPDX-License-Identifier: Apache-2.0
 using Qqq.PrintAgent.Core.Authentication;
+namespace Printing.Development;
 
+
+
+/// <summary>Applies production Core discovery rules before any fixture credentials are sent.</summary>
 internal static class WorkloadDiscovery
 {
+   /// <summary>Require a compatible realtime extension after strict production discovery validation.</summary>
    internal static async Task<QqqApiDiscovery> DiscoverRealtimeAsync(QqqSessionClient client, CancellationToken cancellationToken)
    {
       QqqApiDiscovery discovery = await client.DiscoverAsync(cancellationToken);

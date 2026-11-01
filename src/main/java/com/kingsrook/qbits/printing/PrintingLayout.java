@@ -28,11 +28,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
+import com.uber.nullaway.annotations.EnsuresNonNull;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -50,7 +52,7 @@ final class PrintingLayout implements AutoCloseable
    private final PDType0Font font;
    private final PDRectangle size;
    private final String title;
-   private PDPageContentStream content;
+   private @Nullable PDPageContentStream content;
    private float y;
    private List<String> repeatHeader = List.of();
    private int repeatSize = 8;
@@ -73,7 +75,7 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** With the app's header and footer on every page (defaults when null).
     ***************************************************************************/
-   PrintingLayout(String pageSize, boolean landscape, String title, String subtitle, PrintingChrome chrome) throws QException
+   PrintingLayout(String pageSize, boolean landscape, String title, String subtitle, @Nullable PrintingChrome chrome) throws QException
    {
       this.chrome = chrome == null ? PrintingChrome.defaults(title) : chrome;
       try(InputStream stream = PrintingLayout.class.getResourceAsStream(PrintingTestDocuments.FONT_RESOURCE))
@@ -111,7 +113,7 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    int columns(float fontSize)
    {
-      return (Math.max(20, (int) ((size.getWidth() - 2 * MARGIN) / (0.6f * fontSize))));
+      return Math.max(20, (int) ((size.getWidth() - 2 * MARGIN) / (0.6f * fontSize)));
    }
 
 
@@ -130,7 +132,7 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** A note above the footer of every page (a grid's filter and sort).
     ***************************************************************************/
-   void footer(String text)
+   void footer(@Nullable String text)
    {
       chrome = chrome.withFooterNote(text);
    }
@@ -195,9 +197,9 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    void rule() throws IOException
    {
-      content.moveTo(MARGIN, y);
-      content.lineTo(size.getWidth() - MARGIN, y);
-      content.stroke();
+      activeContent().moveTo(MARGIN, y);
+      activeContent().lineTo(size.getWidth() - MARGIN, y);
+      activeContent().stroke();
       y -= 4;
    }
 
@@ -210,7 +212,7 @@ final class PrintingLayout implements AutoCloseable
    {
       try
       {
-         content.close();
+         activeContent().close();
          content = null;
          int total = document.getNumberOfPages();
          for(int i = 0; i < total; i++)
@@ -234,7 +236,7 @@ final class PrintingLayout implements AutoCloseable
          }
          ByteArrayOutputStream output = new ByteArrayOutputStream();
          document.save(output);
-         return (output.toByteArray());
+         return output.toByteArray();
       }
       catch(IOException exception)
       {
@@ -269,6 +271,7 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** Start a page; later pages show the running title.
     ***************************************************************************/
+   @EnsuresNonNull("content")
    private void newPage() throws IOException
    {
       if(document.getNumberOfPages() >= MAX_PAGES)
@@ -281,9 +284,10 @@ final class PrintingLayout implements AutoCloseable
       }
       PDPage page = new PDPage(size);
       document.addPage(page);
-      content = new PDPageContentStream(document, page);
+      PDPageContentStream opened = new PDPageContentStream(document, page);
+      content = opened;
       y = size.getHeight() - MARGIN + 14;
-      header();
+      header(opened);
       if(document.getNumberOfPages() > 1)
       {
          draw(PrintingRecordDocuments.truncate(title, columns(8)) + " (continued)", 8, 12);
@@ -297,25 +301,25 @@ final class PrintingLayout implements AutoCloseable
     ** The app's header band: the app and server/user/time, then the title or
     ** breadcrumb, then a rule.
     ***************************************************************************/
-   private void header() throws IOException
+   private void header(PDPageContentStream page) throws IOException
    {
       String right = chrome.headerRight();
       int rightChars = Math.min(right.length(), columns(7.5f) / 2 + 10);
       String rightText = PrintingRecordDocuments.truncate(right, rightChars);
       y -= 9;
-      at(content, MARGIN, y, PrintingRecordDocuments.truncate(chrome.app(), Math.max(10, columns(9) - rightText.length())), 9);
-      at(content, size.getWidth() - MARGIN - rightText.length() * 4.5f, y, rightText, 7.5f);
+      at(page, MARGIN, y, PrintingRecordDocuments.truncate(chrome.app(), Math.max(10, columns(9) - rightText.length())), 9);
+      at(page, size.getWidth() - MARGIN - rightText.length() * 4.5f, y, rightText, 7.5f);
       if(chrome.title() != null && !chrome.title().isBlank())
       {
          y -= 10;
-         at(content, MARGIN, y, PrintingRecordDocuments.truncate(chrome.title(), columns(7.5f)), 7.5f);
+         at(page, MARGIN, y, PrintingRecordDocuments.truncate(chrome.title(), columns(7.5f)), 7.5f);
       }
       y -= 4;
-      content.setLineWidth(0.5f);
-      content.moveTo(MARGIN, y);
-      content.lineTo(size.getWidth() - MARGIN, y);
-      content.stroke();
-      content.setLineWidth(1f);
+      page.setLineWidth(0.5f);
+      page.moveTo(MARGIN, y);
+      page.lineTo(size.getWidth() - MARGIN, y);
+      page.stroke();
+      page.setLineWidth(1f);
       y -= 6;
    }
 
@@ -361,11 +365,24 @@ final class PrintingLayout implements AutoCloseable
    private void draw(String text, float fontSize, float step) throws IOException
    {
       y -= step;
-      content.beginText();
-      content.setFont(font, fontSize);
-      content.newLineAtOffset(MARGIN, y);
-      content.showText(safe(PrintingRecordDocuments.truncate(text, columns(fontSize))));
-      content.endText();
+      activeContent().beginText();
+      activeContent().setFont(font, fontSize);
+      activeContent().newLineAtOffset(MARGIN, y);
+      activeContent().showText(safe(PrintingRecordDocuments.truncate(text, columns(fontSize))));
+      activeContent().endText();
+   }
+
+
+
+   /***************************************************************************
+    ** Construction/newPage opens content; drawing and finish precede its null
+    ** transition. Preserve the existing failure on use after finish, without
+    ** imposing a non-null precondition on pure footer formatting operations.
+    ***************************************************************************/
+   @SuppressWarnings("NullAway")
+   private PDPageContentStream activeContent()
+   {
+      return content;
    }
 
 
@@ -394,7 +411,7 @@ final class PrintingLayout implements AutoCloseable
             out.append('?');
          }
       });
-      return (out.toString());
+      return out.toString();
    }
 
 
@@ -404,7 +421,7 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    static int[] columnWidths(List<String> headers, List<List<String>> rows, int available)
    {
-      return (fit(naturalWidths(headers, rows), available));
+      return fit(naturalWidths(headers, rows), available);
    }
 
 
@@ -428,7 +445,7 @@ final class PrintingLayout implements AutoCloseable
          int typical = lengths.isEmpty() ? 0 : lengths.get(Math.max(0, (int) Math.ceil(lengths.size() * 0.9) - 1));
          widths[c] = Math.max(4, Math.min(60, Math.max(headers.get(c).length(), typical)));
       }
-      return (widths);
+      return widths;
    }
 
 
@@ -438,7 +455,7 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    static int lineWidth(int[] widths)
    {
-      return (sum(widths) + Math.max(0, widths.length - 1) * 2);
+      return sum(widths) + Math.max(0, widths.length - 1) * 2;
    }
 
 
@@ -465,7 +482,7 @@ final class PrintingLayout implements AutoCloseable
          }
          widths[widest]--;
       }
-      return (widths);
+      return widths;
    }
 
 
@@ -480,7 +497,7 @@ final class PrintingLayout implements AutoCloseable
       {
          total += value;
       }
-      return (total);
+      return total;
    }
 
 
@@ -497,6 +514,6 @@ final class PrintingLayout implements AutoCloseable
          cell = PrintingRecordDocuments.truncate(cell, widths[c]);
          out.append(c == 0 ? "" : "  ").append(String.format("%-" + widths[c] + "s", cell));
       }
-      return (out.toString().stripTrailing());
+      return out.toString().stripTrailing();
    }
 }

@@ -295,7 +295,7 @@ class PrintingListProcessesTest
       {
          throw new QException(output.getException().get());
       }
-      return (output);
+      return output;
    }
 
 
@@ -309,7 +309,7 @@ class PrintingListProcessesTest
       fixture.service().claimForJob(fixture.device(), job);
       try(PDDocument document = PDDocument.load(fixture.service().content(fixture.device(), job)))
       {
-         return (new PDFTextStripper().getText(document));
+         return new PDFTextStripper().getText(document);
       }
    }
 
@@ -353,6 +353,6 @@ class PrintingListProcessesTest
          new QRecord().withValue("id", 1).withValue("personId", 1).withValue("name", "Rex"),
          new QRecord().withValue("id", 2).withValue("personId", 1).withValue("name", "Tom"),
          new QRecord().withValue("id", 3).withValue("personId", 2).withValue("name", "Kit"))));
-      return (fixture);
+      return fixture;
    }
 }

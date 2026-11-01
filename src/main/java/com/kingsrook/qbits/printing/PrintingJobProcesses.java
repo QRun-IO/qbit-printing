@@ -137,7 +137,7 @@ public class PrintingJobProcesses
       {
          throw new QException("Job " + job.getValueString("title") + " is " + state + " and cannot be processed by this action");
       }
-      return (job);
+      return job;
    }
 
 
@@ -152,7 +152,7 @@ public class PrintingJobProcesses
       {
          throw new QException("Unknown print job action");
       }
-      return (PrintingProcesses.currentService());
+      return PrintingProcesses.currentService();
    }
 
 
@@ -191,10 +191,12 @@ public class PrintingJobProcesses
       /***************************************************************************
        ** Standard QQQ preview links selected job titles to their records.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(ready, risk)));
+         return new ArrayList<>(List.of(ready, risk));
       }
    }
 
@@ -251,10 +253,12 @@ public class PrintingJobProcesses
       /***************************************************************************
        ** Standard QQQ results refer to the selected source job records.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(done)));
+         return new ArrayList<>(List.of(done));
       }
    }
 }

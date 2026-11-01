@@ -214,10 +214,10 @@ class PrintingDeviceProcessesTest
       fixture.service().cancel(fixture.device(), canceled);
       submit(fixture.service(), fixture.otherDevice());
       RenderWidgetInput input = new RenderWidgetInput().withWidgetMetaData(fixture.instance().getWidget("printing_device_queue"));
-      input.setQueryParams(Map.of("id", fixture.device(), "joinName", input.getWidgetMetaData().getDefaultValues().get("joinName").toString()));
+      input.setQueryParams(Map.of("id", fixture.device(), "joinName", java.util.Objects.requireNonNull(input.getWidgetMetaData().getDefaultValues().get("joinName")).toString()));
       var data = (ChildRecordListData) new ChildRecordListRenderer().render(input).getWidgetData();
       assertEquals(List.of(queued), data.getQueryOutput().getRecords().stream().map(row -> row.getValueString("id")).toList());
-      input.setQueryParams(Map.of("id", fixture.foreignDevice(), "joinName", input.getWidgetMetaData().getDefaultValues().get("joinName").toString()));
+      input.setQueryParams(Map.of("id", fixture.foreignDevice(), "joinName", java.util.Objects.requireNonNull(input.getWidgetMetaData().getDefaultValues().get("joinName")).toString()));
       assertThrows(QException.class, () -> new ChildRecordListRenderer().render(input));
    }
 
@@ -278,9 +278,9 @@ class PrintingDeviceProcessesTest
     ***************************************************************************/
    private static String submit(PrintingService service, String device) throws Exception
    {
-      return (service.submit(new JSONObject().put("deviceId", device).put("printerId", "laser").put("title", "Control fixture")
+      return service.submit(new JSONObject().put("deviceId", device).put("printerId", "laser").put("title", "Control fixture")
          .put("format", "PDF").put("contentBase64", Base64.getEncoder().encodeToString("%PDF-1.4 fixture".getBytes(StandardCharsets.UTF_8)))
-         .put("idempotencyKey", UUID.randomUUID().toString())).getString("jobId"));
+         .put("idempotencyKey", UUID.randomUUID().toString())).getString("jobId");
    }
 
 
@@ -295,7 +295,7 @@ class PrintingDeviceProcessesTest
       new PrintingDeviceProcesses.Prepare().run(input, output);
       input.addValue(PrintingDeviceProcesses.REQUEST_ID, output.getValueString(PrintingDeviceProcesses.REQUEST_ID));
       input.addValue(PrintingDeviceProcesses.ISSUED_AT, output.getValueString(PrintingDeviceProcesses.ISSUED_AT));
-      return (input);
+      return input;
    }
 
 
@@ -308,6 +308,6 @@ class PrintingDeviceProcessesTest
       GetInput input = new GetInput();
       input.setTableName(table);
       input.setPrimaryKey(id);
-      return (new GetAction().execute(input).getRecord());
+      return new GetAction().execute(input).getRecord();
    }
 }

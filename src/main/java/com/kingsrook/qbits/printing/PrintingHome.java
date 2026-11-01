@@ -139,7 +139,7 @@ public class PrintingHome extends AbstractWidgetRenderer
          default -> throw new QException("Unknown printing home widget");
       };
       data.setSublabel("Checked " + DISPLAY_TIME.format(now) + " · current tenant · refresh every 60 seconds");
-      return (new RenderWidgetOutput(data));
+      return new RenderWidgetOutput(data);
    }
 
 
@@ -161,7 +161,7 @@ public class PrintingHome extends AbstractWidgetRenderer
       {
          data.withBlock(text("No print devices are connected. Open Print devices and use Enroll a print device; then connect the Windows agent and expose its printers.").withLink(new BlockLink(tableUrl(DEVICE, new QQueryFilter()))));
       }
-      return (data);
+      return data;
    }
 
 
@@ -198,10 +198,10 @@ public class PrintingHome extends AbstractWidgetRenderer
       {
          rows.add(issue(PRINTER, printer, printer.getValueString("name"), printer.getValueString("status"), "Check paper, paused/error state and whether this queue is still exposed by the agent.", "last_seen_at"));
       }
-      return (table(rows, "No issues in this scope. If no devices are enrolled, start from Print devices.",
+      return table(rows, "No issues in this scope. If no devices are enrolled, start from Print devices.",
          new TableData.Column("composite", "Issue / record", "issue", null, "left"),
          new TableData.Column("default", "Next step", "action", null, "left"),
-         new TableData.Column("default", "Observed at", "observed", null, "left")));
+         new TableData.Column("default", "Observed at", "observed", null, "left"));
    }
 
 
@@ -219,12 +219,12 @@ public class PrintingHome extends AbstractWidgetRenderer
          rows.add(Map.of("job", column().withBlock(text(job.getValueString("title")).withLink(new BlockLink(recordUrl(JOB, job)))),
             "status", job.getValueString("status"), "format", job.getValueString("format"), "created", displayTime(job.getValueString("created_at"))));
       }
-      return (table(rows, "No pending or recent print work. Open Printers to enable an exposed queue and run its test-print action.",
+      return table(rows, "No pending or recent print work. Open Printers to enable an exposed queue and run its test-print action.",
          new TableData.Column("composite", "Print job", "job", null, "left"),
          new TableData.Column("default", "Status", "status", null, "left"),
          new TableData.Column("default", "Format", "format", null, "left"),
          new TableData.Column("default", "Created at", "created", null, "left"))
-         .withLinkText("Open all pending and recent jobs").withLinkURL(tableUrl(JOB, filter.withLimit(null))));
+         .withLinkText("Open all pending and recent jobs").withLinkURL(tableUrl(JOB, filter.withLimit(null)));
    }
 
 
@@ -234,7 +234,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static StatisticsData statistic(String table, QQueryFilter filter, String context) throws QException
    {
-      return (new StatisticsData().withCount(count(table, filter)).withCountContext(context).withCountURL(tableUrl(table, filter)));
+      return new StatisticsData().withCount(count(table, filter)).withCountContext(context).withCountURL(tableUrl(table, filter));
    }
 
 
@@ -246,7 +246,7 @@ public class PrintingHome extends AbstractWidgetRenderer
    {
       QueryInput input = new QueryInput().withTableName(table).withFilter(filter);
       input.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
-      return (new QueryAction().execute(input).getRecords());
+      return new QueryAction().execute(input).getRecords();
    }
 
 
@@ -258,7 +258,7 @@ public class PrintingHome extends AbstractWidgetRenderer
    {
       CountInput input = new CountInput(table).withFilter(filter);
       input.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
-      return (new CountAction().execute(input).getCount());
+      return new CountAction().execute(input).getCount();
    }
 
 
@@ -270,7 +270,7 @@ public class PrintingHome extends AbstractWidgetRenderer
    {
       try
       {
-         return (Math.max(90, PrintingProcesses.currentService().realtimePolicy().get("heartbeatTimeoutSeconds")));
+         return Math.max(90, PrintingProcesses.currentService().realtimePolicy().get("heartbeatTimeoutSeconds"));
       }
       catch(java.sql.SQLException exception)
       {
@@ -286,7 +286,7 @@ public class PrintingHome extends AbstractWidgetRenderer
    private static StatisticsData offlineStatistic(Instant now) throws QException
    {
       long seconds = freshnessSeconds();
-      return (statistic(DEVICE, offline(now, seconds), "Enabled devices · now · disconnected by an administrator or unseen for " + seconds + " seconds"));
+      return statistic(DEVICE, offline(now, seconds), "Enabled devices · now · disconnected by an administrator or unseen for " + seconds + " seconds");
    }
 
 
@@ -299,7 +299,7 @@ public class PrintingHome extends AbstractWidgetRenderer
       QQueryFilter unseen = new QQueryFilter().withSubFilter(stale("last_seen_at", now, freshnessSeconds)).withSubFilter(stale("control_last_poll_at", now, freshnessSeconds));
       QQueryFilter disconnected = new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
          .withCriteria("connection_state", QCriteriaOperator.EQUALS, "DISCONNECTED").withSubFilter(unseen);
-      return (new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(disconnected));
+      return new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(disconnected);
    }
 
 
@@ -309,8 +309,8 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static QQueryFilter stale(String field, Instant now, long freshnessSeconds)
    {
-      return (new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
-         .withCriteria(field, QCriteriaOperator.IS_BLANK).withCriteria(field, QCriteriaOperator.LESS_THAN, now.minusSeconds(freshnessSeconds).toString()));
+      return new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
+         .withCriteria(field, QCriteriaOperator.IS_BLANK).withCriteria(field, QCriteriaOperator.LESS_THAN, now.minusSeconds(freshnessSeconds).toString());
    }
 
 
@@ -320,8 +320,8 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static QQueryFilter printerIssues()
    {
-      return (new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
-         .withCriteria("status", QCriteriaOperator.NOT_EQUALS, "READY").withCriteria("available", QCriteriaOperator.NOT_EQUALS, 1)));
+      return new QQueryFilter().withCriteria("enabled", QCriteriaOperator.EQUALS, 1).withSubFilter(new QQueryFilter().withBooleanOperator(QQueryFilter.BooleanOperator.OR)
+         .withCriteria("status", QCriteriaOperator.NOT_EQUALS, "READY").withCriteria("available", QCriteriaOperator.NOT_EQUALS, 1));
    }
 
 
@@ -331,7 +331,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static QQueryFilter statuses(List<String> states)
    {
-      return (new QQueryFilter().withCriteria("status", QCriteriaOperator.IN, states));
+      return new QQueryFilter().withCriteria("status", QCriteriaOperator.IN, states);
    }
 
 
@@ -341,7 +341,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static QQueryFilter failures(Instant now)
    {
-      return (statuses(FAILURES).withCriteria("created_at", QCriteriaOperator.GREATER_THAN_OR_EQUALS, now.minusSeconds(86400).toString()));
+      return statuses(FAILURES).withCriteria("created_at", QCriteriaOperator.GREATER_THAN_OR_EQUALS, now.minusSeconds(86400).toString());
    }
 
 
@@ -351,8 +351,8 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static Map<String, Object> issue(String table, QRecord record, String label, String status, String action, String timestamp) throws QException
    {
-      return (Map.of("issue", column().withBlock(text(label + " — " + status).withLink(new BlockLink(recordUrl(table, record)))),
-         "action", action, "observed", displayTime(record.getValueString(timestamp))));
+      return Map.of("issue", column().withBlock(text(label + " — " + status).withLink(new BlockLink(recordUrl(table, record)))),
+         "action", action, "observed", displayTime(record.getValueString(timestamp)));
    }
 
 
@@ -364,15 +364,15 @@ public class PrintingHome extends AbstractWidgetRenderer
    {
       if(value == null)
       {
-         return ("Unknown time");
+         return "Unknown time";
       }
       try
       {
-         return (DISPLAY_TIME.format(Instant.parse(value)));
+         return DISPLAY_TIME.format(Instant.parse(value));
       }
       catch(DateTimeParseException exception)
       {
-         return ("Unknown time");
+         return "Unknown time";
       }
    }
 
@@ -383,7 +383,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static TableData table(List<Map<String, Object>> rows, String empty, TableData.Column... columns)
    {
-      return (new TableData(null, List.of(columns), rows).withRowsPerPage(25).withHidePaginationDropdown(true).withNoRowsFoundHTML(empty));
+      return new TableData(null, List.of(columns), rows).withRowsPerPage(25).withHidePaginationDropdown(true).withNoRowsFoundHTML(empty);
    }
 
 
@@ -393,7 +393,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static CompositeWidgetData column()
    {
-      return (new CompositeWidgetData().withLayout(CompositeWidgetData.Layout.FLEX_COLUMN));
+      return new CompositeWidgetData().withLayout(CompositeWidgetData.Layout.FLEX_COLUMN);
    }
 
 
@@ -403,7 +403,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static TextBlockData text(String value)
    {
-      return (new TextBlockData().withValues(new TextValues(value)));
+      return new TextBlockData().withValues(new TextValues(value));
    }
 
 
@@ -413,7 +413,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static String recordUrl(String table, QRecord record) throws QException
    {
-      return (QContext.getQInstance().getTablePath(table) + "/" + URLEncoder.encode(record.getValueString("id"), StandardCharsets.UTF_8));
+      return QContext.getQInstance().getTablePath(table) + "/" + URLEncoder.encode(record.getValueString("id"), StandardCharsets.UTF_8);
    }
 
 
@@ -423,7 +423,7 @@ public class PrintingHome extends AbstractWidgetRenderer
     ***************************************************************************/
    private static String tableUrl(String table, QQueryFilter filter) throws QException
    {
-      return (QContext.getQInstance().getTablePath(table) + "?filter=" + URLEncoder.encode(JsonUtils.toJson(filter), StandardCharsets.UTF_8));
+      return QContext.getQInstance().getTablePath(table) + "?filter=" + URLEncoder.encode(JsonUtils.toJson(filter), StandardCharsets.UTF_8);
    }
 }
 

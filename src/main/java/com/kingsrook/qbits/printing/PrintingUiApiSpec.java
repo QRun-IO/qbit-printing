@@ -43,6 +43,7 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /** Native secured QQQ specs: session setup and credential scope execute before request construction. */
@@ -51,12 +52,12 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    private final String operation;
    private final String path;
    private final HttpMethod method;
-   private final String requestSchema;
+   private final @Nullable String requestSchema;
    private final String responseSchema;
 
 
    /** Immutable operation metadata; request credentials never live on shared spec instances. */
-   protected PrintingUiApiSpec(String operation, HttpMethod method, String path, String requestSchema, String responseSchema)
+   protected PrintingUiApiSpec(String operation, HttpMethod method, String path, @Nullable String requestSchema, String responseSchema)
    {
       this.operation = operation;
       this.method = method;
@@ -70,18 +71,18 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    @Override
    public BasicOperation defineBasicOperation()
    {
-      return (new BasicOperation().withHttpMethod(method).withPath(PrintingUiApi.PREFIX + path)
+      return new BasicOperation().withHttpMethod(method).withPath(PrintingUiApi.PREFIX + path)
          .withOperationId("printing" + operation).withShortSummary("Printing " + operation)
          .withLongDescription(operation.startsWith("Operator") ? "Requires the current QQQ user session, printing_operator or printing_admin, current tenant and native destination record access. Submissions additionally require printingSubmit process and credential/channel write authority."
-            : "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication."));
+            : "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication.");
    }
 
 
    /** Typed request bodies use the same wire vocabulary as the native client. */
    @Override
-   protected Schema defineRequestBodySchema()
+   protected @Nullable Schema defineRequestBodySchema()
    {
-      return (requestSchema == null ? null : PrintingApiSchemas.ref(requestSchema));
+      return requestSchema == null ? null : PrintingApiSchemas.ref(requestSchema);
    }
 
 
@@ -89,7 +90,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    @Override
    protected String getResponseSchemaName()
    {
-      return (PrintingApiSchemas.name(responseSchema));
+      return PrintingApiSchemas.name(responseSchema);
    }
 
 
@@ -97,7 +98,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    @Override
    public Map<String, Schema> defineComponentSchemas()
    {
-      return (PrintingApiSchemas.components());
+      return PrintingApiSchemas.components();
    }
 
 
@@ -129,7 +130,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          parameters.add(new Parameter().withName("limit").withIn(In.QUERY).withSchema(new Schema().withType(Type.INTEGER)).withDescription("1 through 200; default 50."));
          parameters.add(new Parameter().withName("after").withIn(In.QUERY).withSchema(PrintingApiSchemas.text(200)));
       }
-      return (parameters);
+      return parameters;
    }
 
 
@@ -168,7 +169,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
       {
          input.getPathParams().put("_verifiedDevice", PrintingAgentAuthorization.device(id, token, "Bind".equals(operation)));
       }
-      return (input);
+      return input;
    }
 
 
@@ -181,7 +182,11 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
       {
          JSONObject result = switch(operation)
          {
-            case "OperatorCatalog" -> PrintingOperatorAuthorization.catalog(input.getQueryParamInteger("limit") == null ? 50 : input.getQueryParamInteger("limit"), input.getQueryParam("after"));
+            case "OperatorCatalog" ->
+            {
+               Integer requestedLimit = input.getQueryParamInteger("limit");
+               yield PrintingOperatorAuthorization.catalog(requestedLimit == null ? 50 : requestedLimit, input.getQueryParam("after"));
+            }
             case "OperatorSubmit" -> PrintingOperatorAuthorization.submit(new JSONObject(input.getBody()));
             case "OperatorRequest" -> PrintingOperatorAuthorization.observe(input.getPathParam("requestId"));
             default -> throw new PrintingException(400, "Unknown operator operation");
@@ -239,7 +244,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          case "Content" ->
          {
             PrintingControlAuthorization.job(device, job);
-            return (service.openContent(device, job));
+            return service.openContent(device, job);
          }
          case "Event" ->
          {
@@ -305,7 +310,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          }
          default -> throw new PrintingException(400, "Unknown printing operation");
       }
-      return (result instanceof JSONObject json ? json.toMap() : result);
+      return result instanceof JSONObject json ? json.toMap() : result;
    }
 
 
@@ -327,7 +332,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    /** Mutation success does not assert a physical print outcome. */
    private static JSONObject accepted()
    {
-      return (new JSONObject().put("accepted", true));
+      return new JSONObject().put("accepted", true);
    }
 
 
@@ -355,12 +360,12 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    @Override
    public List<BasicResponse> defineAdditionalBasicResponses()
    {
-      return (List.of(new BasicResponse(HttpStatus.BAD_REQUEST, "Invalid request", BasicErrorResponseV1.class.getSimpleName()),
+      return List.of(new BasicResponse(HttpStatus.BAD_REQUEST, "Invalid request", BasicErrorResponseV1.class.getSimpleName()),
          new BasicResponse(HttpStatus.UNAUTHORIZED, "Native QQQ sign-in required", BasicErrorResponseV1.class.getSimpleName()),
          new BasicResponse(HttpStatus.FORBIDDEN, "Permission, device proof or user binding denied", BasicErrorResponseV1.class.getSimpleName()),
          new BasicResponse(HttpStatus.NOT_FOUND, "Record not found", BasicErrorResponseV1.class.getSimpleName()),
          new BasicResponse(HttpStatus.CONFLICT, "State or request conflict", BasicErrorResponseV1.class.getSimpleName()),
          new BasicResponse(HttpStatus.GONE, "Request or content expired", BasicErrorResponseV1.class.getSimpleName()),
-         new BasicResponse(HttpStatus.TOO_MANY_REQUESTS, "Bounded capacity reached", BasicErrorResponseV1.class.getSimpleName())));
+         new BasicResponse(HttpStatus.TOO_MANY_REQUESTS, "Bounded capacity reached", BasicErrorResponseV1.class.getSimpleName()));
    }
 }

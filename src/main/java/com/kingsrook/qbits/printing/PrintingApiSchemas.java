@@ -76,28 +76,28 @@ final class PrintingApiSchemas
       add(schemas, "ActionRequest", fields("requestId", id(), "issuedAt", time(), "action", actions, "jobId", id()), "requestId", "issuedAt", "action");
       add(schemas, "Action", fields("commandId", id(), "requestId", id(), "issuedAt", time(), "deviceId", id(), "action", actions, "status", enumeration("PENDING", "SUCCEEDED", "FAILED", "EXPIRED", "OUTCOME_UNKNOWN"), "createdAt", time(), "expiresAt", time(), "jobId", id(), "resultCode", text(80), "cancelledJobCount", number(), "receipt", ref("ReceiptRequest")), "commandId", "requestId", "issuedAt", "deviceId", "action", "status", "createdAt", "expiresAt");
       add(schemas, "Actions", fields("commands", array(ref("Action")), "nextCursor", text(128).withNullable(true)), "commands", "nextCursor");
-      return (schemas);
+      return schemas;
    }
 
 
    /** Every schema has the extension prefix required by the native registry. */
    static String name(String shortName)
    {
-      return ("Printing" + shortName + "V1");
+      return "Printing" + shortName + "V1";
    }
 
 
    /** Refer to one typed reusable component. */
    static Schema ref(String name)
    {
-      return (new Schema().withRefToSchema(name(name)));
+      return new Schema().withRefToSchema(name(name));
    }
 
 
    /** Bounded Unicode text. */
    static Schema text(int limit)
    {
-      return (new Schema().withType(Type.STRING).withMaxLength(limit));
+      return new Schema().withType(Type.STRING).withMaxLength(limit);
    }
 
 
@@ -107,7 +107,7 @@ final class PrintingApiSchemas
       @Override
       public Schema toSchema()
       {
-         return (new RequiredSchema(required).withType(Type.OBJECT).withProperties(properties));
+         return new RequiredSchema(required).withType(Type.OBJECT).withProperties(properties);
       }
    }
 
@@ -126,7 +126,7 @@ final class PrintingApiSchemas
       /** Published by the core Jackson schema serializer. */
       public List<String> getRequired()
       {
-         return (required);
+         return required;
       }
    }
 
@@ -139,7 +139,7 @@ final class PrintingApiSchemas
       {
          fields.put((String) pairs[index], (Schema) pairs[index + 1]);
       }
-      return (fields);
+      return fields;
    }
 
 
@@ -153,41 +153,41 @@ final class PrintingApiSchemas
    /** Protocol identifier. */
    private static Schema id()
    {
-      return (text(128));
+      return text(128);
    }
 
 
    /** UTC wire timestamp. */
    private static Schema time()
    {
-      return (text(40).withFormat("date-time").withDescription("RFC3339 UTC ending in uppercase Z."));
+      return text(40).withFormat("date-time").withDescription("RFC3339 UTC ending in uppercase Z.");
    }
 
 
    /** Exact JSON integer, never a stringified numeric value. */
    private static Schema number()
    {
-      return (new Schema().withType(Type.INTEGER));
+      return new Schema().withType(Type.INTEGER);
    }
 
 
    /** Required booleans must never be inferred from missing fields. */
    private static Schema bool()
    {
-      return (new Schema().withType(Type.BOOLEAN));
+      return new Schema().withType(Type.BOOLEAN);
    }
 
 
    /** Closed action or status vocabulary. */
    private static Schema enumeration(String... values)
    {
-      return (new Schema().withType(Type.STRING).withEnumValues(List.of(values)));
+      return new Schema().withType(Type.STRING).withEnumValues(List.of(values));
    }
 
 
    /** Homogeneous typed arrays. */
    private static Schema array(Schema items)
    {
-      return (new Schema().withType(Type.ARRAY).withItems(items));
+      return new Schema().withType(Type.ARRAY).withItems(items);
    }
 }

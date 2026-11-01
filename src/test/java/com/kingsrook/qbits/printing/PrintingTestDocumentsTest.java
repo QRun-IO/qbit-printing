@@ -115,7 +115,7 @@ class PrintingTestDocumentsTest
          }
       }
       assertTrue(right > left && bottom > top);
-      return ((right - left + 1.0) / (bottom - top + 1.0));
+      return (right - left + 1.0) / (bottom - top + 1.0);
    }
 
 
@@ -235,7 +235,7 @@ class PrintingTestDocumentsTest
       assertEquals(height, nextRow);
       assertTrue(strips > 1);
       assertEquals(strips, zpl.split("\\^GFA,", -1).length - 1);
-      return (bitmap);
+      return bitmap;
    }
 
 

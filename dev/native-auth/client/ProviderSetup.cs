@@ -1,43 +1,93 @@
 // Copyright 2026 Kingsrook, LLC
 // SPDX-License-Identifier: Apache-2.0
-
 using System.Net;
 using System.Text.Json.Nodes;
-
 namespace Printing.NativeAuth;
+
+
 
 /// <summary>Configures only the fresh project's synthetic provider and subjects.</summary>
 internal sealed class ProviderSetup : IDisposable
 {
-   internal static string? LastLookupKind { get; private set; }
-   internal static int? LastLookupCount { get; private set; }
+   internal static string? LastLookupKind
+   {
+      get;
+
+
+
+      private set;
+   }
+
+
+
+   internal static int? LastLookupCount
+   {
+      get;
+
+
+
+      private set;
+   }
+
+
+
    internal static Dictionary<string, int> ReadinessCounts { get; } = new(StringComparer.Ordinal);
+
+
+
    private readonly JsonObject _input;
+
+
+
    private readonly FixtureHttp _admin;
+
+
+
    private string _provider = "";
+
+
+
    private string _authorizedUser = "";
 
+
+
+   /// <summary>Use the private bootstrap token only with the configured provider origin.</summary>
    internal ProviderSetup(JsonObject input)
    {
       _input = input;
       _admin = new FixtureHttp(new Uri(Text(input, "providerOrigin")), adminToken: Text(input, "adminToken"));
    }
 
+
+
+   /// <summary>Read required synthetic input without disclosing its value in failures.</summary>
    internal static string Text(JsonObject document, string key) => document[key]?.ToString() ?? throw new InvalidOperationException("Required fixture field is absent.");
 
+
+
+   /// <summary>Require one provider metadata object and retain only its lookup classification.</summary>
    private async Task<JsonObject> ExactAsync(string path, CancellationToken token)
    {
       JsonObject page = FixtureHttp.RequireJson(await _admin.SendAsync("GET", path, null, token), HttpStatusCode.OK);
       JsonArray records = page["results"]!.AsArray();
       LastLookupKind = LookupKind(path);
       LastLookupCount = records.Count;
-      if(records.Count != 1) { throw new InvalidOperationException("Required provider object is absent or ambiguous."); }
+      if(records.Count != 1)
+      {
+         throw new InvalidOperationException("Required provider object is absent or ambiguous.");
+      }
       return records[0]!.AsObject();
    }
 
+
+
+   /// <summary>Create one synthetic object and require its successful JSON response.</summary>
    private async Task<JsonObject> CreateAsync(string path, JsonObject body, CancellationToken token)
       => FixtureHttp.RequireJson(await _admin.SendAsync("POST", path, body, token), HttpStatusCode.Created);
 
+
+
+   /// <summary>Wait for complete default flows and scopes before configuring the provider.</summary>
    internal async Task WaitReadyAsync(CancellationToken token)
    {
       string[] paths = ["/api/v3/flows/instances/?slug=default-authentication-flow",
@@ -58,20 +108,34 @@ internal sealed class ProviderSetup : IDisposable
                JsonArray? records = reply.Status == HttpStatusCode.OK ? reply.Json?["results"] as JsonArray : null;
                string kind = LookupKind(path);
                ReadinessCounts[kind] = records?.Count ?? -1;
-               if(records?.Count > 1) { throw new InvalidOperationException("An owned provider bootstrap dependency is ambiguous."); }
+               if(records?.Count > 1)
+               {
+                  throw new InvalidOperationException("An owned provider bootstrap dependency is ambiguous.");
+               }
                bool present = records is { Count: 1 };
-               if(kind == "authentication-flow")
-               { present &= records is { Count: 1 } && records[0]?["stages"] is JsonArray { Count: >= 4 }; }
+               if(string.Equals(kind, "authentication-flow", StringComparison.Ordinal))
+               {
+                  present &= records is { Count: 1 } && records[0]?["stages"] is JsonArray { Count: >= 4 };
+               }
                ready &= present;
             }
-            if(ready) { return; }
+            if(ready)
+            {
+               return;
+            }
          }
-         catch(HttpRequestException) { }
+         catch(HttpRequestException)
+         {
+            // The owned provider is still starting; the bounded attempt loop retries and then fails explicitly.
+         }
          await Task.Delay(TimeSpan.FromSeconds(2), token);
       }
       throw new InvalidOperationException("The owned provider bootstrap did not become ready.");
    }
 
+
+
+   /// <summary>Classify prerequisite lookups using fixed diagnostic names.</summary>
    private static string LookupKind(string path) => path switch
    {
       "/api/v3/flows/instances/?slug=default-authentication-flow" => "authentication-flow",
@@ -84,6 +148,9 @@ internal sealed class ProviderSetup : IDisposable
       _ => "other",
    };
 
+
+
+   /// <summary>Register the synthetic OAuth provider and authorized and denied users.</summary>
    internal async Task ConfigureAsync(CancellationToken token)
    {
       JsonObject authentication = await ExactAsync("/api/v3/flows/instances/?slug=default-authentication-flow", token);
@@ -125,60 +192,97 @@ internal sealed class ProviderSetup : IDisposable
          ["include_claims_in_id_token"] = true,
       }, token);
       _provider = Text(provider, "pk");
-      if(Text(provider, "client_id") != Text(_input, "clientId")
-         || Text(provider, "authentication_flow") != Text(authentication, "pk"))
-      { throw new InvalidOperationException("The real provider did not retain the configured client identifier."); }
+      if(!string.Equals(Text(provider, "client_id"), Text(_input, "clientId"), StringComparison.Ordinal) || !string.Equals(Text(provider, "authentication_flow"), Text(authentication, "pk"), StringComparison.Ordinal))
+      {
+         throw new InvalidOperationException("The real provider did not retain the configured client identifier.");
+      }
       JsonObject application = await CreateAsync("/api/v3/core/applications/", new JsonObject
       {
-         ["name"] = Text(_input, "project"), ["slug"] = Text(_input, "project"),
-         ["provider"] = provider["pk"]!.DeepClone(), ["policy_engine_mode"] = "all",
+         ["name"] = Text(_input, "project"),
+         ["slug"] = Text(_input, "project"),
+         ["provider"] = provider["pk"]!.DeepClone(),
+         ["policy_engine_mode"] = "all",
       }, token);
-      if(Text(application, "provider") != _provider)
-      { throw new InvalidOperationException("The real provider application binding differs from the configured provider."); }
+      if(!string.Equals(Text(application, "provider"), _provider, StringComparison.Ordinal))
+      {
+         throw new InvalidOperationException("The real provider application binding differs from the configured provider.");
+      }
    }
 
+
+
+   /// <summary>Create a synthetic user with configured groups and its private password.</summary>
    private async Task<JsonObject> CreateUserAsync(string usernameKey, string passwordKey, JsonArray groups, CancellationToken token)
    {
       JsonObject user = await CreateAsync("/api/v3/core/users/", new JsonObject
       {
-         ["username"] = Text(_input, usernameKey), ["name"] = "Synthetic native qualification subject",
-         ["email"] = Text(_input, usernameKey) + "@example.invalid", ["is_active"] = true,
-         ["type"] = "internal", ["groups"] = groups,
+         ["username"] = Text(_input, usernameKey),
+         ["name"] = "Synthetic native qualification subject",
+         ["email"] = Text(_input, usernameKey) + "@example.invalid",
+         ["is_active"] = true,
+         ["type"] = "internal",
+         ["groups"] = groups,
       }, token);
       FixtureHttp.Reply response = await _admin.SendAsync("POST", "/api/v3/core/users/" + Text(user, "pk") + "/set_password/",
          new JsonObject { ["password"] = Text(_input, passwordKey) }, token);
-      if(response.Status != HttpStatusCode.NoContent) { throw new InvalidOperationException("Synthetic account password configuration failed."); }
+      if(response.Status != HttpStatusCode.NoContent)
+      {
+         throw new InvalidOperationException("Synthetic account password configuration failed.");
+      }
       return user;
    }
 
+
+
+   /// <summary>Read bounded provider token metadata scoped to this synthetic application.</summary>
    private async Task<JsonArray> GrantsAsync(string kind, CancellationToken token)
    {
       JsonObject page = FixtureHttp.RequireJson(await _admin.SendAsync("GET", "/api/v3/oauth2/" + kind + "/?provider=" + _provider + "&user=" + _authorizedUser, null, token), HttpStatusCode.OK);
       JsonArray records = page["results"]!.AsArray();
-      if(records.Count is 0 or > 20) { throw new InvalidOperationException("The synthetic provider grant set is missing or unexpectedly large."); }
+      if(records.Count is 0 or > 20)
+      {
+         throw new InvalidOperationException("The synthetic provider grant set is missing or unexpectedly large.");
+      }
       foreach(JsonNode? node in records)
       {
          JsonObject record = node!.AsObject();
          string provider = record["provider"] is JsonObject nested ? Text(nested, "pk") : Text(record, "provider");
-         if(provider != _provider || Text(record["user"]!.AsObject(), "pk") != _authorizedUser)
-         { throw new InvalidOperationException("The provider grant escaped the synthetic subject scope."); }
+         if(!string.Equals(provider, _provider, StringComparison.Ordinal) || !string.Equals(Text(record["user"]!.AsObject(), "pk"), _authorizedUser, StringComparison.Ordinal))
+         {
+            throw new InvalidOperationException("The provider grant escaped the synthetic subject scope.");
+         }
       }
       return records;
    }
 
+
+
+   /// <summary>Snapshot actual access-grant identities for the renewal assertion.</summary>
    internal async Task<HashSet<string>> AccessGrantIdsAsync(CancellationToken token)
       => (await GrantsAsync("access_tokens", token)).Select(node => Text(node!.AsObject(), "pk")).ToHashSet(StringComparer.Ordinal);
 
+
+
+   /// <summary>Revoke only refresh grants belonging to the owned synthetic provider.</summary>
    internal async Task RevokeRefreshGrantsAsync(CancellationToken token)
    {
       foreach(JsonNode? node in await GrantsAsync("refresh_tokens", token))
       {
          string id = Text(node!.AsObject(), "pk");
-         if(!Guid.TryParse(id, out _) && !long.TryParse(id, out _)) { throw new InvalidOperationException("Unexpected provider grant identifier."); }
+         if(!Guid.TryParse(id, out _) && !long.TryParse(id, System.Globalization.CultureInfo.InvariantCulture, out _))
+         {
+            throw new InvalidOperationException("Unexpected provider grant identifier.");
+         }
          FixtureHttp.Reply response = await _admin.SendAsync("DELETE", "/api/v3/oauth2/refresh_tokens/" + id + "/", null, token);
-         if(response.Status != HttpStatusCode.NoContent) { throw new InvalidOperationException("Synthetic provider revocation failed."); }
+         if(response.Status != HttpStatusCode.NoContent)
+         {
+            throw new InvalidOperationException("Synthetic provider revocation failed.");
+         }
       }
    }
 
+
+
+   /// <summary>Dispose the private provider administration transport.</summary>
    public void Dispose() => _admin.Dispose();
 }

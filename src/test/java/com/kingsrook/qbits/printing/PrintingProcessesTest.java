@@ -45,6 +45,7 @@ import com.kingsrook.qqq.backend.core.model.session.QUser;
 import com.kingsrook.qqq.backend.module.rdbms.model.metadata.RDBMSBackendMetaData;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -121,7 +122,7 @@ class PrintingProcessesTest
          @Override
          public QInstance defineQInstance()
          {
-            return (fixture.instance());
+            return fixture.instance();
          }
       };
       var javalin = new java.util.concurrent.atomic.AtomicReference<io.javalin.Javalin>();
@@ -133,7 +134,7 @@ class PrintingProcessesTest
       try(java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient())
       {
          server.start();
-         java.net.URI url = java.net.URI.create("http://127.0.0.1:" + javalin.get().port() + "/printing/v1/admin/devices");
+         java.net.URI url = java.net.URI.create("http://127.0.0.1:" + java.util.Objects.requireNonNull(javalin.get(), "Test HTTP server was not started").port() + "/printing/v1/admin/devices");
          assertEquals(403, client.send(java.net.http.HttpRequest.newBuilder(url).GET().build(), java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode());
          var response = client.send(java.net.http.HttpRequest.newBuilder(url).header("X-Test-Admin", "allowed").GET().build(), java.net.http.HttpResponse.BodyHandlers.ofString());
          assertEquals(200, response.statusCode());
@@ -468,7 +469,7 @@ class PrintingProcessesTest
     ***************************************************************************/
    static Fixture fixture() throws Exception
    {
-      return (fixture(null));
+      return fixture(null);
    }
 
 
@@ -476,7 +477,7 @@ class PrintingProcessesTest
    /***************************************************************************
     ** An optional host facility source reuses real tenant-scoped device rows as fixtures.
     ***************************************************************************/
-   private static Fixture fixture(String facilitySource) throws Exception
+   private static Fixture fixture(@Nullable String facilitySource) throws Exception
    {
       String database = "printing_process_" + UUID.randomUUID();
       String jdbc = "jdbc:h2:mem:" + database + ";DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE";
@@ -516,7 +517,7 @@ class PrintingProcessesTest
             foreignId = result.getString(1);
          }
       }
-      return (new Fixture(instance, service, device, otherDevice, printerId, otherPrinterId, foreignId, foreign));
+      return new Fixture(instance, service, device, otherDevice, printerId, otherPrinterId, foreignId, foreign);
    }
 
 
@@ -526,7 +527,7 @@ class PrintingProcessesTest
     ***************************************************************************/
    private static String enroll(PrintingService service, String name) throws Exception
    {
-      return (service.enroll(service.createEnrollment("warehouse", name).put("deviceName", name).put("agentVersion", "test")).getString("deviceId"));
+      return service.enroll(service.createEnrollment("warehouse", name).put("deviceName", name).put("agentVersion", "test")).getString("deviceId");
    }
 
 

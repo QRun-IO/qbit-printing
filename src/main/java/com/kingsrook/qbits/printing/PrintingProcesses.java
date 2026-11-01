@@ -62,6 +62,7 @@ import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwith
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ProcessSummaryProviderInterface;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -119,9 +120,9 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData profileField(boolean pdf)
    {
-      return (field("testProfile", "Test stock / printer resolution (match every selected printer)")
+      return field("testProfile", "Test stock / printer resolution (match every selected printer)")
          .withPossibleValueSourceName(pdf ? "printing_testProfilePdf" : "printing_testProfileZpl")
-         .withDefaultValue(pdf ? TestPrintProfile.LETTER.name() : TestPrintProfile.LABEL_4X6_203.name()));
+         .withDefaultValue(pdf ? TestPrintProfile.LETTER.name() : TestPrintProfile.LABEL_4X6_203.name());
    }
 
 
@@ -131,8 +132,8 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    public static QPermissionRules permissionRules()
    {
-      return (new QPermissionRules().withLevel(com.kingsrook.qqq.backend.core.model.metadata.permissions.PermissionLevel.HAS_ACCESS_PERMISSION)
-         .withCustomPermissionChecker(new QCodeReference(PrintingAdminPermission.class)));
+      return new QPermissionRules().withLevel(com.kingsrook.qqq.backend.core.model.metadata.permissions.PermissionLevel.HAS_ACCESS_PERMISSION)
+         .withCustomPermissionChecker(new QCodeReference(PrintingAdminPermission.class));
    }
 
 
@@ -142,7 +143,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData deviceField()
    {
-      return (field("deviceId", "Print device").withPossibleValueSourceName(PrintingTables.DEVICE));
+      return field("deviceId", "Print device").withPossibleValueSourceName(PrintingTables.DEVICE);
    }
 
 
@@ -150,7 +151,7 @@ public class PrintingProcesses implements BackendStep
    /***************************************************************************
     ** Queue row IDs resolve to the agent's printer ID only after authorization.
     ***************************************************************************/
-   private static QFieldMetaData printerField(String format)
+   private static QFieldMetaData printerField(@Nullable String format)
    {
       QQueryFilter filter = new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, "${input.deviceId}"));
       if(format != null)
@@ -159,8 +160,8 @@ public class PrintingProcesses implements BackendStep
          filter.withCriteria(new QFilterCriteria("available", QCriteriaOperator.EQUALS, 1));
          filter.withCriteria(new QFilterCriteria("formats", QCriteriaOperator.CONTAINS, format));
       }
-      return (field("printerId", "Printer").withPossibleValueSourceName(PrintingTables.PRINTER)
-         .withPossibleValueSourceFilter(filter).withPossibleValueSourceDependsOn(List.of("deviceId")));
+      return field("printerId", "Printer").withPossibleValueSourceName(PrintingTables.PRINTER)
+         .withPossibleValueSourceFilter(filter).withPossibleValueSourceDependsOn(List.of("deviceId"));
    }
 
 
@@ -217,7 +218,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData field(String name, String label)
    {
-      return (new QFieldMetaData(name, QFieldType.STRING).withLabel(label).withIsRequired(true).withMaxLength("deviceName".equals(name) ? 1024 : 200));
+      return new QFieldMetaData(name, QFieldType.STRING).withLabel(label).withIsRequired(true).withMaxLength("deviceName".equals(name) ? 1024 : 200);
    }
 
 
@@ -237,7 +238,7 @@ public class PrintingProcesses implements BackendStep
             {
                throw new com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException("The current session cannot manage this printing tenant");
             }
-            return (config.getService());
+            return config.getService();
          }
       }
       throw new QException("Printing QBit is not configured");
@@ -289,7 +290,7 @@ public class PrintingProcesses implements BackendStep
    /***************************************************************************
     ** Re-read records with the caller's permissions; form values are not trusted.
     ***************************************************************************/
-   static QRecord resolvePrinter(String id, String deviceId) throws QException
+   static QRecord resolvePrinter(String id, @Nullable String deviceId) throws QException
    {
       GetInput get = new GetInput();
       get.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
@@ -300,7 +301,7 @@ public class PrintingProcesses implements BackendStep
       {
          throw new QException("Choose an accessible printer belonging to the selected device");
       }
-      return (printer);
+      return printer;
    }
 
 
@@ -310,7 +311,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    static String submitTest(QRecord printer, boolean pdf) throws QException
    {
-      return (submitTest(printer, pdf, null));
+      return submitTest(printer, pdf, null);
    }
 
 
@@ -318,9 +319,9 @@ public class PrintingProcesses implements BackendStep
    /***************************************************************************
     ** All built-in document entrypoints share profile validation and generation.
     ***************************************************************************/
-   static String submitTest(QRecord printer, boolean pdf, String profileName) throws QException
+   static String submitTest(QRecord printer, boolean pdf, @Nullable String profileName) throws QException
    {
-      return (submitTest(printer, pdf, profileName, "test:" + UUID.randomUUID()));
+      return submitTest(printer, pdf, profileName, "test:" + UUID.randomUUID());
    }
 
 
@@ -335,7 +336,7 @@ public class PrintingProcesses implements BackendStep
       {
          throw new QException("Restart the test-print action to obtain a safe request identity");
       }
-      return ("native-test:" + request + ":" + printer.getValueString("id"));
+      return "native-test:" + request + ":" + printer.getValueString("id");
    }
 
 
@@ -343,7 +344,7 @@ public class PrintingProcesses implements BackendStep
    /***************************************************************************
     ** Generate one immutable document and deduplicate replays of a process load.
     ***************************************************************************/
-   private static String submitTest(QRecord printer, boolean pdf, String profileName, String key) throws QException
+   private static String submitTest(QRecord printer, boolean pdf, @Nullable String profileName, String key) throws QException
    {
       try
       {
@@ -351,7 +352,7 @@ public class PrintingProcesses implements BackendStep
          byte[] bytes = pdf ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
          JSONObject job = currentService().submit(new JSONObject().put("deviceId", printer.getValueString("device_id")).put("printerId", printer.getValueString("printer_id"))
             .put("title", "QQQ print test").put("format", pdf ? "PDF" : "ZPL").put("contentBase64", Base64.getEncoder().encodeToString(bytes)).put("idempotencyKey", key));
-         return (job.getString("jobId"));
+         return job.getString("jobId");
       }
       catch(java.sql.SQLException | PrintingException exception)
       {
@@ -476,10 +477,12 @@ public class PrintingProcesses implements BackendStep
       /***************************************************************************
        ** Standard QQQ review summary.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(ready)));
+         return new ArrayList<>(List.of(ready));
       }
    }
 
@@ -529,10 +532,12 @@ public class PrintingProcesses implements BackendStep
       /***************************************************************************
        ** Standard QQQ result summary links back to the selected queues.
        ***************************************************************************/
+      // QQQ ProcessSummaryProvider requires this concrete return type; retain binary/API compatibility.
+      @SuppressWarnings("NonApiType")
       @Override
       public ArrayList<ProcessSummaryLineInterface> getProcessSummary(RunBackendStepOutput output, boolean isForResultScreen)
       {
-         return (new ArrayList<>(List.of(done)));
+         return new ArrayList<>(List.of(done));
       }
    }
 
@@ -543,7 +548,7 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    static byte[] testPdf() throws QException
    {
-      return (PrintingTestDocuments.pdf());
+      return PrintingTestDocuments.pdf();
    }
 }
 

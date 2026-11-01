@@ -30,6 +30,7 @@ import com.kingsrook.qqq.backend.core.context.QContext;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
 import com.kingsrook.qqq.backend.core.model.data.QRecord;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -56,8 +57,8 @@ public final class RetainedPrintFacade
       /** Fixed fields, not an arbitrary caller JSON document. */
       JSONObject json()
       {
-         return (new JSONObject().put("owner", owner).put("opaqueReference", opaqueReference).put("sha256", sha256)
-            .put("sizeBytes", sizeBytes).put("mediaType", mediaType));
+         return new JSONObject().put("owner", owner).put("opaqueReference", opaqueReference).put("sha256", sha256)
+            .put("sizeBytes", sizeBytes).put("mediaType", mediaType);
       }
    }
 
@@ -86,7 +87,7 @@ public final class RetainedPrintFacade
    }
 
    /** Exact immutable device observation, separate from the server acceptance event. */
-   public record Observation(Acceptance acceptance, String eventId, Instant recordedAt, String state, String spoolerJobId)
+   public record Observation(Acceptance acceptance, String eventId, Instant recordedAt, String state, @Nullable String spoolerJobId)
    {
    }
 
@@ -111,7 +112,7 @@ public final class RetainedPrintFacade
          Acceptance accepted = acceptance(result);
          checkDestination(accepted);
          prepared.check();
-         return (accepted);
+         return accepted;
       }
       catch(SQLException exception)
       {
@@ -120,7 +121,7 @@ public final class RetainedPrintFacade
    }
 
    /** Absence is returned only when neither an accepted job nor an unresolved upload exists. */
-   public Acceptance find(Request request) throws QException
+   public @Nullable Acceptance find(Request request) throws QException
    {
       Prepared prepared = prepare(request, false);
       try
@@ -134,7 +135,7 @@ public final class RetainedPrintFacade
          Acceptance accepted = acceptance(row);
          checkDestination(accepted);
          prepared.check();
-         return (accepted);
+         return accepted;
       }
       catch(SQLException exception)
       {
@@ -168,16 +169,16 @@ public final class RetainedPrintFacade
             throw new PrintingException(409, "Accepted print binding changed");
          }
          authority.authorizeObservation(accepted.source(), requestId);
-         if(instance != QContext.getQInstance() || session != QContext.getQSession()
-            || !reporter.equals(PrintingOperatorAuthorization.principal()) || service != PrintingProcesses.currentService()
-            || authority != authority(service))
+         if(!same(instance, QContext.getQInstance()) || !same(session, QContext.getQSession())
+            || !reporter.equals(PrintingOperatorAuthorization.principal()) || !same(service, PrintingProcesses.currentService())
+            || !same(authority, authority(service)))
          {
             throw new QException("Printing reporter authority changed");
          }
          requireStorage(false);
          checkDestination(accepted);
-         return (new Observation(accepted, eventId, Instant.parse(proof.getString("recordedAt")), proof.getString("state"),
-            proof.isNull("spoolerJobId") ? null : proof.getString("spoolerJobId")));
+         return new Observation(accepted, eventId, Instant.parse(proof.getString("recordedAt")), proof.getString("state"),
+            proof.isNull("spoolerJobId") ? null : proof.getString("spoolerJobId"));
       }
       catch(SQLException exception)
       {
@@ -222,8 +223,8 @@ public final class RetainedPrintFacade
          {
             PrintingOperatorAuthorization.requireSubmission();
          }
-         if(instance != QContext.getQInstance() || session != QContext.getQSession() || QContext.getQBackendTransaction() != null
-            || service != PrintingProcesses.currentService() || authority != authority(service) || !actor.equals(PrintingOperatorAuthorization.principal()))
+         if(!same(instance, QContext.getQInstance()) || !same(session, QContext.getQSession()) || QContext.getQBackendTransaction() != null
+            || !same(service, PrintingProcesses.currentService()) || !same(authority, authority(service)) || !actor.equals(PrintingOperatorAuthorization.principal()))
          {
             throw new QException("Retained print authority changed");
          }
@@ -246,7 +247,7 @@ public final class RetainedPrintFacade
          }
       });
       prepared.check();
-      return (prepared);
+      return prepared;
    }
 
 
@@ -283,12 +284,28 @@ public final class RetainedPrintFacade
    {
       for(var metadata : QContext.getQInstance().getQBits().values())
       {
-         if(metadata.getConfig() instanceof PrintingQBitConfig config && config.getService() == service && config.getRetainedSourceAuthority() != null)
+         if(metadata.getConfig() instanceof PrintingQBitConfig config && same(config.getService(), service))
          {
-            return (config.getRetainedSourceAuthority());
+            RetainedPrintSourceAuthority configured = config.getRetainedSourceAuthority();
+            if(configured != null)
+            {
+               return configured;
+            }
          }
       }
       throw new QException("Retained printing is not configured");
+   }
+
+   /***************************************************************************
+    ** Exact instance identity for the in-flight authority captures. A replaced
+    ** instance, session, service or owner authority must fail even when value
+    ** equality would hold, so this is deliberately not equals().
+    ***************************************************************************/
+   // Identity of the captured authority objects is the security contract; equals() would weaken it.
+   @SuppressWarnings("ReferenceEquality")
+   private static boolean same(@Nullable Object captured, @Nullable Object current)
+   {
+      return captured == current;
    }
 
    /** Package-private checked transaction callbacks never originate in request JSON. */
@@ -331,11 +348,11 @@ public final class RetainedPrintFacade
    {
       JSONObject binding = row.getJSONObject("binding");
       JSONObject source = binding.getJSONObject("source");
-      return (new Acceptance(binding.getString("requestId"), row.getString("jobId"), row.getString("acceptedEventId"),
+      return new Acceptance(binding.getString("requestId"), row.getString("jobId"), row.getString("acceptedEventId"),
          Instant.parse(row.getString("acceptedAt")), binding.getString("tenantId"), binding.getString("actorId"),
          new SourceReference(source.getString("owner"), source.getString("opaqueReference"), source.getString("sha256"),
             source.getLong("sizeBytes"), source.getString("mediaType")), binding.getString("deviceId"), binding.getString("printerId"), binding.getString("printerRecordId"),
-         binding.getString("title"), binding.getJSONObject("options").toString()));
+         binding.getString("title"), binding.getJSONObject("options").toString());
    }
 
    /** Reject malformed Unicode, controls and oversized identifiers without logging values. */

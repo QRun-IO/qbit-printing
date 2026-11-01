@@ -39,6 +39,7 @@ import com.kingsrook.qqq.backend.core.model.actions.tables.query.QueryInput;
 import com.kingsrook.qqq.backend.core.model.metadata.code.QCodeReference;
 import com.kingsrook.qqq.backend.core.model.metadata.permissions.MetaDataWithPermissionRules;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -124,7 +125,7 @@ class PrintingExtractTest
 
 
    /** Real native input fields drive standard selected-ID or filter extraction. */
-   private static RunBackendStepInput input(String ids)
+   private static RunBackendStepInput input(@Nullable String ids)
    {
       RunBackendStepInput input = new RunBackendStepInput().withProcessName(PrintingDeviceProcesses.Action.PAUSE.process)
          .addValue(StreamedETLWithFrontendProcess.FIELD_SOURCE_TABLE, PrintingTables.DEVICE);
@@ -132,7 +133,7 @@ class PrintingExtractTest
       {
          input.addValue("recordIds", ids);
       }
-      return (input);
+      return input;
    }
 
 
@@ -142,7 +143,7 @@ class PrintingExtractTest
       PrintingExtract extract = new PrintingExtract();
       extract.preRun(input, new RunBackendStepOutput());
       extract.setRecordPipe(new RecordPipe(20));
-      return (extract);
+      return extract;
    }
 
 
@@ -150,7 +151,7 @@ class PrintingExtractTest
    public static class DenyRead extends PrintingReadPermission
    {
       @Override
-      public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
+      public void checkPermissionsThrowing(AbstractActionInput input, @Nullable MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
       {
          super.checkPermissionsThrowing(input, metadata);
          if(input instanceof QueryInput || input instanceof CountInput)

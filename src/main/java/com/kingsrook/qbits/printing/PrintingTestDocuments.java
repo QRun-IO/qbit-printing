@@ -63,7 +63,7 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    public static byte[] pdf() throws QException
    {
-      return (pdf(TestPrintProfile.LETTER));
+      return pdf(TestPrintProfile.LETTER);
    }
 
 
@@ -119,7 +119,7 @@ public final class PrintingTestDocuments
          }
          ByteArrayOutputStream bytes = new ByteArrayOutputStream();
          document.save(bytes);
-         return (bytes.toByteArray());
+         return bytes.toByteArray();
       }
       catch(IOException exception)
       {
@@ -134,7 +134,7 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    public static byte[] zpl() throws QException
    {
-      return (zpl(203));
+      return zpl(203);
    }
 
 
@@ -144,7 +144,7 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    public static byte[] zpl(TestPrintProfile profile) throws QException
    {
-      return (zpl(profile.getDpi()));
+      return zpl(profile.getDpi());
    }
 
 
@@ -173,7 +173,7 @@ public final class PrintingTestDocuments
       appendGraphicStrips(zpl, bitmap, rowBytes, image.getHeight());
       zpl.append("^FO").append(dots(24, dpi)).append(',').append(dots(276, dpi)).append("^BY").append(module)
          .append("^BCN,").append(dots(42, dpi)).append(",N,N,N^FD").append(BARCODE_VALUE).append("^FS^PQ1^XZ");
-      return (zpl.toString().getBytes(StandardCharsets.US_ASCII));
+      return zpl.toString().getBytes(StandardCharsets.US_ASCII);
    }
 
 
@@ -241,7 +241,7 @@ public final class PrintingTestDocuments
          {
             graphics.dispose();
          }
-         return (image);
+         return image;
       }
       catch(IOException | FontFormatException exception)
       {
@@ -261,7 +261,7 @@ public final class PrintingTestDocuments
       {
          throw new IOException("Bundled test-document font is missing");
       }
-      return (stream);
+      return stream;
    }
 
 
@@ -292,7 +292,7 @@ public final class PrintingTestDocuments
          {
             graphics.dispose();
          }
-         return (image);
+         return image;
       }
    }
 
@@ -303,7 +303,7 @@ public final class PrintingTestDocuments
     ***************************************************************************/
    private static int dots(int points, int dpi)
    {
-      return ((int) Math.round(points * dpi / 72.0));
+      return (int) Math.round(points * dpi / 72.0);
    }
 
 

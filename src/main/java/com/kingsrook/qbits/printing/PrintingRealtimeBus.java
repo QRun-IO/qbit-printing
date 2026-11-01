@@ -23,6 +23,7 @@ package com.kingsrook.qbits.printing;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import org.jspecify.annotations.Nullable;
 
 
 /** Host-owned commit notification bridge. Callbacks only schedule bounded work. */
@@ -47,7 +48,7 @@ public class PrintingRealtimeBus
    public boolean owns(String tenant, String device, String generation)
    {
       Owner current = owners.get(tenant + ":" + device);
-      return (current != null && current.generation().equals(generation));
+      return current != null && current.generation().equals(generation);
    }
 
 
@@ -68,12 +69,12 @@ public class PrintingRealtimeBus
    public AutoCloseable subscribe(BiConsumer<String, String> listener)
    {
       listeners.add(listener);
-      return (() -> listeners.remove(listener));
+      return () -> listeners.remove(listener);
    }
 
 
    /** Publish only after commit. Shared-host implementations must preserve this nonblocking contract. */
-   public void publish(String tenant, String device)
+   public void publish(String tenant, @Nullable String device)
    {
       for(BiConsumer<String, String> listener : listeners)
       {

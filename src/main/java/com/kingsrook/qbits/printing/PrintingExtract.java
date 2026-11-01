@@ -51,6 +51,6 @@ public class PrintingExtract extends ExtractViaQueryStep
       count.setTableName(input.getValueString(FIELD_SOURCE_TABLE));
       count.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
       PermissionsHelper.checkTablePermissionThrowing(count, TablePermissionSubType.READ);
-      return (super.doCount(input));
+      return super.doCount(input);
    }
 }

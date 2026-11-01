@@ -21,6 +21,9 @@
 package com.kingsrook.qbits.printing;
 
 
+import org.jspecify.annotations.Nullable;
+
+
 /*******************************************************************************
  ** Explicit stock and resolution choices for built-in diagnostic documents.
  *******************************************************************************/
@@ -51,7 +54,7 @@ public enum TestPrintProfile
    /***************************************************************************
     ** Validate before enqueueing. Omitted profiles retain legacy defaults.
     ***************************************************************************/
-   public static TestPrintProfile resolve(String format, String value) throws PrintingException
+   public static TestPrintProfile resolve(String format, @Nullable String value) throws PrintingException
    {
       if(!"PDF".equals(format) && !"ZPL".equals(format))
       {
@@ -70,7 +73,7 @@ public enum TestPrintProfile
       {
          throw new PrintingException(400, "ZPL test prints require a 4 x 6 label profile with the matching printer dpi");
       }
-      return (profile);
+      return profile;
    }
 
 
@@ -80,7 +83,7 @@ public enum TestPrintProfile
     ***************************************************************************/
    public String getLabel()
    {
-      return (label);
+      return label;
    }
 
 
@@ -90,7 +93,7 @@ public enum TestPrintProfile
     ***************************************************************************/
    public int getDpi()
    {
-      return (dpi);
+      return dpi;
    }
 }
 

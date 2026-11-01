@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import static com.kingsrook.qbits.printing.PrintingService.query;
 import static com.kingsrook.qbits.printing.PrintingService.update;
 
@@ -88,19 +89,19 @@ final class PrintingDeviceControls
       {
          result.put("lastPollAt", row.getString("control_last_poll_at"));
       }
-      return (result);
+      return result;
    }
 
 
    /** Strict action input and original receipt enforce replay before any side effect. */
    JSONObject action(String deviceId, JSONObject request, String actor) throws SQLException
    {
-      return (action(deviceId, request, actor, null));
+      return action(deviceId, request, actor, null);
    }
 
 
    /** A native authorized queue snapshot must still match after taking the device lock. */
-   JSONObject action(String deviceId, JSONObject request, String actor, Set<String> authorizedQueue) throws SQLException
+   JSONObject action(String deviceId, JSONObject request, String actor, @Nullable Set<String> authorizedQueue) throws SQLException
    {
       fields(request, Set.of("requestId", "issuedAt", "action", "jobId"));
       String requestId = text(request, "requestId", 128);
@@ -132,7 +133,7 @@ final class PrintingDeviceControls
                   throw new PrintingException(409, "Request identity was already used for a different action");
                }
                connection.commit();
-               return (record(old.getFirst()));
+               return record(old.getFirst());
             }
             Instant issued;
             try
@@ -245,7 +246,7 @@ final class PrintingDeviceControls
                id, tenant, deviceId, requestId, action, jobId, actor, request.toString(), REMOTE.contains(action) ? "PENDING" : "SUCCEEDED", now, expires, result, cancelled);
             JSONObject response = record(command(connection, deviceId, id));
             connection.commit();
-            return (response);
+            return response;
          }
          catch(Exception exception)
          {
@@ -301,8 +302,8 @@ final class PrintingDeviceControls
                commands.put(delivery);
             }
             connection.commit();
-            return (new JSONObject().put("controlVersion", 1).put("serverTime", now).put("pollIntervalSeconds", 5)
-               .put("desiredState", state(device).getJSONObject("desiredState")).put("commands", commands));
+            return new JSONObject().put("controlVersion", 1).put("serverTime", now).put("pollIntervalSeconds", 5)
+               .put("desiredState", state(device).getJSONObject("desiredState")).put("commands", commands);
          }
          catch(Exception exception)
          {
@@ -375,7 +376,7 @@ final class PrintingDeviceControls
                update(connection, "UPDATE printing_device_command SET status=?,receipt_json=? WHERE id=? AND tenant_id=? AND device_id=?", status, receipt.toString(), commandId, tenant, deviceId);
             }
             connection.commit();
-            return (new JSONObject().put("accepted", true));
+            return new JSONObject().put("accepted", true);
          }
          catch(Exception exception)
          {
@@ -387,7 +388,7 @@ final class PrintingDeviceControls
 
 
    /** Management history is bounded and remains readable after revocation. */
-   JSONObject page(String deviceId, int limit, String before) throws SQLException
+   JSONObject page(String deviceId, int limit, @Nullable String before) throws SQLException
    {
       if(limit < 1 || limit > 200)
       {
@@ -414,7 +415,7 @@ final class PrintingDeviceControls
          {
             commands.put(record(row));
          }
-         return (new JSONObject().put("commands", commands).put("nextCursor", rows.size() > limit ? rows.get(limit - 1).getString("id") : JSONObject.NULL));
+         return new JSONObject().put("commands", commands).put("nextCursor", rows.size() > limit ? rows.get(limit - 1).getString("id") : JSONObject.NULL);
       }
    }
 
@@ -424,7 +425,7 @@ final class PrintingDeviceControls
    {
       try(Connection connection = source.getConnection())
       {
-         return (record(command(connection, deviceId, commandId)));
+         return record(command(connection, deviceId, commandId));
       }
    }
 
@@ -437,7 +438,7 @@ final class PrintingDeviceControls
       {
          throw new PrintingException(404, "Device not found");
       }
-      return (rows.getFirst());
+      return rows.getFirst();
    }
 
 
@@ -456,7 +457,7 @@ final class PrintingDeviceControls
       {
          throw new PrintingException(404, "Command not found");
       }
-      return (rows.getFirst());
+      return rows.getFirst();
    }
 
 
@@ -486,14 +487,14 @@ final class PrintingDeviceControls
       {
          value.put("receipt", new JSONObject(row.getString("receipt_json")));
       }
-      return (value);
+      return value;
    }
 
 
    /** Numeric aggregates do not load a receipt history into application memory. */
    private static long count(Connection connection, String sql, Object... values) throws SQLException
    {
-      return (query(connection, sql, values).getFirst().getLong("n"));
+      return query(connection, sql, values).getFirst().getLong("n");
    }
 
 
@@ -504,7 +505,7 @@ final class PrintingDeviceControls
       {
          throw new PrintingException(400, "Invalid " + field);
       }
-      return (value);
+      return value;
    }
 
 
@@ -516,7 +517,7 @@ final class PrintingDeviceControls
       {
          throw new PrintingException(400, "UTC timestamp required");
       }
-      return (value);
+      return value;
    }
 
    /** Require an exact nonnegative integral JSON value without coercion. */
@@ -527,7 +528,7 @@ final class PrintingDeviceControls
       {
          throw new PrintingException(400, "Invalid " + field);
       }
-      return (((Number) value).longValue());
+      return ((Number) value).longValue();
    }
 
 

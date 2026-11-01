@@ -128,6 +128,26 @@ It is opt-in, Test-only, and does not change the default released QQQ dependency
 
 The development workflow runs the Pester and PowerShell analysis checks on
 Windows and Ubuntu for every pull request and main-branch push. Ubuntu also runs
-the real 40-job/S3 Docker smoke. The longer experimental native-auth profile is
+the real 40-job/S3 Docker smoke. Both client fixture images also have build-only
+jobs on every pull request, including the optional native client; these jobs run
+only fake-HTTP discovery checks and do not start a provider.
+
+Maven Checkstyle checks all four Java fixture sources in `dev/java` and
+`dev/native-auth/java` during `validate`. They are deliberately **not** Maven
+compiler sources: the ordinary fixture uses the released QQQ tuple, while the
+native host compiles only inside its explicitly selected candidate image. Both
+server Dockerfiles copy both roots before Maven runs so neither image can skip
+this style coverage.
+
+The ten C# fixture files share `dev/.editorconfig`, strict build properties,
+central Meziantou 3.0.296, and committed package locks. The existing pinned SDK
+image contains .NET SDK 10.0.403, matching `dev/global.json`. Both image builds
+perform locked, vulnerability-audited restore, warnings-as-errors compilation,
+formatter verification, and their nine or 12 fake-HTTP discovery cases. Core is
+still built from the exact public source archive above; no stubs or runtime
+package dependency were added. For a local build, supply the real pinned Core
+DLL through `-p:CoreAssemblyPath=/absolute/path/Qqq.PrintAgent.Core.dll`.
+
+The longer experimental native-auth profile is
 an explicit manual workflow option; it is not silently substituted for the
 released dependency baseline.

@@ -300,7 +300,7 @@ class PrintingServiceTest
     ***************************************************************************/
    private static DriverDataSource source()
    {
-      return (new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""));
+      return new DriverDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
    }
 
 
@@ -351,7 +351,7 @@ class PrintingServiceTest
    private static String enroll(PrintingService service) throws Exception
    {
       JSONObject code = service.createEnrollment("warehouse", "station");
-      return (service.enroll(code.put("deviceName", "station").put("agentVersion", "1")).getString("deviceId"));
+      return service.enroll(code.put("deviceName", "station").put("agentVersion", "1")).getString("deviceId");
    }
 
 
@@ -372,7 +372,7 @@ class PrintingServiceTest
     ***************************************************************************/
    private static JSONArray inventory()
    {
-      return (new JSONArray().put(new JSONObject().put("printerId", "zebra").put("name", "Zebra").put("formats", new JSONArray(List.of("ZPL")))));
+      return new JSONArray().put(new JSONObject().put("printerId", "zebra").put("name", "Zebra").put("formats", new JSONArray(List.of("ZPL"))));
    }
 
 
@@ -382,7 +382,7 @@ class PrintingServiceTest
     ***************************************************************************/
    private static JSONObject request(String device)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "zebra").put("title", "Test label").put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(java.nio.charset.StandardCharsets.UTF_8))).put("idempotencyKey", "business-key"));
+      return new JSONObject().put("deviceId", device).put("printerId", "zebra").put("title", "Test label").put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(java.nio.charset.StandardCharsets.UTF_8))).put("idempotencyKey", "business-key");
    }
 }
 

@@ -19,7 +19,9 @@
  */
 
 // SPDX-License-Identifier: Apache-2.0
+
 package com.kingsrook.qbits.printing;
+
 
 import java.net.URI;
 import java.sql.Connection;
@@ -54,22 +56,28 @@ import io.javalin.http.ForbiddenResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- * Opt-in container fixture for the pinned upstream native-session candidate.
- * Standard OAuth2 code exchange, session storage and encrypted renewal are used
- * unchanged. No installed pairing, password authentication double or printer.
- */
+
+/***************************************************************************
+ ** Opt-in container fixture for the pinned upstream native-session candidate.
+ ** Standard OAuth2 code exchange, session storage and encrypted renewal are used
+ ** unchanged. No installed pairing, password authentication double or printer.
+ ***************************************************************************/
 public final class NativeAuthHost extends AbstractQQQApplication
 {
-   private static final String TENANT = "printing-native-dev";
-   private final String backendName = "printing-native-auth-" + UUID.randomUUID();
-   private final String jdbcUrl = "jdbc:h2:file:/data/printing-native-auth";
-   private final String databasePassword = required("NATIVE_QQQ_DATABASE_PASSWORD");
-   private final URI origin = httpsOrigin(required("NATIVE_QQQ_ORIGIN"));
-   private final int port = Integer.parseInt(required("NATIVE_QQQ_PORT"));
-   private final DriverDataSource source = new DriverDataSource(jdbcUrl, "sa", databasePassword);
-   private final PrintingService service = new PrintingService(source, TENANT);
+   private static final String           TENANT           = "printing-native-dev";
+   private final        String           backendName      = "printing-native-auth-" + UUID.randomUUID();
+   private final        String           jdbcUrl          = "jdbc:h2:file:/data/printing-native-auth";
+   private final        String           databasePassword = required("NATIVE_QQQ_DATABASE_PASSWORD");
+   private final        URI              origin           = httpsOrigin(required("NATIVE_QQQ_ORIGIN"));
+   private final        int              port             = Integer.parseInt(required("NATIVE_QQQ_PORT"));
+   private final        DriverDataSource source           = new DriverDataSource(jdbcUrl, "sa", databasePassword);
+   private final        PrintingService  service          = new PrintingService(source, TENANT);
 
+
+
+   /***************************************************************************
+    ** Initialize only the private fixture database and native session tables.
+    ***************************************************************************/
    private NativeAuthHost() throws Exception
    {
       if(port < 1024 || port > 65535)
@@ -85,6 +93,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
       }
    }
 
+
+
+   /***************************************************************************
+    ** Launch the experimental provider host inside its owned container network.
+    ***************************************************************************/
    public static void main(String[] args) throws Exception
    {
       NativeAuthHost host = new NativeAuthHost();
@@ -92,6 +105,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
          .withServerCustomizer(host::configure));
    }
 
+
+
+   /***************************************************************************
+    ** Define the private fixture backend, native OAuth2 provider and printing QBit.
+    ***************************************************************************/
    @Override
    public QInstance defineQInstance() throws QException
    {
@@ -105,8 +123,8 @@ public final class NativeAuthHost extends AbstractQQQApplication
       instance.addTable(new RedirectStateMetaDataProducer(backendName).produce(instance));
       instance.addTable(new UserSessionRefreshTokenMetaDataProducer(backendName).produce(instance));
 
-      String issuer = required("NATIVE_AUTH_ISSUER");
-      URI issuerUri = URI.create(issuer);
+      String issuer    = required("NATIVE_AUTH_ISSUER");
+      URI    issuerUri = URI.create(issuer);
       if(!"https".equals(issuerUri.getScheme()) || issuerUri.getHost() == null
          || issuerUri.getRawUserInfo() != null || issuerUri.getRawQuery() != null || issuerUri.getRawFragment() != null || !issuer.endsWith("/"))
       {
@@ -142,6 +160,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
       return instance;
    }
 
+
+
+   /***************************************************************************
+    ** Register printing routes behind the fixture TLS proxy.
+    ***************************************************************************/
    private void configure(QApplicationJavalinServer server)
    {
       // Only the owned TLS proxy is published; this HTTP listener remains inside
@@ -156,6 +179,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
          });
    }
 
+
+
+   /***************************************************************************
+    ** Require the configured HTTPS proxy and same-origin cookie mutations.
+    ***************************************************************************/
    private void guardOrigin(Context context)
    {
       if(!origin.getRawAuthority().equalsIgnoreCase(context.header("Host"))
@@ -181,9 +209,16 @@ public final class NativeAuthHost extends AbstractQQQApplication
       }
    }
 
-   /** Only maps claims after the unchanged standard OAuth2 module authenticates. */
+
+
+   /***************************************************************************
+    ** Only maps claims after the unchanged standard OAuth2 module authenticates.
+    ***************************************************************************/
    public static final class PrintingPermissions implements QAuthenticationModuleCustomizerInterface
    {
+      /***************************************************************************
+       ** Grant the printing admin permission only for the fixture group claim.
+       ***************************************************************************/
       @Override
       public void customizeSession(QInstance instance, QSession session, Map<String, Object> context)
       {
@@ -201,6 +236,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
       }
    }
 
+
+
+   /***************************************************************************
+    ** Validate the exact root HTTPS origin used by the private TLS fixture.
+    ***************************************************************************/
    private static URI httpsOrigin(String value)
    {
       URI parsed = URI.create(value);
@@ -212,6 +252,11 @@ public final class NativeAuthHost extends AbstractQQQApplication
       return parsed;
    }
 
+
+
+   /***************************************************************************
+    ** Read a required synthetic fixture setting without logging its value.
+    ***************************************************************************/
    private static String required(String name)
    {
       String value = System.getenv(name);

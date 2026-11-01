@@ -166,7 +166,7 @@ class PrintingRenderProcessesTest
    {
       try(InputStream stream = ProcessFileDownload.open(String.valueOf(output.getValues().get("serverFilePath"))); PDDocument document = PDDocument.load(stream))
       {
-         return (new PDFTextStripper().getText(document));
+         return new PDFTextStripper().getText(document);
       }
    }
 }

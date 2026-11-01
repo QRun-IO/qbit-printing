@@ -26,6 +26,7 @@ import com.kingsrook.qqq.backend.core.context.QContext;
 import com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException;
 import com.kingsrook.qqq.backend.core.model.actions.AbstractActionInput;
 import com.kingsrook.qqq.backend.core.model.metadata.permissions.MetaDataWithPermissionRules;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -46,7 +47,7 @@ public class PrintingOperatorPermission extends UseOtherPermissionNameCustomPerm
     ** Administrators retain submission access; operators receive no other role.
     ***************************************************************************/
    @Override
-   public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
+   public void checkPermissionsThrowing(AbstractActionInput input, @Nullable MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
    {
       if(QContext.getQSession() == null || (!QContext.getQSession().hasPermission("printing_operator") && !QContext.getQSession().hasPermission("printing_admin")))
       {

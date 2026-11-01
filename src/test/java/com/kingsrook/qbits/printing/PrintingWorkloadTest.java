@@ -184,7 +184,7 @@ class PrintingWorkloadTest
          durations[index] = System.nanoTime() - began;
       }
       assertTrue(service.claim(device).isNull("job"));
-      return (durations);
+      return durations;
    }
 
 
@@ -250,6 +250,6 @@ class PrintingWorkloadTest
       service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "synthetic").put("name", "Synthetic only")
          .put("formats", new JSONArray(List.of("ZPL")))));
       service.enablePrinter(device, "synthetic", true);
-      return (device);
+      return device;
    }
 }

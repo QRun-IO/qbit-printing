@@ -35,6 +35,7 @@ import java.util.HexFormat;
 import java.util.UUID;
 import io.javalin.Javalin;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -212,7 +213,7 @@ class PrintingContractTest
       String token = service.enroll(fixture("enroll.request.json").put("enrollmentCode", code)).getString("deviceToken");
       PrintingRoutes routes = new PrintingRoutes(service, context -> false);
       Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
-      try(Socket socket = new Socket("127.0.0.1", app.port()))
+      try(Socket socket = new Socket(java.net.InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), app.port()))
       {
          socket.setSoTimeout(250);
          String headers = "POST " + PrintingRoutes.BASE + "/device/jobs/claim HTTP/1.1\r\nHost: 127.0.0.1:" + app.port()
@@ -240,7 +241,7 @@ class PrintingContractTest
     ***************************************************************************/
    private static JSONObject fixture(String name) throws Exception
    {
-      return (new JSONObject(Files.readString(FIXTURES.resolve(name))));
+      return new JSONObject(Files.readString(FIXTURES.resolve(name)));
    }
 
 
@@ -269,7 +270,7 @@ class PrintingContractTest
    /***************************************************************************
     ** Keep binary content intact while constructing authenticated HTTP messages.
     ***************************************************************************/
-   private static HttpResponse<byte[]> send(HttpClient client, String base, String method, String path, String token, JSONObject body) throws Exception
+   private static HttpResponse<byte[]> send(HttpClient client, String base, String method, String path, @Nullable String token, @Nullable JSONObject body) throws Exception
    {
       HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path));
       if(token != null)
@@ -281,7 +282,7 @@ class PrintingContractTest
          request.header("Content-Type", "application/json");
       }
       request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body.toString()));
-      return (client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray()));
+      return client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
    }
 
 
@@ -292,7 +293,7 @@ class PrintingContractTest
    private static JSONObject json(HttpResponse<byte[]> response, int expected)
    {
       assertEquals(expected, response.statusCode());
-      return (new JSONObject(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8)));
+      return new JSONObject(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8));
    }
 }
 

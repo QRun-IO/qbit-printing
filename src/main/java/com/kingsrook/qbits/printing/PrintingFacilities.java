@@ -33,6 +33,7 @@ import com.kingsrook.qqq.backend.core.model.metadata.fields.QFieldType;
 import com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValue;
 import com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource;
 import com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSourceType;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -63,13 +64,13 @@ final class PrintingFacilities
       {
          instance.addPossibleValueSource(new QPossibleValueSource().withName(DEFAULT_SOURCE).withType(QPossibleValueSourceType.ENUM)
             .withEnumValues(List.of(new QPossibleValue<>("default", "Default facility"))));
-         return (DEFAULT_SOURCE);
+         return DEFAULT_SOURCE;
       }
       if(instance.getPossibleValueSource(source) == null)
       {
          throw new QException("The configured printing facility possible-value source does not exist");
       }
-      return (source);
+      return source;
    }
 
 
@@ -80,8 +81,8 @@ final class PrintingFacilities
    static QFieldMetaData field(QInstance instance)
    {
       String source = instance.getTable(PrintingTables.DEVICE).getField("facility_id").getPossibleValueSourceName();
-      return (new QFieldMetaData("facilityId", QFieldType.STRING).withLabel("Facility").withIsRequired(true).withMaxLength(200)
-         .withPossibleValueSourceName(source).withDefaultValue(DEFAULT_SOURCE.equals(source) ? "default" : null));
+      return new QFieldMetaData("facilityId", QFieldType.STRING).withLabel("Facility").withIsRequired(true).withMaxLength(200)
+         .withPossibleValueSourceName(source).withDefaultValue(DEFAULT_SOURCE.equals(source) ? "default" : null);
    }
 
 
@@ -89,7 +90,7 @@ final class PrintingFacilities
    /***************************************************************************
     ** Re-query the selected ID under the caller's session, never a system session.
     ***************************************************************************/
-   static String validate(String selected) throws QException
+   static String validate(@Nullable String selected) throws QException
    {
       if(selected == null || selected.isBlank() || selected.length() > 200)
       {
@@ -104,6 +105,6 @@ final class PrintingFacilities
       {
          throw new QException("The selected facility is unavailable or is not accessible to this user");
       }
-      return (selected);
+      return selected;
    }
 }

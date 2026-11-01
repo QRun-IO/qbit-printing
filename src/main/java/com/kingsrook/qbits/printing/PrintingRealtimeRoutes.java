@@ -43,6 +43,7 @@ import com.kingsrook.qqq.backend.core.model.metadata.permissions.ClientChannelsM
 import com.kingsrook.qqq.backend.core.modules.authentication.QAuthenticationModuleDispatcher;
 import com.kingsrook.qqq.middleware.javalin.QJavalinRouteProviderInterface;
 import com.kingsrook.qqq.middleware.javalin.executors.ExecutorSessionUtils;
+import com.uber.nullaway.annotations.MonotonicNonNull;
 import io.javalin.config.JavalinConfig;
 import io.javalin.http.Context;
 import io.javalin.http.HttpResponseException;
@@ -50,6 +51,7 @@ import io.javalin.websocket.WsContext;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /** Current-user authenticated outbound channels. SQL is authoritative; notifications are only wakeups. */
@@ -61,7 +63,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
    private final Map<String, Channel> channels = new ConcurrentHashMap<>();
    private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
    private final AutoCloseable subscription;
-   private QInstance instance;
+   private @MonotonicNonNull QInstance instance;
 
 
    /** Register this provider alongside the host's ordinary native QQQ endpoints. */
@@ -143,10 +145,12 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
    /** Resolve only the current socket generation. */
 
 
-   private Channel current(WsContext context)
+   // Identity is the socket-generation fence; value equality must never admit a replaced socket.
+   @SuppressWarnings("ReferenceEquality")
+   private @Nullable Channel current(WsContext context)
    {
       Channel channel = channels.get(context.header(PrintingAgentAuthorization.DEVICE_HEADER));
-      return (channel != null && channel.socket.session == context.session ? channel : null);
+      return channel != null && channel.socket.session == context.session ? channel : null;
    }
 
 
@@ -211,6 +215,22 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
    }
 
 
+   /***************************************************************************
+    ** Revalidation requires the host instance already used during upgrade.
+    ** Check at use, so route registration ordering remains unchanged.
+    ***************************************************************************/
+   private QInstance configuredInstance()
+   {
+      QInstance configured = instance;
+      if(configured == null)
+      {
+         throw new IllegalStateException("The realtime route provider has no configured QQQ instance");
+      }
+      return configured;
+   }
+
+
+
    /** Only transport credentials survive upgrade; user roles and session authority are never cached. */
    private static final class Credential
    {
@@ -233,7 +253,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       @Override
       public String toString()
       {
-         return ("Printing realtime credential [redacted]");
+         return "Printing realtime credential [redacted]";
       }
    }
 
@@ -290,7 +310,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       private final Credential credential;
       private final ArrayDeque<String> mailbox = new ArrayDeque<>();
       private PrintingRealtimePolicy policy = PrintingRealtimePolicy.defaults();
-      private JSONObject hello;
+      private @MonotonicNonNull JSONObject hello;
       private boolean running;
       private boolean dirty;
       private boolean stopped;
@@ -315,6 +335,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       /** Re-enter the configured native authentication module for every operation after HTTP upgrade. */
       private void authorizeCurrent() throws Exception
       {
+         QInstance instance = configuredInstance();
          QContext.init(instance, null);
          var module = new QAuthenticationModuleDispatcher().getQModule(instance.getAuthentication());
          var session = module.createSession(instance, Map.of(credential.cookieName, credential.cookie));
@@ -339,8 +360,8 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
 
       private synchronized boolean ready(long revision)
       {
-         return (!stopped && socket.session.isOpen() && service.getRealtimeBus().owns(service.getTenantId(), device, generation)
-            && hello != null && appliedState == sentState && appliedSettings == sentSettings && appliedSettings == revision);
+         return !stopped && socket.session.isOpen() && service.getRealtimeBus().owns(service.getTenantId(), device, generation)
+            && hello != null && appliedState == sentState && appliedSettings == sentSettings && appliedSettings == revision;
       }
 
 
@@ -418,7 +439,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                authorizeCurrent();
                if(frame == null)
                {
-                  snapshot(false);
+                  snapshot(false, helloPayload());
                }
                else
                {
@@ -467,7 +488,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                   throw new PrintingException(409, "Realtime capability is required");
                }
                hello = payload;
-               snapshot(true);
+               snapshot(true, payload);
                return;
             }
             case "STATE_APPLIED" ->
@@ -478,7 +499,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                {
                   throw new PrintingException(409, "Only the current delivered state and settings may be acknowledged");
                }
-               service.applyRealtimeState(device, controlRequest(state), settings);
+               service.applyRealtimeState(device, controlRequest(helloPayload(), state), settings);
                synchronized(this)
                {
                   appliedState = state;
@@ -557,14 +578,30 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
          {
             stop("Realtime operation rejected");
          }
-         return (connectionError);
+         return connectionError;
       }
+
+
+      /***************************************************************************
+       ** Pass a validated immutable HELLO reference into subsequent operations.
+       ** Pre-HELLO operations keep the protocol's existing rejection contract.
+       ***************************************************************************/
+      private JSONObject helloPayload()
+      {
+         JSONObject payload = hello;
+         if(payload == null)
+         {
+            throw new PrintingException(409, "HELLO is required first");
+         }
+         return payload;
+      }
+
 
 
       /** Reuse the durable control protocol with advertised supported operations. */
 
 
-      private JSONObject controlRequest(long state)
+      private JSONObject controlRequest(JSONObject hello, long state)
       {
          JSONArray capabilities = new JSONArray();
          for(Object value : hello.getJSONArray("capabilities"))
@@ -574,15 +611,15 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                capabilities.put(value);
             }
          }
-         return (new JSONObject().put("controlVersion", 1).put("agentVersion", hello.getString("agentVersion"))
-            .put("capabilities", capabilities).put("lastAppliedRevision", state));
+         return new JSONObject().put("controlVersion", 1).put("agentVersion", hello.getString("agentVersion"))
+            .put("capabilities", capabilities).put("lastAppliedRevision", state);
       }
 
 
       /** Reconstruct current state and pending commands after registration or commit. */
 
 
-      private void snapshot(boolean initial) throws Exception
+      private void snapshot(boolean initial, JSONObject hello) throws Exception
       {
          JSONObject settings = service.getRealtimeSettings();
          if(initial && integer(hello, "lastSettingsRevision") > settings.getLong("revision"))
@@ -595,7 +632,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
          policy.requireClientLimits(hello.getJSONObject("limits"));
          socket.session.setMaxTextMessageSize(policy.get("maxFrameBytes"));
          socket.session.setIdleTimeout(Duration.ofSeconds(policy.get("heartbeatTimeoutSeconds")));
-         JSONObject state = service.deviceControlPoll(device, controlRequest(initial ? integer(hello, "lastAppliedRevision") : Math.max(0, appliedState)));
+         JSONObject state = service.deviceControlPoll(device, controlRequest(hello, initial ? integer(hello, "lastAppliedRevision") : Math.max(0, appliedState)));
          PrintingControlAuthorization.table(PrintingTables.COMMAND);
          JSONObject desired = state.getJSONObject("desiredState");
          long previousState;
@@ -689,6 +726,6 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       {
          throw new PrintingException(400, "Expected nonnegative integer " + name);
       }
-      return (number.longValue());
+      return number.longValue();
    }
 }

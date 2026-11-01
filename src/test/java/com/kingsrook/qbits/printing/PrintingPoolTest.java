@@ -188,7 +188,7 @@ class PrintingPoolTest
       String device = service.enroll(service.createEnrollment("warehouse", name).put("deviceName", name).put("agentVersion", "test")).getString("deviceId");
       service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic").put("formats", new JSONArray(List.of("ZPL")))));
       service.enablePrinter(device, "queue", true);
-      return (device);
+      return device;
    }
 
 
@@ -198,8 +198,8 @@ class PrintingPoolTest
     ***************************************************************************/
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Pool regression").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString(new byte[] { 1 })).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Pool regression").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString(new byte[] { 1 })).put("idempotencyKey", key);
    }
 
 
@@ -229,7 +229,7 @@ class PrintingPoolTest
       @Override
       public String binding(String table)
       {
-         return ("fixture-binding");
+         return "fixture-binding";
       }
 
 

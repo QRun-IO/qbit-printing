@@ -1,0 +1,5 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Keep the SDK formatter identical on Windows and Linux checkouts.
+*.cs text eol=lf

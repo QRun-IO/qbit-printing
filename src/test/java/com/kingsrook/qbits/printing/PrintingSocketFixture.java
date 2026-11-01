@@ -31,6 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 
@@ -40,7 +41,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
    final BlockingQueue<JSONObject> received = new LinkedBlockingQueue<>();
    final CompletableFuture<Integer> closed = new CompletableFuture<>();
    private final StringBuilder text = new StringBuilder();
-   private WebSocket socket;
+   private @Nullable WebSocket socket;
 
 
    /** Authenticate with the normal session cookie and secondary proof headers. */
@@ -48,7 +49,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
    {
       PrintingSocketFixture fixture = open(client, base, cookie, device, proof);
       fixture.initialize();
-      return (fixture);
+      return fixture;
    }
 
 
@@ -60,7 +61,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
          .header("X-QQQ-Client", "api/qqq-print-agent")
          .header("Cookie", cookie).header(PrintingAgentAuthorization.DEVICE_HEADER, device).header(PrintingAgentAuthorization.TOKEN_HEADER, proof)
          .buildAsync(URI.create(base.replace("http:", "ws:") + PrintingRealtimeRoutes.PATH), fixture).get(10, TimeUnit.SECONDS);
-      return (fixture);
+      return fixture;
    }
 
 
@@ -92,7 +93,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
    /** Send one explicit protocol operation, never a timed query. */
    void send(String type, String id, JSONObject payload)
    {
-      socket.sendText(new JSONObject().put("type", type).put("messageId", id).put("payload", payload).toString(), true).join();
+      java.util.Objects.requireNonNull(socket, "Test socket was not opened").sendText(new JSONObject().put("type", type).put("messageId", id).put("payload", payload).toString(), true).join();
    }
 
 
@@ -110,7 +111,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
          }
          if(type.equals(next.getString("type")))
          {
-            return (next);
+            return next;
          }
       }
       throw new AssertionError("No frame " + type);
@@ -125,7 +126,7 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
 
 
    @Override
-   public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last)
+   public @Nullable CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last)
    {
       text.append(data);
       if(last)
@@ -134,15 +135,15 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
          text.setLength(0);
       }
       webSocket.request(1);
-      return (null);
+      return null;
    }
 
 
    @Override
-   public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason)
+   public @Nullable CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason)
    {
       closed.complete(statusCode);
-      return (null);
+      return null;
    }
 
 

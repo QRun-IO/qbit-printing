@@ -58,7 +58,7 @@ public final class PrintingControlAuthorization
       }
       new PrintingAdminPermission().checkPermissionsThrowing(new RunBackendStepInput(), null);
       PrintingProcesses.currentService();
-      return (QContext.getQSession().getUser().getIdReference());
+      return QContext.getQSession().getUser().getIdReference();
    }
 
 
@@ -79,7 +79,7 @@ public final class PrintingControlAuthorization
       {
          throw new QPermissionDeniedException("Record is not accessible");
       }
-      return (row);
+      return row;
    }
 
 
@@ -95,7 +95,7 @@ public final class PrintingControlAuthorization
    static QueryOutput query(QueryInput input) throws QException
    {
       input.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
-      return (new QueryAction().execute(input));
+      return new QueryAction().execute(input);
    }
 
 
@@ -113,7 +113,7 @@ public final class PrintingControlAuthorization
       {
          throw new QPermissionDeniedException("Printer is not assigned to this device");
       }
-      return (row);
+      return row;
    }
 
 
@@ -152,7 +152,7 @@ public final class PrintingControlAuthorization
          {
             job(deviceId, receipt.getValueString("job_id"));
          }
-         return (service.deviceAction(deviceId, request, actor));
+         return service.deviceAction(deviceId, request, actor);
       }
       Set<String> queue = null;
       if("CLEAR_QUEUE".equals(selected.wire))
@@ -181,6 +181,6 @@ public final class PrintingControlAuthorization
       {
          job(deviceId, request.optString("jobId"));
       }
-      return (service.deviceAction(deviceId, request, actor, queue));
+      return service.deviceAction(deviceId, request, actor, queue);
    }
 }

@@ -48,7 +48,7 @@ public record PrintingAdmissionLimits(int deviceOutstandingJobs, int tenantOutst
    public static PrintingAdmissionLimits defaults()
    {
       long gibibyte = 1024L * 1024 * 1024;
-      return (new PrintingAdmissionLimits(10_000, 100_000, 10 * gibibyte, 100 * gibibyte,
-         2048 * gibibyte, 20_480 * gibibyte, 2_000, 20_000, 1_000, 20_000));
+      return new PrintingAdmissionLimits(10_000, 100_000, 10 * gibibyte, 100 * gibibyte,
+         2048 * gibibyte, 20_480 * gibibyte, 2_000, 20_000, 1_000, 20_000);
    }
 }

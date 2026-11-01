@@ -86,7 +86,7 @@ public class PrintingUiDemo extends AbstractQQQApplication
          instance.addBackend(new RDBMSBackendMetaData().withName("printing-db").withVendor("h2")
             .withHostName("mem").withDatabaseName("printing_ui_demo").withUsername("sa").withPassword("").withJdbcUrl(JDBC));
          new PrintingQBitProducer().withConfig(new PrintingQBitConfig().withBackendName("printing-db").withService(service)).produce(instance, "printing");
-         return (instance);
+         return instance;
       }
       catch(Exception e)
       {

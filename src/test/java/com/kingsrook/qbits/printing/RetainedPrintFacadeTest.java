@@ -27,6 +27,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -37,6 +38,7 @@ import com.kingsrook.qqq.backend.core.model.session.QSession;
 import com.kingsrook.qqq.backend.core.model.session.QUser;
 import com.kingsrook.qqq.backend.module.rdbms.model.metadata.RDBMSBackendMetaData;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,7 +55,7 @@ class RetainedPrintFacadeTest
    private final RetainedPrintFacade facade = new RetainedPrintFacade();
    private final byte[] bytes = "%PDF-1.4\nretained fixture".getBytes(StandardCharsets.US_ASCII);
    private final AtomicInteger reads = new AtomicInteger();
-   private byte[] readOverride;
+   private byte @Nullable [] readOverride;
    private long declaredSize;
    private String opaque = "immutable-version-1";
    private boolean observationAllowed = true;
@@ -435,7 +437,7 @@ class RetainedPrintFacadeTest
       observationAllowed = false;
       assertThrows(QException.class, () -> facade.observation("intent-1", eventId));
       observationAllowed = true;
-      var configured = config(fixture).getRetainedSourceAuthority();
+      var configured = Objects.requireNonNull(config(fixture).getRetainedSourceAuthority(), "The fixture configures a retained source authority");
       config(fixture).withRetainedSourceAuthority(new RetainedPrintSourceAuthority()
       {
          @Override

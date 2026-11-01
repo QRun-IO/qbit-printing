@@ -19,8 +19,11 @@
  */
 
 // SPDX-License-Identifier: Apache-2.0
+
 package com.kingsrook.qbits.printing;
 
+
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -41,17 +44,30 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
-/** Docker-only developer host. Compose publishes its port to host loopback only. */
+
+/***************************************************************************
+ ** Docker-only developer host. Compose publishes its port to host loopback only.
+ ***************************************************************************/
 public final class DevHost extends PrintingLocalHost
 {
    private static final String TABLE = "printing_documents";
 
+
+
+   /***************************************************************************
+    ** Configure the isolated developer database and synthetic account from its private environment.
+    ***************************************************************************/
    private DevHost() throws Exception
    {
       super(new PrintingLocalSettings("jdbc:h2:file:/data/printing", "sa", required("QQQ_DATABASE_PASSWORD"), "development",
          Integer.parseInt(required("QQQ_HTTP_PORT")), required("QQQ_MANAGEMENT_TOKEN"), "developer", required("QQQ_ADMIN_PASSWORD")));
    }
 
+
+
+   /***************************************************************************
+    ** Wait for owned storage and launch the loopback-published developer host.
+    ***************************************************************************/
    public static void main(String[] args) throws Exception
    {
       waitStorage();
@@ -73,6 +89,11 @@ public final class DevHost extends PrintingLocalHost
       }));
    }
 
+
+
+   /***************************************************************************
+    ** Add the isolated MinIO-backed document table and make sure its bucket exists.
+    ***************************************************************************/
    @Override
    public QInstance defineQInstance() throws QException
    {
@@ -87,19 +108,17 @@ public final class DevHost extends PrintingLocalHost
          .withBackendDetails(new S3TableBackendDetails().withCardinality(Cardinality.ONE).withFileNameFieldName("id").withContentsFieldName("content"))
          .withPrimaryKeyField("id").withField(new QFieldMetaData("id", QFieldType.STRING)).withField(new QFieldMetaData("content", QFieldType.BLOB)));
       var storage = S3ClientFactory.getClient(backend);
+      try
       {
-         try
+         storage.headBucket(HeadBucketRequest.builder().bucket("printing-development").build());
+      }
+      catch(S3Exception missing)
+      {
+         if(missing.statusCode() != 404)
          {
-            storage.headBucket(HeadBucketRequest.builder().bucket("printing-development").build());
+            throw missing;
          }
-         catch(S3Exception missing)
-         {
-            if(missing.statusCode() != 404)
-            {
-               throw missing;
-            }
-            storage.createBucket(CreateBucketRequest.builder().bucket("printing-development").build());
-         }
+         storage.createBucket(CreateBucketRequest.builder().bucket("printing-development").build());
       }
       PrintingQBitConfig config = instance.getQBits().values().stream().map(value -> value.getConfig())
          .filter(PrintingQBitConfig.class::isInstance).map(PrintingQBitConfig.class::cast).findFirst().orElseThrow();
@@ -108,6 +127,11 @@ public final class DevHost extends PrintingLocalHost
       return instance;
    }
 
+
+
+   /***************************************************************************
+    ** Bound startup retries to the owned MinIO health endpoint.
+    ***************************************************************************/
    private static void waitStorage() throws Exception
    {
       try(HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build())
@@ -123,7 +147,7 @@ public final class DevHost extends PrintingLocalHost
                   return;
                }
             }
-            catch(java.io.IOException notReady)
+            catch(IOException notReady)
             {
                // Only the fixture startup window retries; application work is never retried here.
             }
@@ -133,6 +157,11 @@ public final class DevHost extends PrintingLocalHost
       }
    }
 
+
+
+   /***************************************************************************
+    ** Read a required fixture setting without exposing its value.
+    ***************************************************************************/
    private static String required(String name)
    {
       String value = System.getenv(name);

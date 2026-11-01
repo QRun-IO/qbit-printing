@@ -19,6 +19,20 @@
 - [ ] Publish the reviewed additive contract and coordinate client/runtime adoption
   before owner-operated end-to-end physical acceptance.
 
+## Script quality gates
+
+- [x] Pin Ruff and strict Pyright with a locked restore; reject Python outside `.github/scripts/` and zero-file Pyright runs; negative tool probes pass locally.
+- [ ] Observe the new `verify` job steps pass on hosted CI before relying on them.
+
+## Integrated compiler, standards and fixture gates
+
+- [x] Layer the reviewed Error Prone/NullAway compiler gate, null contracts and
+  style corrections over the merged 2.3.0 source without relaxing any security check.
+- [ ] Qualify this integrated runtime again (compile gate, full test suite with
+  adversarial regressions, eight compiler probes, development fixture proofs); the
+  earlier 133-test/204-jar results describe the old baseline only.
+- [ ] Observe the `development-clients` and `development-servers` jobs pass on hosted CI.
+
 ## Current local development qualification
 
 - [x] Reuse production discovery and the shared major-2 gate in the optional

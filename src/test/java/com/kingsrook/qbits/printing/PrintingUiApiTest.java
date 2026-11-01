@@ -49,6 +49,7 @@ import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
 import io.javalin.Javalin;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -98,7 +99,7 @@ class PrintingUiApiTest
          host.configure(server, false);
          server.withJavalinConfigurationCustomizer(javalin::set);
       }));
-      String base = "http://127.0.0.1:" + javalin.get().port();
+      String base = "http://127.0.0.1:" + java.util.Objects.requireNonNull(javalin.get(), "Test HTTP server was not started").port();
       String prefix = "/qqq/v1" + PrintingUiApi.PREFIX;
       try(HttpClient client = HttpClient.newHttpClient())
       {
@@ -237,7 +238,7 @@ class PrintingUiApiTest
 
       /** Apply the deliberately Get-only test policy. */
       @Override
-      public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException
+      public void checkPermissionsThrowing(AbstractActionInput input, @Nullable MetaDataWithPermissionRules metadata) throws com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException
       {
          super.checkPermissionsThrowing(input, metadata);
          if(input instanceof GetInput)
@@ -315,20 +316,20 @@ class PrintingUiApiTest
    /** Synthetic PDF bytes are queued only; no renderer or printer is invoked. */
    private static String submit(PrintingService service, String device, String title) throws Exception
    {
-      return (service.submit(new JSONObject().put("deviceId", device).put("printerId", "laser").put("title", title).put("format", "PDF")
-         .put("contentBase64", Base64.getEncoder().encodeToString("%PDF-synthetic".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", title)).getString("jobId"));
+      return service.submit(new JSONObject().put("deviceId", device).put("printerId", "laser").put("title", title).put("format", "PDF")
+         .put("contentBase64", Base64.getEncoder().encodeToString("%PDF-synthetic".getBytes(StandardCharsets.UTF_8))).put("idempotencyKey", title)).getString("jobId");
    }
 
 
    /** Preserve the same request across retries. */
    private static JSONObject action(String action)
    {
-      return (new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString()).put("action", action));
+      return new JSONObject().put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString()).put("action", action);
    }
 
 
    /** Real HTTP uses native session cookies plus separate device proof headers. */
-   private static HttpResponse<byte[]> send(HttpClient client, String base, String path, String method, JSONObject body, String cookie, String device, String proof) throws Exception
+   private static HttpResponse<byte[]> send(HttpClient client, String base, String path, String method, @Nullable JSONObject body, @Nullable String cookie, @Nullable String device, @Nullable String proof) throws Exception
    {
       HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + path)).header("Origin", base).header("X-QQQ-Client", "api/qqq-print-agent");
       if(cookie != null)
@@ -348,12 +349,12 @@ class PrintingUiApiTest
       {
          request.header("Content-Type", "application/json");
       }
-      return (client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray()));
+      return client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
    }
 
 
    /** Legacy requests intentionally carry no QQQ cookie or native secondary-proof headers. */
-   private static HttpResponse<byte[]> legacy(HttpClient client, String base, String path, String method, JSONObject body, String token) throws Exception
+   private static HttpResponse<byte[]> legacy(HttpClient client, String base, String path, String method, @Nullable JSONObject body, @Nullable String token) throws Exception
    {
       HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(base + PrintingRoutes.BASE + path)).header("Origin", base);
       if(token != null)
@@ -365,7 +366,7 @@ class PrintingUiApiTest
          request.header("Content-Type", "application/json");
       }
       request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body.toString()));
-      return (client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray()));
+      return client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
    }
 
 
@@ -373,6 +374,6 @@ class PrintingUiApiTest
    private static JSONObject json(HttpResponse<byte[]> response, int status)
    {
       assertEquals(status, response.statusCode());
-      return (new JSONObject(new String(response.body(), StandardCharsets.UTF_8)));
+      return new JSONObject(new String(response.body(), StandardCharsets.UTF_8));
    }
 }

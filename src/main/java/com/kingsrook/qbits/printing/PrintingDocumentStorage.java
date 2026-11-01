@@ -95,14 +95,14 @@ public class PrintingDocumentStorage
     ***************************************************************************/
    public byte[] get(String table, String reference) throws SQLException
    {
-      return (get(table, reference, Math.toIntExact(PrintingRealtimePolicy.defaults().get("maxPdfBytes"))));
+      return get(table, reference, Math.toIntExact(PrintingRealtimePolicy.defaults().get("maxPdfBytes")));
    }
 
 
    /** Internal retry callers supply the exact persisted length, independent of the current format policy. */
    public byte[] get(String table, String reference, int maximum) throws SQLException
    {
-      return (execute(() ->
+      return execute(() ->
       {
          try(InputStream stream = new StorageAction().getInputStream(input(table, reference)))
          {
@@ -113,14 +113,14 @@ public class PrintingDocumentStorage
             }
             return bytes;
          }
-      }));
+      });
    }
 
 
    /** Return the native backend stream; the request owns closing it and enforcing its declared length. */
    public InputStream open(String table, String reference) throws SQLException
    {
-      return (execute(() -> new StorageAction().getInputStream(input(table, reference))));
+      return execute(() -> new StorageAction().getInputStream(input(table, reference)));
    }
 
 
@@ -148,7 +148,7 @@ public class PrintingDocumentStorage
       {
          throw new IllegalArgumentException("Configured printing storage table does not exist");
       }
-      return (instance.getTable(table).getBackendName());
+      return instance.getTable(table).getBackendName();
    }
 
 
@@ -166,7 +166,7 @@ public class PrintingDocumentStorage
       var backend = instance.getBackend(backendName(table));
       if(allowMemoryTest && "memory".equals(backend.getBackendType()))
       {
-         return (digest(table + ":" + backend.getName()));
+         return digest(table + ":" + backend.getName());
       }
       if(!table.startsWith("printing_") || !(backend instanceof S3BackendMetaData s3) || !(metadata.getBackendDetails() instanceof S3TableBackendDetails details)
          || s3.getBucketName() == null || s3.getBucketName().isBlank())
@@ -182,9 +182,9 @@ public class PrintingDocumentStorage
             throw new IllegalArgumentException("Printing bucket is shared with a non-printing table; configure a dedicated bucket");
          }
       }
-      return (digest(new JSONArray().put(identity).put(java.util.Objects.toString(s3.getRegion(), "")).put(java.util.Objects.toString(s3.getPathStyleAccess(), "false"))
+      return digest(new JSONArray().put(identity).put(java.util.Objects.toString(s3.getRegion(), "")).put(java.util.Objects.toString(s3.getPathStyleAccess(), "false"))
          .put(java.util.Objects.toString(s3.getBasePath(), "")).put(java.util.Objects.toString(details.getBasePath(), ""))
-         .put(S3_KEY_LAYOUT).put((int) java.io.File.separatorChar).toString()));
+         .put(S3_KEY_LAYOUT).put((int) java.io.File.separatorChar).toString());
    }
 
 
@@ -195,7 +195,7 @@ public class PrintingDocumentStorage
    public String bucketName(String table)
    {
       var backend = instance.getBackend(backendName(table));
-      return (backend instanceof S3BackendMetaData s3 ? s3.getBucketName() : "In-memory test storage");
+      return backend instanceof S3BackendMetaData s3 ? s3.getBucketName() : "In-memory test storage";
    }
 
 
@@ -205,7 +205,7 @@ public class PrintingDocumentStorage
     ***************************************************************************/
    public String prefix()
    {
-      return (prefix);
+      return prefix;
    }
 
 
@@ -241,7 +241,7 @@ public class PrintingDocumentStorage
          endpoint = uri.getScheme().toLowerCase(java.util.Locale.ROOT) + "://" + uri.getHost().toLowerCase(java.util.Locale.ROOT)
             + (uri.getPort() < 0 || ("https".equalsIgnoreCase(uri.getScheme()) && uri.getPort() == 443) || ("http".equalsIgnoreCase(uri.getScheme()) && uri.getPort() == 80) ? "" : ":" + uri.getPort()) + java.util.Objects.toString(uri.getPath(), "").replaceAll("/+$", "");
       }
-      return (new JSONArray().put(endpoint).put(java.util.Objects.toString(backend.getBucketName())).toString());
+      return new JSONArray().put(endpoint).put(java.util.Objects.toString(backend.getBucketName())).toString();
    }
 
 
@@ -253,7 +253,7 @@ public class PrintingDocumentStorage
    {
       try
       {
-         return (HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))));
+         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
       }
       catch(java.security.NoSuchAlgorithmException exception)
       {
@@ -273,7 +273,7 @@ public class PrintingDocumentStorage
       {
          throw new IllegalArgumentException("Invalid owned printing storage reference");
       }
-      return (new StorageInput(table).withReference(reference));
+      return new StorageInput(table).withReference(reference);
    }
 
 
@@ -288,7 +288,7 @@ public class PrintingDocumentStorage
       try
       {
          QContext.init(instance, new QSystemUserSession(instance));
-         return (operation.call());
+         return operation.call();
       }
       catch(PrintingException exception)
       {

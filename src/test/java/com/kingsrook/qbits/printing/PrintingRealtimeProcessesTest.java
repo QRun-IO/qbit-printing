@@ -136,7 +136,7 @@ class PrintingRealtimeProcessesTest
       new PrintingRealtimeProcesses().run(input(process, "prepare"), output);
       RunBackendStepInput save = input(process, "execute");
       output.getValues().forEach(save::addValue);
-      return (save);
+      return save;
    }
 
 
@@ -158,7 +158,7 @@ class PrintingRealtimeProcessesTest
       instance.addApp(app);
       instance.withInstanceDefaultAuthentication(new QAuthenticationMetaData().withName("mock").withType(com.kingsrook.qqq.backend.core.model.metadata.QAuthenticationType.MOCK));
       QContext.init(instance, session("tenant-a", true));
-      return (service);
+      return service;
    }
 
 
@@ -173,7 +173,7 @@ class PrintingRealtimeProcessesTest
       {
          session.withPermissions("printing_admin");
       }
-      return (session);
+      return session;
    }
 
 
@@ -185,7 +185,7 @@ class PrintingRealtimeProcessesTest
    {
       RunBackendStepInput input = new RunBackendStepInput().withProcessName(process);
       input.setStepName(step);
-      return (input);
+      return input;
    }
 
 

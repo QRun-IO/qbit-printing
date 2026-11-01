@@ -44,6 +44,7 @@ import com.kingsrook.qqq.middleware.javalin.QApplicationLauncher;
 import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
 import io.javalin.http.Context;
 import io.javalin.http.ForbiddenResponse;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -117,7 +118,7 @@ public class PrintingLocalHost extends AbstractQQQApplication
          new PrintingQBitProducer().withConfig(new PrintingQBitConfig().withBackendName(backendName).withService(service)
             .withSchedulerName(SCHEDULER)).produce(instance, "printing");
          mapPhysicalNames(instance);
-         return (instance);
+         return instance;
       }
       catch(Exception exception)
       {
@@ -191,7 +192,7 @@ public class PrintingLocalHost extends AbstractQQQApplication
    /***************************************************************************
     ** Add native auth tables; an existing account is never implicitly reset.
     ***************************************************************************/
-   private void initializeAuthentication(String initialPassword) throws Exception
+   private void initializeAuthentication(@Nullable String initialPassword) throws Exception
    {
       try(Connection connection = source.getConnection(); var statement = connection.createStatement())
       {

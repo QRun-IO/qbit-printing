@@ -37,6 +37,7 @@ import com.kingsrook.qqq.backend.module.filesystem.s3.model.metadata.S3BackendMe
 import com.kingsrook.qqq.backend.module.filesystem.s3.model.metadata.S3TableBackendDetails;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -126,7 +127,7 @@ class PrintingDocumentStorageTest
       fixture.storage.failUpload = true;
       assertThrows(SQLException.class, () -> fixture.service.submit(request(fixture.device, "compensated")));
       assertEquals(0, row(fixture.source, "SELECT COUNT(*) AS total FROM printing_document_orphan").getInt("TOTAL"));
-      assertThrows(SQLException.class, () -> fixture.storage.get("printing_documents", fixture.storage.lastReference));
+      assertThrows(SQLException.class, () -> fixture.storage.get("printing_documents", java.util.Objects.requireNonNull(fixture.storage.lastReference)));
       fixture.storage.failDelete = true;
       assertThrows(SQLException.class, () -> fixture.service.submit(request(fixture.device, "broken")));
       assertEquals(0, fixture.service.jobs().length());
@@ -251,7 +252,7 @@ class PrintingDocumentStorageTest
       String device = service.enroll(service.createEnrollment("warehouse", "station").put("deviceName", "station").put("agentVersion", "test")).getString("deviceId");
       service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic").put("formats", new JSONArray(List.of("ZPL")))));
       service.enablePrinter(device, "queue", true);
-      return (new Fixture(source, service, storage, instance, device));
+      return new Fixture(source, service, storage, instance, device);
    }
 
 
@@ -281,7 +282,7 @@ class PrintingDocumentStorageTest
       }
       assertEquals(document.length, count);
       assertEquals(submitted.getString("contentSha256"), java.util.HexFormat.of().formatHex(digest.digest()));
-      fixture.storage.put("printing_documents", fixture.storage.lastReference, "PDF", new byte[] {1, 2, 3});
+      fixture.storage.put("printing_documents", java.util.Objects.requireNonNull(fixture.storage.lastReference), "PDF", new byte[] {1, 2, 3});
       try(var stream = fixture.service.openContent(fixture.device, submitted.getString("jobId")))
       {
          assertThrows(java.io.IOException.class, stream::readAllBytes);
@@ -295,8 +296,8 @@ class PrintingDocumentStorageTest
     ***************************************************************************/
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString(DOCUMENT)).put("idempotencyKey", key);
    }
 
 
@@ -341,7 +342,7 @@ class PrintingDocumentStorageTest
          {
             result.put(rows.getMetaData().getColumnLabel(index), rows.getObject(index) == null ? JSONObject.NULL : rows.getObject(index));
          }
-         return (result);
+         return result;
       }
    }
 
@@ -376,7 +377,7 @@ class PrintingDocumentStorageTest
       private boolean failDelete;
       private int failDeleteNumber = -1;
       private int deletes;
-      private String lastReference;
+      private @Nullable String lastReference;
 
 
 

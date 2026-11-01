@@ -78,7 +78,7 @@ class PrintingMaintenanceTest
          assertTrue(rows.next());
          purged = rows.getString(1);
       }
-      assertEquals(purged, service.submit(submitted.get(purged)).getString("jobId"));
+      assertEquals(purged, service.submit(java.util.Objects.requireNonNull(submitted.get(purged), "Purged job must be one of the submitted fixtures")).getString("jobId"));
       assertEquals(410, assertThrows(PrintingException.class, () -> service.content(device, purged)).getStatus());
       assertEquals(410, assertThrows(PrintingException.class, () -> service.retry(device, purged, new JSONObject().put("requestId", "retry").put("confirmDuplicateRisk", true))).getStatus());
       assertEquals(1, service.purgeCompletedContent(enabled));
@@ -132,7 +132,7 @@ class PrintingMaintenanceTest
     ***************************************************************************/
    private static DriverDataSource source()
    {
-      return (new DriverDataSource("jdbc:h2:mem:audit-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""));
+      return new DriverDataSource("jdbc:h2:mem:audit-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
    }
 
 
@@ -144,7 +144,7 @@ class PrintingMaintenanceTest
    {
       String device = service.enroll(service.createEnrollment("warehouse", "station").put("deviceName", "station").put("agentVersion", "test")).getString("deviceId");
       configure(service, device);
-      return (device);
+      return device;
    }
 
 
@@ -165,8 +165,8 @@ class PrintingMaintenanceTest
     ***************************************************************************/
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
-         .put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(java.nio.charset.StandardCharsets.US_ASCII))).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic").put("format", "ZPL")
+         .put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(java.nio.charset.StandardCharsets.US_ASCII))).put("idempotencyKey", key);
    }
 }
 

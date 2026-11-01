@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import com.kingsrook.qqq.backend.core.context.QContext;
 import com.kingsrook.qqq.backend.core.model.actions.processes.RunBackendStepInput;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -47,16 +48,16 @@ public record PrintingChrome(String app, String title, String server, String use
    /***************************************************************************
     ** The fields from process values, with server-side defaults.
     ***************************************************************************/
-   public static PrintingChrome from(RunBackendStepInput input, String fallbackTitle)
+   public static PrintingChrome from(RunBackendStepInput input, @Nullable String fallbackTitle)
    {
-      return (new PrintingChrome(
+      return new PrintingChrome(
          value(input, "headerApp", defaultApp()),
          value(input, "headerTitle", fallbackTitle),
          value(input, "headerServer", ""),
          value(input, "headerUser", defaultUser()),
          value(input, "headerPrintedAt", Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()),
          value(input, "footerLeft", "QQQ printing"),
-         value(input, "footerNote", "")));
+         value(input, "footerNote", ""));
    }
 
 
@@ -66,7 +67,7 @@ public record PrintingChrome(String app, String title, String server, String use
     ***************************************************************************/
    public static PrintingChrome defaults(String title)
    {
-      return (new PrintingChrome(defaultApp(), title == null ? "" : title, "", defaultUser(), Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), "QQQ printing", ""));
+      return new PrintingChrome(defaultApp(), title == null ? "" : title, "", defaultUser(), Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), "QQQ printing", "");
    }
 
 
@@ -74,9 +75,9 @@ public record PrintingChrome(String app, String title, String server, String use
    /***************************************************************************
     ** The same chrome with a footer note (a grid's filter and sort).
     ***************************************************************************/
-   public PrintingChrome withFooterNote(String note)
+   public PrintingChrome withFooterNote(@Nullable String note)
    {
-      return (new PrintingChrome(app, title, server, user, printedAt, footerLeft, footerNote == null || footerNote.isBlank() ? (note == null ? "" : note) : footerNote));
+      return new PrintingChrome(app, title, server, user, printedAt, footerLeft, footerNote == null || footerNote.isBlank() ? (note == null ? "" : note) : footerNote);
    }
 
 
@@ -104,7 +105,7 @@ public record PrintingChrome(String app, String title, String server, String use
             out.append(out.isEmpty() ? "" : " · ").append(part);
          }
       }
-      return (out.toString());
+      return out.toString();
    }
 
 
@@ -112,7 +113,7 @@ public record PrintingChrome(String app, String title, String server, String use
    /***************************************************************************
     ** A string value, or the default when absent or blank (bounded length).
     ***************************************************************************/
-   private static String value(RunBackendStepInput input, String name, String fallback)
+   private static String value(RunBackendStepInput input, String name, @Nullable String fallback)
    {
       String value = input == null ? null : input.getValueString(name);
       String chosen = value == null || value.isBlank() ? fallback : value;
@@ -133,7 +134,7 @@ public record PrintingChrome(String app, String title, String server, String use
       }
       catch(RuntimeException exception)
       {
-         return ("QQQ");
+         return "QQQ";
       }
    }
 

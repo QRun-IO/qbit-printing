@@ -22,13 +22,14 @@ package com.kingsrook.qbits.printing;
 
 
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
  ** Explicit local-host configuration. Never render credentials in diagnostics.
  *******************************************************************************/
 record PrintingLocalSettings(String jdbcUrl, String databaseUser, String databasePassword, String tenant,
-   int port, String administratorToken, String username, String initialPassword)
+   int port, String administratorToken, String username, @Nullable String initialPassword)
 {
    /***************************************************************************
     ** Environment launch supports a durable local H2 file, never a remote bind.
@@ -45,9 +46,9 @@ record PrintingLocalSettings(String jdbcUrl, String databaseUser, String databas
       {
          throw new IllegalArgumentException("QQQ_PRINT_PORT must be between 1 and 65535");
       }
-      return (new PrintingLocalSettings(jdbc, environment.getOrDefault("QQQ_PRINT_DB_USER", "sa"),
+      return new PrintingLocalSettings(jdbc, environment.getOrDefault("QQQ_PRINT_DB_USER", "sa"),
          environment.getOrDefault("QQQ_PRINT_DB_PASSWORD", ""), environment.getOrDefault("QQQ_PRINT_TENANT", "demo"), port,
-         required(environment, "QQQ_PRINT_ADMIN_TOKEN"), required(environment, "QQQ_PRINT_UI_USERNAME"), environment.get("QQQ_PRINT_UI_INITIAL_PASSWORD")));
+         required(environment, "QQQ_PRINT_ADMIN_TOKEN"), required(environment, "QQQ_PRINT_UI_USERNAME"), environment.get("QQQ_PRINT_UI_INITIAL_PASSWORD"));
    }
 
 
@@ -77,7 +78,7 @@ record PrintingLocalSettings(String jdbcUrl, String databaseUser, String databas
       {
          throw new IllegalArgumentException("Set " + name);
       }
-      return (value);
+      return value;
    }
 
 
@@ -88,6 +89,6 @@ record PrintingLocalSettings(String jdbcUrl, String databaseUser, String databas
    @Override
    public String toString()
    {
-      return ("PrintingLocalSettings[loopbackPort=" + port + ", credentials=redacted]");
+      return "PrintingLocalSettings[loopbackPort=" + port + ", credentials=redacted]";
    }
 }

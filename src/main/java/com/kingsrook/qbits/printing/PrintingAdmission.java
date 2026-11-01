@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -174,7 +175,7 @@ final class PrintingAdmission
    /***************************************************************************
     ** SQL aggregates stay bounded by active capacity and the rolling hour index.
     ***************************************************************************/
-   private static void checkScope(Connection connection, String tenant, String device, int bytes, long jobLimit, long activeByteLimit, long retainedLimit, long hourlyLimit, String cutoff) throws SQLException
+   private static void checkScope(Connection connection, String tenant, @Nullable String device, int bytes, long jobLimit, long activeByteLimit, long retainedLimit, long hourlyLimit, String cutoff) throws SQLException
    {
       String predicate = "tenant_id=?" + (device == null ? "" : " AND device_id=?");
       String outstanding = "SELECT content_length FROM printing_job WHERE " + predicate + " AND status IN " + ACTIVE
@@ -205,11 +206,11 @@ final class PrintingAdmission
    /***************************************************************************
     ** Failed upload reservations stay charged until exact confirmed removal.
     ***************************************************************************/
-   private static long orphanBytes(Connection connection, String tenant, String device) throws SQLException
+   private static long orphanBytes(Connection connection, String tenant, @Nullable String device) throws SQLException
    {
       String sql = "SELECT COALESCE(SUM(COALESCE(content_length,20971520)),0) FROM printing_document_orphan o WHERE tenant_id=?"
          + (device == null ? "" : " AND device_id=?") + " AND NOT EXISTS(SELECT 1 FROM printing_job j WHERE j.id=o.id)";
-      return (device == null ? number(connection, sql, tenant) : number(connection, sql, tenant, device));
+      return device == null ? number(connection, sql, tenant) : number(connection, sql, tenant, device);
    }
 
 
@@ -217,7 +218,7 @@ final class PrintingAdmission
    /***************************************************************************
     ** Release only after deletion; an inconsistent counter fails closed.
     ***************************************************************************/
-   static void release(Connection connection, String tenant, String device, long bytes) throws SQLException
+   static void release(Connection connection, String tenant, @Nullable String device, long bytes) throws SQLException
    {
       int expected = device == null ? 1 : 2;
       String predicate = device == null ? "device_id=''" : "device_id IN ('',?)";
@@ -255,7 +256,7 @@ final class PrintingAdmission
    /***************************************************************************
     ** Read one scalar; never materialize payloads or an unbounded row list.
     ***************************************************************************/
-   private static long number(Connection connection, String sql, Object... values) throws SQLException
+   private static long number(Connection connection, String sql, @Nullable Object... values) throws SQLException
    {
       try(var statement = connection.prepareStatement(sql))
       {
@@ -269,7 +270,7 @@ final class PrintingAdmission
             {
                throw new SQLException("Missing printing resource accounting row");
             }
-            return (rows.getLong(1));
+            return rows.getLong(1);
          }
       }
    }
@@ -279,7 +280,7 @@ final class PrintingAdmission
    /***************************************************************************
     ** All identifiers are fixed SQL; only values come from callers.
     ***************************************************************************/
-   private static int execute(Connection connection, String sql, Object... values) throws SQLException
+   private static int execute(Connection connection, String sql, @Nullable Object... values) throws SQLException
    {
       try(var statement = connection.prepareStatement(sql))
       {
@@ -287,7 +288,7 @@ final class PrintingAdmission
          {
             statement.setObject(index + 1, values[index]);
          }
-         return (statement.executeUpdate());
+         return statement.executeUpdate();
       }
    }
 }

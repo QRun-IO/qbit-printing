@@ -23,6 +23,7 @@ package com.kingsrook.qbits.printing;
 
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QSupplementalTableMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -41,9 +42,9 @@ public class PrintingTableSettings extends QSupplementalTableMetaData
    /***************************************************************************
     ** The settings of a table, or null when it has none.
     ***************************************************************************/
-   public static PrintingTableSettings of(QTableMetaData table)
+   public static @Nullable PrintingTableSettings of(QTableMetaData table)
    {
-      return (table.getSupplementalMetaData() == null ? null : (PrintingTableSettings) table.getSupplementalMetaData(TYPE));
+      return table.getSupplementalMetaData() == null ? null : (PrintingTableSettings) table.getSupplementalMetaData(TYPE);
    }
 
 
@@ -54,7 +55,7 @@ public class PrintingTableSettings extends QSupplementalTableMetaData
    @Override
    public String getType()
    {
-      return (TYPE);
+      return TYPE;
    }
 
 
@@ -64,7 +65,7 @@ public class PrintingTableSettings extends QSupplementalTableMetaData
     ***************************************************************************/
    public boolean getPrintable()
    {
-      return (printable);
+      return printable;
    }
 
 
@@ -75,7 +76,7 @@ public class PrintingTableSettings extends QSupplementalTableMetaData
    public PrintingTableSettings withPrintable(boolean value)
    {
       printable = value;
-      return (this);
+      return this;
    }
 
 
@@ -86,6 +87,6 @@ public class PrintingTableSettings extends QSupplementalTableMetaData
    @Override
    protected QSupplementalTableMetaData finishClone(QSupplementalTableMetaData clone)
    {
-      return (clone);
+      return clone;
    }
 }

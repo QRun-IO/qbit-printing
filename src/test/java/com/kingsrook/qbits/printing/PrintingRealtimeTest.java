@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -68,9 +69,9 @@ public class PrintingRealtimeTest
          host.configure(server, false);
          server.withJavalinConfigurationCustomizer(app::set);
       }));
-      PrintingService service = launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
-         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService();
-      String base = "http://127.0.0.1:" + app.get().port();
+      PrintingService service = Objects.requireNonNull(launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
+         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService(), "The printing service was not configured");
+      String base = "http://127.0.0.1:" + Objects.requireNonNull(app.get(), "Test HTTP server was not started").port();
       JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Media fixture").put("deviceName", "Media fixture").put("agentVersion", "test"), "operator");
       String device = enrolled.getString("deviceId");
       String proof = enrolled.getString("deviceToken");
@@ -170,7 +171,7 @@ public class PrintingRealtimeTest
          JSONObject row = (JSONObject) value;
          if(device.equals(row.getString("deviceId")))
          {
-            return (row);
+            return row;
          }
       }
       throw new AssertionError("Synthetic device was not found");
@@ -191,7 +192,8 @@ public class PrintingRealtimeTest
       }));
       PrintingService service = launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
          .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService();
-      String base = "http://127.0.0.1:" + app.get().port();
+      org.junit.jupiter.api.Assertions.assertNotNull(service);
+      String base = "http://127.0.0.1:" + java.util.Objects.requireNonNull(app.get(), "Test HTTP server was not started").port();
       JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Synthetic realtime").put("deviceName", "Synthetic realtime").put("agentVersion", "test"), "operator");
       String device = enrolled.getString("deviceId");
       String proof = enrolled.getString("deviceToken");
@@ -321,7 +323,7 @@ public class PrintingRealtimeTest
       {
          var session = super.createSession(instance, context);
          session.setPermissions(java.util.Set.of());
-         return (session);
+         return session;
       }
    }
 
@@ -374,22 +376,22 @@ public class PrintingRealtimeTest
          .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString("{}")).build();
       HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
       assertEquals(200, response.statusCode());
-      return (response.headers().allValues("set-cookie").stream().filter(value -> value.startsWith("sessionUUID=")).findFirst().orElseThrow().split(";", 2)[0]);
+      return response.headers().allValues("set-cookie").stream().filter(value -> value.startsWith("sessionUUID=")).findFirst().orElseThrow().split(";", 2)[0];
    }
 
 
    /** Stable synthetic submission identity; no physical printer exists in this fixture. */
    private static JSONObject request(String device, String key)
    {
-      return (new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic realtime")
-         .put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.US_ASCII))).put("idempotencyKey", key));
+      return new JSONObject().put("deviceId", device).put("printerId", "queue").put("title", "Synthetic realtime")
+         .put("format", "ZPL").put("contentBase64", Base64.getEncoder().encodeToString("^XA^XZ".getBytes(StandardCharsets.US_ASCII))).put("idempotencyKey", key);
    }
 
 
    /** Native actions retain their existing temporal replay boundary. */
    private static JSONObject action(String name)
    {
-      return (new JSONObject().put("action", name).put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString()));
+      return new JSONObject().put("action", name).put("requestId", UUID.randomUUID().toString()).put("issuedAt", Instant.now().toString());
    }
 
 

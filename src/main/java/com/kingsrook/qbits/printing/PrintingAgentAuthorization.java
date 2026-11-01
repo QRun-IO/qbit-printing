@@ -55,7 +55,7 @@ public final class PrintingAgentAuthorization
       String principal = PrintingControlAuthorization.principal();
       PrintingControlAuthorization.record(PrintingTables.DEVICE, id);
       PrintingProcesses.currentService().authorizeAgent(id, token, principal, bind);
-      return (id);
+      return id;
    }
 
 
@@ -69,7 +69,7 @@ public final class PrintingAgentAuthorization
       {
          throw new QPermissionDeniedException("Printer is not accessible");
       }
-      return (PrintingControlAuthorization.record(PrintingTables.PRINTER, rows.getFirst().getValueString("id")));
+      return PrintingControlAuthorization.record(PrintingTables.PRINTER, rows.getFirst().getValueString("id"));
    }
 
 
@@ -96,7 +96,7 @@ public final class PrintingAgentAuthorization
       // Even an empty inventory must have native table READ access.
       PrintingControlAuthorization.query(new QueryInput().withTableName(PrintingTables.PRINTER)
          .withFilter(new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, device)).withLimit(1)));
-      return (authorized);
+      return authorized;
    }
 
 
@@ -124,9 +124,9 @@ public final class PrintingAgentAuthorization
          JSONObject result = PrintingProcesses.currentService().claimForJob(device, id);
          if(!result.isNull("job"))
          {
-            return (result);
+            return result;
          }
       }
-      return (new JSONObject().put("job", JSONObject.NULL));
+      return new JSONObject().put("job", JSONObject.NULL);
    }
 }

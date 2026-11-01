@@ -51,7 +51,7 @@ public class PrintingLocalAuthentication extends TableBasedAuthenticationModule
       }
       session.setPermissions(Set.of("printing_admin"));
       session.withSecurityKeyValue("printing_tenant", metadata.tenant);
-      return (session);
+      return session;
    }
 
 

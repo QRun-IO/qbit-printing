@@ -34,10 +34,13 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import com.uber.nullaway.annotations.EnsuresNonNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.Nullable;
 
 
 /*******************************************************************************
@@ -50,9 +53,9 @@ public class PrintingService
    private static final String JOB_COLUMNS = "id, tenant_id, device_id, printer_id, title, format, content_hash, content_length, options_json, idempotency_key, created_at, status, message, spooler_job_id, printer_row_id";
    private final DataSource dataSource;
    private final String tenantId;
-   private PrintingDocumentStorage documentStorage;
+   private @Nullable PrintingDocumentStorage documentStorage;
    private PrintingAdmissionLimits admissionLimits = PrintingAdmissionLimits.defaults();
-   private String storageTableName;
+   private @Nullable String storageTableName;
    private PrintingRetentionPolicy defaultRetentionPolicy = new PrintingRetentionPolicy(true, 365, 200);
    private PrintingRealtimeBus realtimeBus = new PrintingRealtimeBus();
    private RealtimeClaimGuard realtimeClaimGuard = device ->
@@ -117,14 +120,14 @@ public class PrintingService
    public PrintingService withRealtimeBus(PrintingRealtimeBus bus)
    {
       realtimeBus = java.util.Objects.requireNonNull(bus);
-      return (this);
+      return this;
    }
 
 
    /** Instance-owned notifications never contain credentials or document bytes. */
    public PrintingRealtimeBus getRealtimeBus()
    {
-      return (realtimeBus);
+      return realtimeBus;
    }
 
 
@@ -137,7 +140,7 @@ public class PrintingService
          JSONObject row = query(connection, "SELECT realtime_policy_json, realtime_revision FROM printing_settings WHERE tenant_id=?", tenantId).getFirst();
          PrintingRealtimePolicy policy = row.isNull("realtime_policy_json") ? PrintingRealtimePolicy.defaults()
             : PrintingRealtimePolicy.fromJson(new JSONObject(row.getString("realtime_policy_json")));
-         return (policy.toJson(row.getLong("realtime_revision")));
+         return policy.toJson(row.getLong("realtime_revision"));
       }
    }
 
@@ -169,7 +172,7 @@ public class PrintingService
          }
       }
       realtimeBus.publish(tenantId, null);
-      return (result);
+      return result;
    }
 
 
@@ -178,7 +181,7 @@ public class PrintingService
    {
       JSONObject settings = getRealtimeSettings();
       settings.remove("revision");
-      return (PrintingRealtimePolicy.fromJson(settings));
+      return PrintingRealtimePolicy.fromJson(settings);
    }
 
 
@@ -189,7 +192,7 @@ public class PrintingService
    public PrintingService withAdmissionLimits(PrintingAdmissionLimits limits)
    {
       admissionLimits = java.util.Objects.requireNonNull(limits);
-      return (this);
+      return this;
    }
 
 
@@ -197,7 +200,7 @@ public class PrintingService
    public JSONObject getAdmissionSettings() throws SQLException
    {
       ensureRetentionSettings();
-      return (new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).get());
+      return new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).get();
    }
 
 
@@ -207,7 +210,7 @@ public class PrintingService
       ensureRetentionSettings();
       JSONObject result = new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).save(request);
       realtimeBus.publish(tenantId, null);
-      return (result);
+      return result;
    }
 
 
@@ -215,7 +218,7 @@ public class PrintingService
    /***************************************************************************
     ** Bind a host-owned storage table before exposing this service to requests.
     ***************************************************************************/
-   public void configureStorage(com.kingsrook.qqq.backend.core.model.metadata.QInstance instance, String table) throws com.kingsrook.qqq.backend.core.exceptions.QException
+   public void configureStorage(com.kingsrook.qqq.backend.core.model.metadata.QInstance instance, @Nullable String table) throws com.kingsrook.qqq.backend.core.exceptions.QException
    {
       try
       {
@@ -232,7 +235,7 @@ public class PrintingService
    /***************************************************************************
     ** Package-scoped adapter seam supports storage failure tests without S3.
     ***************************************************************************/
-   void configureStorage(PrintingDocumentStorage storage, String table)
+   void configureStorage(PrintingDocumentStorage storage, @Nullable String table)
    {
       if(table != null)
       {
@@ -250,7 +253,7 @@ public class PrintingService
    public PrintingService withRetentionPolicy(PrintingRetentionPolicy policy)
    {
       defaultRetentionPolicy = java.util.Objects.requireNonNull(policy);
-      return (this);
+      return this;
    }
 
 
@@ -382,26 +385,26 @@ public class PrintingService
    {
       JSONObject result = new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor);
       realtimeBus.publish(tenantId, deviceId);
-      return (result);
+      return result;
    }
 
 
    /** Native authorization supplies the exact reviewed queue identity set, never a predicate executed inside SQL locks. */
-   JSONObject deviceAction(String deviceId, JSONObject request, String actor, Set<String> authorizedQueue) throws SQLException
+   JSONObject deviceAction(String deviceId, JSONObject request, String actor, @Nullable Set<String> authorizedQueue) throws SQLException
    {
       JSONObject result = new PrintingDeviceControls(dataSource, tenantId).action(deviceId, request, actor, authorizedQueue);
       realtimeBus.publish(tenantId, deviceId);
-      return (result);
+      return result;
    }
 
 
    /** Resolve a retained action receipt without treating new queue contents as part of a replay. */
-   String existingDeviceAction(String deviceId, String requestId) throws SQLException
+   @Nullable String existingDeviceAction(String deviceId, String requestId) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
          List<JSONObject> rows = query(connection, "SELECT id FROM printing_device_command WHERE tenant_id=? AND device_id=? AND request_id=?", tenantId, deviceId, requestId);
-         return (rows.isEmpty() ? null : rows.getFirst().getString("id"));
+         return rows.isEmpty() ? null : rows.getFirst().getString("id");
       }
    }
 
@@ -421,7 +424,7 @@ public class PrintingService
          {
             throw new PrintingException(429, "The queue exceeds the bounded native review limit");
          }
-         return (ids);
+         return ids;
       }
    }
 
@@ -429,35 +432,35 @@ public class PrintingService
    /** Independently poll desired state and pending commands using device authentication. */
    public JSONObject deviceControlPoll(String deviceId, JSONObject request) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).poll(deviceId, request));
+      return new PrintingDeviceControls(dataSource, tenantId).poll(deviceId, request);
    }
 
 
    /** Persist one immutable device observation without inferring physical output. */
    public JSONObject deviceControlReceipt(String deviceId, String commandId, JSONObject receipt) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).receipt(deviceId, commandId, receipt));
+      return new PrintingDeviceControls(dataSource, tenantId).receipt(deviceId, commandId, receipt);
    }
 
 
    /** Tenant/device scoped history remains visible after credential revocation. */
-   public JSONObject deviceCommandsPage(String deviceId, int limit, String before) throws SQLException
+   public JSONObject deviceCommandsPage(String deviceId, int limit, @Nullable String before) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).page(deviceId, limit, before));
+      return new PrintingDeviceControls(dataSource, tenantId).page(deviceId, limit, before);
    }
 
 
    /** Read the exact durable receipt for a native or HTTP management action. */
    public JSONObject getDeviceCommand(String deviceId, String commandId) throws SQLException
    {
-      return (new PrintingDeviceControls(dataSource, tenantId).get(deviceId, commandId));
+      return new PrintingDeviceControls(dataSource, tenantId).get(deviceId, commandId);
    }
 
 
    /** The immutable tenant scope used by host authorization and native actions. */
    public String getTenantId()
    {
-      return (tenantId);
+      return tenantId;
    }
 
 
@@ -502,7 +505,7 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject createEnrollment(String facilityId, String deviceName) throws SQLException
    {
-      return (createEnrollment(facilityId, deviceName, secret(), Instant.now().plusSeconds(900).toString()));
+      return createEnrollment(facilityId, deviceName, secret(), Instant.now().plusSeconds(900).toString());
    }
 
 
@@ -559,7 +562,7 @@ public class PrintingService
             }
          }
       }
-      return (new JSONObject().put("enrollmentCode", code).put("expiresAt", expires));
+      return new JSONObject().put("enrollmentCode", code).put("expiresAt", expires);
    }
 
 
@@ -569,7 +572,7 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject enroll(JSONObject request) throws SQLException
    {
-      return (enrollForUser(request, null));
+      return enrollForUser(request, null);
    }
 
 
@@ -583,13 +586,13 @@ public class PrintingService
          {
             throw new PrintingException(401, "Enrollment code is invalid or expired");
          }
-         return (rows.getFirst().getString("facility_id"));
+         return rows.getFirst().getString("facility_id");
       }
    }
 
 
    /** Native enrollment binds the core-authenticated principal in the credential transaction. */
-   public JSONObject enrollForUser(JSONObject request, String principalId) throws SQLException
+   public JSONObject enrollForUser(JSONObject request, @Nullable String principalId) throws SQLException
    {
       if(principalId != null && (principalId.isBlank() || principalId.length() > 200))
       {
@@ -613,7 +616,7 @@ public class PrintingService
             update(connection, "INSERT INTO printing_device (id, tenant_id, facility_id, name, agent_version, token_hash, last_seen_at, enabled, computer_name, bound_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", id, tenantId, code.getString("facility_id"), computerName, required(request.optString("agentVersion"), "agentVersion"), hash(token), Instant.now().toString(), computerName, principalId);
             update(connection, "UPDATE printing_enrollment SET consumed=1 WHERE code_hash=?", codeHash);
             connection.commit();
-            return (new JSONObject().put("protocolVersion", 1).put("deviceId", id).put("deviceToken", token).put("pollIntervalSeconds", 5));
+            return new JSONObject().put("protocolVersion", 1).put("deviceId", id).put("deviceToken", token).put("pollIntervalSeconds", 5);
          }
          catch(Exception exception)
          {
@@ -637,7 +640,7 @@ public class PrintingService
          {
             throw new PrintingException(401, "Invalid device credential");
          }
-         return (devices.getFirst().getString("id"));
+         return devices.getFirst().getString("id");
       }
    }
 
@@ -712,7 +715,7 @@ public class PrintingService
             throw exception;
          }
       }
-      return (new JSONObject().put("serverTime", now));
+      return new JSONObject().put("serverTime", now);
    }
 
 
@@ -727,7 +730,7 @@ public class PrintingService
 
 
    /** Native inventory changes exactly the existing row set authorized before opening this transaction. */
-   void inventory(String deviceId, JSONArray printers, Set<String> authorizedRows) throws SQLException
+   void inventory(String deviceId, JSONArray printers, @Nullable Set<String> authorizedRows) throws SQLException
    {
       if(printers.length() > 200)
       {
@@ -824,14 +827,16 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject submit(JSONObject request) throws SQLException
    {
-      return (submitAuthorized(request, null, null));
+      return submitAuthorized(request, null, null);
    }
 
 
-   /** Native operators retain current authority throughout shared queue admission. */
-   JSONObject submitAuthorized(JSONObject request, String printerRowId, SubmissionAuthorization authorize) throws SQLException
+   /***************************************************************************
+    ** Native operators retain current authority throughout shared queue admission.
+    ***************************************************************************/
+   JSONObject submitAuthorized(JSONObject request, @Nullable String printerRowId, @Nullable SubmissionAuthorization authorize) throws SQLException
    {
-      SubmissionGuard guard = authorize == null ? null : new SubmissionGuard(printerRowId, authorize);
+      SubmissionGuard guard = authorize == null ? null : new SubmissionGuard(Objects.requireNonNull(printerRowId, "An authorized submission requires its printer row"), authorize);
       checkSubmission(guard);
       String format = required(request.optString("format"), "format");
       long maximum = realtimePolicy().documentLimit(format);
@@ -860,23 +865,33 @@ public class PrintingService
       {
          throw new PrintingException(400, "PDF header is missing");
       }
-      return (submitPrepared(request, hash(content), content.length, connection -> content, null, guard));
+      return submitPrepared(request, hash(content), content.length, connection -> content, null, guard);
    }
 
 
-   /** A caller-owned current authorization check, never externally asserted proof. */
+
+   /***************************************************************************
+    ** A caller-owned current authorization check, never externally asserted proof.
+    ***************************************************************************/
    @FunctionalInterface
    interface SubmissionAuthorization
    {
-      /** Recheck caller identity, current ceilings and exact destination. */
+      /***********************************************************************
+       ** Recheck caller identity, current ceilings and exact destination.
+       ***********************************************************************/
       void check() throws com.kingsrook.qqq.backend.core.exceptions.QException;
    }
 
 
-   /** Native row identity and live authority are independent of retained-source proof. */
+
+   /***************************************************************************
+    ** Native row identity and live authority are independent of retained-source proof.
+    ***************************************************************************/
    private record SubmissionGuard(String printerRowId, SubmissionAuthorization authorize)
    {
-      /** Host callbacks cannot retarget an authorized native row to another queue. */
+      /***********************************************************************
+       ** Host callbacks cannot retarget an authorized native row to another queue.
+       ***********************************************************************/
       void requirePrinter(JSONObject row, String field)
       {
          if(!printerRowId.equals(row.optString(field)))
@@ -887,8 +902,11 @@ public class PrintingService
    }
 
 
-   /** Preserve checked native authorization through the SQL transaction boundary. */
-   private static void checkSubmission(SubmissionGuard guard) throws SQLException
+
+   /***************************************************************************
+    ** Preserve checked native authorization through the SQL transaction boundary.
+    ***************************************************************************/
+   private static void checkSubmission(@Nullable SubmissionGuard guard) throws SQLException
    {
       if(guard != null)
       {
@@ -924,7 +942,7 @@ public class PrintingService
     ***************************************************************************/
    private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader) throws SQLException
    {
-      return (submitPrepared(request, digest, contentLength, loader, null, null));
+      return submitPrepared(request, digest, contentLength, loader, null, null);
    }
 
 
@@ -938,7 +956,7 @@ public class PrintingService
       }
       JSONObject source = binding.getJSONObject("source");
       BoundSubmission bound = new BoundSubmission(binding.toString(), actor);
-      return (submitPrepared(request, source.getString("sha256"), source.getInt("sizeBytes"), connection ->
+      return submitPrepared(request, source.getString("sha256"), source.getInt("sizeBytes"), connection ->
       {
          try
          {
@@ -953,7 +971,7 @@ public class PrintingService
          {
             throw new SQLException("Retained content authorization failed", exception);
          }
-      }, bound, new SubmissionGuard(binding.getString("printerRecordId"), authorize::run)));
+      }, bound, new SubmissionGuard(binding.getString("printerRecordId"), authorize::run));
    }
 
 
@@ -972,8 +990,10 @@ public class PrintingService
    }
 
 
-   /** Reuse the existing storage reservation, queue admission, and commit path. */
-   private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader, BoundSubmission bound, SubmissionGuard guard) throws SQLException
+   /***************************************************************************
+    ** Reuse the existing storage reservation, queue admission, and commit path.
+    ***************************************************************************/
+   private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader, @Nullable BoundSubmission bound, @Nullable SubmissionGuard guard) throws SQLException
    {
       checkSubmission(guard);
       String deviceId = required(request.optString("deviceId"), "deviceId");
@@ -988,8 +1008,8 @@ public class PrintingService
       JSONObject options = printOptions(request);
       long contentLimit = realtimePolicy().documentLimit(format);
       String id = UUID.randomUUID().toString();
-      String reference = storageTableName == null ? null : documentStorage.prefix() + id + "." + format.toLowerCase(java.util.Locale.ROOT);
-      String binding = storageTableName == null ? null : documentStorage.binding(storageTableName);
+      String reference = storageTableName == null ? "" : configuredStorage().prefix() + id + "." + format.toLowerCase(java.util.Locale.ROOT);
+      String binding = storageTableName == null ? "" : configuredStorage().binding(storageTableName);
       String uploadedId = null;
       try(Connection connection = dataSource.getConnection())
       {
@@ -1030,7 +1050,7 @@ public class PrintingService
                   JSONObject replay = bound == null ? job(old) : accepted(connection, old);
                   checkSubmission(guard);
                   connection.commit();
-                  return (replay);
+                  return replay;
                }
                if(query(connection, "SELECT id FROM printing_document_orphan WHERE tenant_id=? AND idempotency_key=? LIMIT 1", tenantId, key).isEmpty())
                {
@@ -1099,10 +1119,10 @@ public class PrintingService
             checkSubmission(guard);
             if(storageTableName != null)
             {
-               documentStorage.put(storageTableName, reference, format, content);
+               configuredStorage().put(storageTableName, reference, format, content);
             }
             checkSubmission(guard);
-            update(connection, "INSERT INTO printing_job (id, tenant_id, device_id, printer_id, title, format, content_hash, content_base64, content_length, options_json, idempotency_key, created_at, status, printer_row_id, content_storage_table, content_reference, content_binding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?)", id, tenantId, deviceId, printerId, title, format, digest, storageTableName == null ? Base64.getEncoder().encodeToString(content) : null, content.length, options.toString(), key, Instant.now().toString(), printers.getFirst().getString("id"), storageTableName, reference, binding);
+            update(connection, "INSERT INTO printing_job (id, tenant_id, device_id, printer_id, title, format, content_hash, content_base64, content_length, options_json, idempotency_key, created_at, status, printer_row_id, content_storage_table, content_reference, content_binding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?)", id, tenantId, deviceId, printerId, title, format, digest, storageTableName == null ? Base64.getEncoder().encodeToString(content) : null, content.length, options.toString(), key, Instant.now().toString(), printers.getFirst().getString("id"), storageTableName, storageTableName == null ? null : reference, storageTableName == null ? null : binding);
             if(bound != null)
             {
                String eventId = UUID.randomUUID().toString();
@@ -1117,7 +1137,7 @@ public class PrintingService
             checkSubmission(guard);
             connection.commit();
             realtimeBus.publish(tenantId, deviceId);
-            return (result);
+            return result;
          }
          catch(Exception exception)
          {
@@ -1130,10 +1150,7 @@ public class PrintingService
                }
                catch(Exception cleanupFailure)
                {
-                  if(cleanupFailure != exception)
-                  {
-                     exception.addSuppressed(cleanupFailure);
-                  }
+                  suppressIfDistinct(exception, cleanupFailure);
                }
             }
             throw exception;
@@ -1148,7 +1165,7 @@ public class PrintingService
     ***************************************************************************/
    private JSONObject printOptions(JSONObject request) throws SQLException
    {
-      return (printOptions(request, Math.toIntExact(realtimePolicy().get("maxCopies"))));
+      return printOptions(request, Math.toIntExact(realtimePolicy().get("maxCopies")));
    }
 
 
@@ -1192,7 +1209,7 @@ public class PrintingService
       {
          throw new PrintingException(400, "Print options are too large");
       }
-      return (options);
+      return options;
    }
 
 
@@ -1205,9 +1222,9 @@ public class PrintingService
       String format = required(request.optString("format"), "format");
       TestPrintProfile profile = TestPrintProfile.resolve(format, request.has("testProfile") ? request.optString("testProfile") : null);
       byte[] bytes = "PDF".equals(format) ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
-      return (submit(new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
+      return submit(new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
          .put("title", "QQQ print test").put("format", format).put("contentBase64", Base64.getEncoder().encodeToString(bytes))
-         .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId"))));
+         .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId")));
    }
 
 
@@ -1225,7 +1242,7 @@ public class PrintingService
          {
             result.put(job(row));
          }
-         return (result);
+         return result;
       }
    }
 
@@ -1249,7 +1266,7 @@ public class PrintingService
          List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND device_id=? AND idempotency_key=?", tenantId, deviceId, retryKey);
          if(!previous.isEmpty())
          {
-            return (job(previous.getFirst()));
+            return job(previous.getFirst());
          }
          if(row.getInt("content_available") == 0)
          {
@@ -1271,10 +1288,10 @@ public class PrintingService
       {
          verifyStoredReference(row);
       }
-      return (submitPrepared(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
+      return submitPrepared(new JSONObject().put("deviceId", deviceId).put("printerId", row.getString("printer_id"))
          .put("title", row.getString("title")).put("format", row.getString("format"))
          .put("options", new JSONObject(row.getString("options_json")))
-         .put("idempotencyKey", retryKey), row.getString("content_hash"), row.getInt("content_length"), connection -> documentBytes(deviceJob(connection, deviceId, jobId, true))));
+         .put("idempotencyKey", retryKey), row.getString("content_hash"), row.getInt("content_length"), connection -> documentBytes(deviceJob(connection, deviceId, jobId, true)));
    }
 
 
@@ -1296,7 +1313,7 @@ public class PrintingService
             if("FAILED".equals(row.getString("status")) && CANCELED_BEFORE_DISPATCH.equals(row.optString("message")))
             {
                connection.commit();
-               return (new JSONObject().put("accepted", true));
+               return new JSONObject().put("accepted", true);
             }
             if(!"QUEUED".equals(row.getString("status")))
             {
@@ -1305,7 +1322,7 @@ public class PrintingService
             update(connection, "UPDATE printing_job SET status='FAILED', message=? WHERE id=?", CANCELED_BEFORE_DISPATCH, jobId);
             connection.commit();
             realtimeBus.publish(tenantId, deviceId);
-            return (new JSONObject().put("accepted", true));
+            return new JSONObject().put("accepted", true);
          }
          catch(Exception exception)
          {
@@ -1322,12 +1339,12 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject claim(String deviceId) throws SQLException
    {
-      return (claimForJob(deviceId, null));
+      return claimForJob(deviceId, null);
    }
 
 
    /** Native adapters authorize one exact job and printer before this locked dispatch transition. */
-   public JSONObject claimForJob(String deviceId, String authorizedJobId) throws SQLException
+   public JSONObject claimForJob(String deviceId, @Nullable String authorizedJobId) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
@@ -1341,13 +1358,13 @@ public class PrintingService
             if(control.getInt("dispatch_paused") == 1 || !"CONNECTED".equals(control.getString("connection_state")))
             {
                connection.commit();
-               return (new JSONObject().put("job", JSONObject.NULL));
+               return new JSONObject().put("job", JSONObject.NULL);
             }
             List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') AND ((j.format='PDF' AND p.formats LIKE '%\"PDF\"%') OR (j.format='ZPL' AND p.formats LIKE '%\"ZPL\"%'))" + (authorizedJobId == null ? "" : " AND j.id=?") + " ORDER BY j.created_at, j.id LIMIT 1", authorizedJobId == null ? new Object[] { tenantId, deviceId } : new Object[] { tenantId, deviceId, authorizedJobId });
             if(candidates.isEmpty())
             {
                connection.commit();
-               return (new JSONObject().put("job", JSONObject.NULL));
+               return new JSONObject().put("job", JSONObject.NULL);
             }
             JSONObject selected = candidates.getFirst();
             if(new JSONObject(selected.getString("options_json")).has("mediaProfile")
@@ -1361,7 +1378,7 @@ public class PrintingService
                selected.put("status", "CLAIMED");
             }
             connection.commit();
-            return (new JSONObject().put("job", job(selected)));
+            return new JSONObject().put("job", job(selected));
          }
          catch(Exception exception)
          {
@@ -1390,7 +1407,7 @@ public class PrintingService
          {
             throw new PrintingException(410, "Print document expired under the host retention policy");
          }
-         return (documentBytes(row));
+         return documentBytes(row);
       }
    }
 
@@ -1426,7 +1443,7 @@ public class PrintingService
          verifyStoredReference(row);
          input = documentStorage.open(row.getString("content_storage_table"), row.getString("content_reference"));
       }
-      return (new PrintingDocumentStream(input, row.getLong("content_length"), row.getString("content_hash")));
+      return new PrintingDocumentStream(input, row.getLong("content_length"), row.getString("content_hash"));
    }
 
 
@@ -1509,7 +1526,7 @@ public class PrintingService
                .put("profile", new JSONObject().put("name", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location")))
                .put("agentVersion", row.getString("agent_version")).put("lastSeenAt", row.getString("last_seen_at")).put("enabled", row.getInt("enabled") == 1).put("control", PrintingDeviceControls.state(row)));
          }
-         return (result);
+         return result;
       }
    }
 
@@ -1518,7 +1535,7 @@ public class PrintingService
    /***************************************************************************
     ** Bounded inventory history for management clients.
     ***************************************************************************/
-   public JSONObject printersPage(String deviceId, int limit, String before) throws SQLException
+   public JSONObject printersPage(String deviceId, int limit, @Nullable String before) throws SQLException
    {
       if(limit < 1 || limit > 200)
       {
@@ -1562,7 +1579,7 @@ public class PrintingService
             String cursor = new JSONObject().put("name", last.getString("name")).put("id", last.getString("id")).toString();
             response.put("nextCursor", Base64.getUrlEncoder().withoutPadding().encodeToString(cursor.getBytes(StandardCharsets.UTF_8)));
          }
-         return (response);
+         return response;
       }
    }
 
@@ -1573,7 +1590,7 @@ public class PrintingService
     ***************************************************************************/
    public JSONArray printers(String deviceId) throws SQLException
    {
-      return (printersPage(deviceId, 200, null).getJSONArray("printers"));
+      return printersPage(deviceId, 200, null).getJSONArray("printers");
    }
 
 
@@ -1583,7 +1600,7 @@ public class PrintingService
     ***************************************************************************/
    public JSONArray jobs() throws SQLException
    {
-      return (jobsPage(200, null).getJSONArray("jobs"));
+      return jobsPage(200, null).getJSONArray("jobs");
    }
 
 
@@ -1591,7 +1608,7 @@ public class PrintingService
    /***************************************************************************
     ** Keyset pagination stays bounded as history grows, without document reads.
     ***************************************************************************/
-   public JSONObject jobsPage(int limit, String before) throws SQLException
+   public JSONObject jobsPage(int limit, @Nullable String before) throws SQLException
    {
       if(limit < 1 || limit > 200)
       {
@@ -1635,7 +1652,7 @@ public class PrintingService
             JSONObject cursor = new JSONObject().put("createdAt", last.getString("created_at")).put("jobId", last.getString("id"));
             response.put("nextCursor", Base64.getUrlEncoder().withoutPadding().encodeToString(cursor.toString().getBytes(StandardCharsets.UTF_8)));
          }
-         return (response);
+         return response;
       }
    }
 
@@ -1653,13 +1670,32 @@ public class PrintingService
          {
             throw new PrintingException(404, "Job not found");
          }
-         return (job(rows.getFirst()));
+         return job(rows.getFirst());
       }
    }
 
 
 
-   /** Cleanup never replaces the acceptance/authorization failure that caused rollback. */
+   /***************************************************************************
+    ** Record a secondary cleanup failure on the primary one. Throwable.addSuppressed
+    ** rejects the very same instance, so this is an identity check by design; value
+    ** equality would wrongly drop distinct failures that merely compare equal.
+    ***************************************************************************/
+   // Identity is the Throwable self-suppression contract; equals() cannot express it.
+   @SuppressWarnings("ReferenceEquality")
+   private static void suppressIfDistinct(Throwable primary, Throwable secondary)
+   {
+      if(secondary != primary)
+      {
+         primary.addSuppressed(secondary);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Cleanup never replaces the acceptance/authorization failure that caused rollback.
+    ***************************************************************************/
    static void rollbackAfterFailure(Connection connection, Exception original)
    {
       try
@@ -1668,16 +1704,13 @@ public class PrintingService
       }
       catch(Exception cleanupFailure)
       {
-         if(cleanupFailure != original)
-         {
-            original.addSuppressed(cleanupFailure);
-         }
+         suppressIfDistinct(original, cleanupFailure);
       }
    }
 
 
    /** Exact accepted-source lookup; unresolved object reservations never mean absence. */
-   JSONObject findRetained(String key, JSONObject expected) throws SQLException
+   @Nullable JSONObject findRetained(String key, @Nullable JSONObject expected) throws SQLException
    {
       if(expected != null)
       {
@@ -1691,7 +1724,7 @@ public class PrintingService
             PrintingAdmission.lock(connection, tenantId);
             JSONObject result = findRetained(connection, key, expected);
             connection.commit();
-            return (result);
+            return result;
          }
          catch(Exception exception)
          {
@@ -1703,7 +1736,7 @@ public class PrintingService
 
 
    /** The existing admission lock makes absence consistent with in-flight submissions. */
-   private JSONObject findRetained(Connection connection, String key, JSONObject expected) throws SQLException
+   private @Nullable JSONObject findRetained(Connection connection, String key, @Nullable JSONObject expected) throws SQLException
    {
       List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + ", retained_binding_json, retained_actor_id, accepted_event_id FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
       if(rows.isEmpty())
@@ -1719,7 +1752,7 @@ public class PrintingService
       {
          throw new PrintingException(409, "Accepted source binding differs");
       }
-      return (accepted(connection, row));
+      return accepted(connection, row);
    }
 
 
@@ -1747,8 +1780,8 @@ public class PrintingService
       {
          throw new PrintingException(409, "Committed server acceptance event is absent or inconsistent");
       }
-      return (new JSONObject().put("jobId", row.getString("id")).put("acceptedEventId", row.getString("accepted_event_id"))
-         .put("acceptedAt", events.getFirst().getString("created_at")).put("binding", binding));
+      return new JSONObject().put("jobId", row.getString("id")).put("acceptedEventId", row.getString("accepted_event_id"))
+         .put("acceptedAt", events.getFirst().getString("created_at")).put("binding", binding);
    }
 
 
@@ -1773,8 +1806,8 @@ public class PrintingService
          {
             throw new PrintingException(409, "Device observation is inconsistent");
          }
-         return (new JSONObject().put("acceptance", acceptance).put("recordedAt", row.getString("created_at"))
-            .put("state", row.getString("status")).put("spoolerJobId", event.opt("spoolerJobId") == null ? JSONObject.NULL : event.opt("spoolerJobId")));
+         return new JSONObject().put("acceptance", acceptance).put("recordedAt", row.getString("created_at"))
+            .put("state", row.getString("status")).put("spoolerJobId", event.opt("spoolerJobId") == null ? JSONObject.NULL : event.opt("spoolerJobId"));
       }
    }
 
@@ -1782,12 +1815,12 @@ public class PrintingService
    /***************************************************************************
     ** Find an accepted request during durable-effect reconciliation.
     ***************************************************************************/
-   public JSONObject findByIdempotencyKey(String key) throws SQLException
+   public @Nullable JSONObject findByIdempotencyKey(String key) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
          List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
-         return (rows.isEmpty() ? null : job(rows.getFirst()));
+         return rows.isEmpty() ? null : job(rows.getFirst());
       }
    }
 
@@ -1799,7 +1832,7 @@ public class PrintingService
 
 
    /** Read the exact committed row binding; a replacement queue cannot inherit history. */
-   OperatorAcceptance findOperatorAcceptance(String key) throws SQLException
+   @Nullable OperatorAcceptance findOperatorAcceptance(String key) throws SQLException
    {
       try(Connection connection = dataSource.getConnection())
       {
@@ -1828,7 +1861,7 @@ public class PrintingService
    {
       try(Connection connection = dataSource.getConnection())
       {
-         return (purgeCompletedContent(connection, policy, new int[1], null));
+         return purgeCompletedContent(connection, policy, new int[1], null);
       }
    }
 
@@ -1837,12 +1870,12 @@ public class PrintingService
    /***************************************************************************
     ** Commit each confirmed removal so a later failure cannot undo its receipt.
     ***************************************************************************/
-   private int purgeCompletedContent(Connection connection, PrintingRetentionPolicy policy, int[] progress, String leaseToken) throws SQLException
+   private int purgeCompletedContent(Connection connection, PrintingRetentionPolicy policy, int[] progress, @Nullable String leaseToken) throws SQLException
    {
       java.util.Objects.requireNonNull(policy);
       if(!policy.enabled())
       {
-         return (0);
+         return 0;
       }
       String cutoff = Instant.now().minusSeconds(policy.days() * 86400L).toString();
       {
@@ -1877,7 +1910,7 @@ public class PrintingService
                progress[0] += changed;
             }
             connection.commit();
-            return (purged);
+            return purged;
          }
          catch(Exception exception)
          {
@@ -1918,14 +1951,14 @@ public class PrintingService
             .put("lastRunError", row.optString("last_run_error")).put("eligibleBacklog", backlog);
          if(storageTableName != null)
          {
-            result.put("storageTableName", storageTableName).put("storageBackendName", documentStorage.backendName(storageTableName))
-               .put("bucketName", documentStorage.bucketName(storageTableName)).put("storagePrefix", documentStorage.prefix());
+            result.put("storageTableName", storageTableName).put("storageBackendName", configuredStorage().backendName(storageTableName))
+               .put("bucketName", configuredStorage().bucketName(storageTableName)).put("storagePrefix", configuredStorage().prefix());
          }
          else
          {
             result.put("storageMode", "LEGACY_DATABASE");
          }
-         return (result);
+         return result;
       }
    }
 
@@ -1993,7 +2026,7 @@ public class PrintingService
       {
          if(update(connection, "UPDATE printing_settings SET lease_token=?, lease_expires_at=? WHERE tenant_id=? AND (lease_expires_at IS NULL OR lease_expires_at<?)", token, Instant.now().plusSeconds(3600).toString(), tenantId, Instant.now().toString()) == 0)
          {
-            return (0);
+            return 0;
          }
          connection.setAutoCommit(false);
          try
@@ -2012,7 +2045,7 @@ public class PrintingService
             }
             update(connection, "UPDATE printing_settings SET last_run_at=?, last_run_count=?, last_run_error='', lease_token=NULL, lease_expires_at=NULL WHERE tenant_id=? AND lease_token=?", Instant.now().toString(), progress[0], tenantId, token);
             connection.commit();
-            return (progress[0]);
+            return progress[0];
          }
          catch(Exception exception)
          {
@@ -2029,7 +2062,7 @@ public class PrintingService
    /***************************************************************************
     ** Stop safely if another worker acquired an expired maintenance lease.
     ***************************************************************************/
-   private void renewRetentionLease(Connection connection, String token) throws SQLException
+   private void renewRetentionLease(Connection connection, @Nullable String token) throws SQLException
    {
       if(token != null)
       {
@@ -2066,7 +2099,20 @@ public class PrintingService
       {
          throw new PrintingException(502, "Stored print document integrity check failed");
       }
-      return (bytes);
+      return bytes;
+   }
+
+
+
+   /***************************************************************************
+    ** configureStorage installs the adapter before the optional table name,
+    ** before this service is exposed. Call only inside a non-null table branch;
+    ** inline storage does not require an adapter. No new runtime guard is added.
+    ***************************************************************************/
+   @SuppressWarnings("NullAway")
+   private PrintingDocumentStorage configuredStorage()
+   {
+      return documentStorage;
    }
 
 
@@ -2074,6 +2120,7 @@ public class PrintingService
    /***************************************************************************
     ** Historical table/bucket/namespace binding cannot be retargeted silently.
     ***************************************************************************/
+   @EnsuresNonNull("documentStorage")
    private void verifyStoredReference(JSONObject row)
    {
       if(documentStorage == null)
@@ -2115,7 +2162,7 @@ public class PrintingService
             if(rows.isEmpty())
             {
                connection.commit();
-               return (0);
+               return 0;
             }
             JSONObject orphan = rows.getFirst();
             if(query(connection, "SELECT id FROM printing_job WHERE id=? AND tenant_id=?", id, tenantId).isEmpty())
@@ -2136,7 +2183,7 @@ public class PrintingService
             }
             update(connection, "DELETE FROM printing_document_orphan WHERE id=? AND tenant_id=?", id, tenantId);
             connection.commit();
-            return (1);
+            return 1;
          }
          catch(Exception exception)
          {
@@ -2153,7 +2200,7 @@ public class PrintingService
     ***************************************************************************/
    private JSONObject deviceJob(Connection connection, String deviceId, String jobId) throws SQLException
    {
-      return (deviceJob(connection, deviceId, jobId, false));
+      return deviceJob(connection, deviceId, jobId, false);
    }
 
 
@@ -2168,7 +2215,7 @@ public class PrintingService
       {
          throw new PrintingException(404, "Job not found");
       }
-      return (rows.getFirst());
+      return rows.getFirst();
    }
 
 
@@ -2178,7 +2225,7 @@ public class PrintingService
     ***************************************************************************/
    private static JSONObject job(JSONObject row)
    {
-      return (new JSONObject().put("jobId", row.getString("id")).put("deviceId", row.getString("device_id")).put("printerId", row.getString("printer_id")).put("title", row.getString("title")).put("format", row.getString("format")).put("contentSha256", row.getString("content_hash")).put("contentLength", row.getInt("content_length")).put("options", new JSONObject(row.getString("options_json"))).put("createdAt", row.getString("created_at")).put("status", row.getString("status")).put("message", row.optString("message")).put("spoolerJobId", row.optString("spooler_job_id")));
+      return new JSONObject().put("jobId", row.getString("id")).put("deviceId", row.getString("device_id")).put("printerId", row.getString("printer_id")).put("title", row.getString("title")).put("format", row.getString("format")).put("contentSha256", row.getString("content_hash")).put("contentLength", row.getInt("content_length")).put("options", new JSONObject(row.getString("options_json"))).put("createdAt", row.getString("created_at")).put("status", row.getString("status")).put("message", row.optString("message")).put("spoolerJobId", row.optString("spooler_job_id"));
    }
 
 
@@ -2186,7 +2233,7 @@ public class PrintingService
    /***************************************************************************
     ** Run a bounded, parameterized query with lower-case column names.
     ***************************************************************************/
-   static List<JSONObject> query(Connection connection, String sql, Object... values) throws SQLException
+   static List<JSONObject> query(Connection connection, String sql, @Nullable Object... values) throws SQLException
    {
       try(PreparedStatement statement = connection.prepareStatement(sql))
       {
@@ -2203,7 +2250,7 @@ public class PrintingService
                }
                result.add(row);
             }
-            return (result);
+            return result;
          }
       }
    }
@@ -2213,12 +2260,12 @@ public class PrintingService
    /***************************************************************************
     ** Execute a parameterized mutation.
     ***************************************************************************/
-   static int update(Connection connection, String sql, Object... values) throws SQLException
+   static int update(Connection connection, String sql, @Nullable Object... values) throws SQLException
    {
       try(PreparedStatement statement = connection.prepareStatement(sql))
       {
          bind(statement, values);
-         return (statement.executeUpdate());
+         return statement.executeUpdate();
       }
    }
 
@@ -2227,7 +2274,7 @@ public class PrintingService
    /***************************************************************************
     ** Bind values without SQL interpolation.
     ***************************************************************************/
-   private static void bind(PreparedStatement statement, Object[] values) throws SQLException
+   private static void bind(PreparedStatement statement, @Nullable Object[] values) throws SQLException
    {
       for(int index = 0; index < values.length; index++)
       {
@@ -2240,7 +2287,7 @@ public class PrintingService
    /***************************************************************************
     ** Reject missing caller data before persistence.
     ***************************************************************************/
-   private static String required(String value, String name)
+   private static String required(@Nullable String value, String name)
    {
       int maximum = switch(name)
       {
@@ -2254,7 +2301,7 @@ public class PrintingService
       {
          throw new PrintingException(400, "Invalid " + name);
       }
-      return (value);
+      return value;
    }
 
 
@@ -2268,7 +2315,7 @@ public class PrintingService
       {
          throw new PrintingException(400, "Invalid " + name);
       }
-      return (optionalText(value, name, maximum));
+      return optionalText(value, name, maximum);
    }
 
 
@@ -2295,7 +2342,7 @@ public class PrintingService
       {
          throw new PrintingException(400, "Invalid " + name + "; maximum " + maximum + " characters");
       }
-      return (value);
+      return value;
    }
 
 
@@ -2307,7 +2354,7 @@ public class PrintingService
    {
       byte[] bytes = new byte[32];
       new SecureRandom().nextBytes(bytes);
-      return (Base64.getUrlEncoder().withoutPadding().encodeToString(bytes));
+      return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
    }
 
 
@@ -2317,7 +2364,7 @@ public class PrintingService
     ***************************************************************************/
    private static String hash(String value)
    {
-      return (hash(value.getBytes(StandardCharsets.UTF_8)));
+      return hash(value.getBytes(StandardCharsets.UTF_8));
    }
 
 
@@ -2329,7 +2376,7 @@ public class PrintingService
    {
       try
       {
-         return (HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value)));
+         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value));
       }
       catch(java.security.NoSuchAlgorithmException exception)
       {
