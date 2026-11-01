@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Ownership regressions use mocked Docker metadata; no containers or network calls.
 BeforeAll {
    $script:entrypoint = Join-Path $PSScriptRoot '../Invoke-Dev.ps1'

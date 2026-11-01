@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 # Exact reviewed published Core source; no workstation DLL or mutable branch.
 ADD --checksum=sha256:82fcdbf7240760939a63b219aeb15a2333b3a8a02b52307a8a328500fca71fb6 https://github.com/QRun-IO/qqq-print-agent/archive/346fc285198908c47a2ee9db7b9adb53d5e88c3c.tar.gz /tmp/client.tar.gz

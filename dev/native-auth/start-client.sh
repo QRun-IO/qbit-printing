@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 # This first request must fail with the ordinary TLS validator, before trust.
 dotnet /app/NativeAuth.dll assert-untrusted

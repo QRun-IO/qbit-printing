@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Synthetic regressions for missing, incorrect and empty scanner inventories."""
 import copy
 import importlib.util

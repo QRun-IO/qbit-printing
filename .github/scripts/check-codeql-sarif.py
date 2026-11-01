@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Reject missing/malformed CodeQL evidence before enforcing the severity gate."""
 import json
 import math
