@@ -327,6 +327,64 @@ public final class PrintingListProcesses
 
 
    /***************************************************************************
+    ** A rendered document: its title, the PDF, and a note (rows left out).
+    ***************************************************************************/
+   public record Rendered(String title, byte[] bytes, String message)
+   {
+   }
+
+
+
+   /***************************************************************************
+    ** Render a table list (list true) or a text page from the process values.
+    ***************************************************************************/
+   static Rendered render(RunBackendStepInput input, boolean list) throws QException
+   {
+      String pageSize = input.getValueString("pageSize") == null ? "LETTER" : input.getValueString("pageSize").toUpperCase(Locale.ROOT);
+      if(!list)
+      {
+         String title = input.getValueString("title") == null || input.getValueString("title").isBlank() ? "Screen" : input.getValueString("title");
+         String subtitle = input.getValueString("subtitle");
+         return (new Rendered(title, PrintingTextDocuments.pdf(title, (subtitle == null || subtitle.isBlank() ? "" : subtitle + " - ") + PrintingRecordProcesses.printedBy(), input.getValueString("text"), pageSize, "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation"))), null));
+      }
+      QTableMetaData table = table(input);
+      List<QFieldMetaData> columns = columns(table, input.getValueString("columns"));
+      QQueryFilter filter = filter(input);
+      boolean all = "ALL".equalsIgnoreCase(input.getValueString("scope"));
+      List<QRecord> records = read(table, filter, all);
+      List<List<String>> rows = new ArrayList<>();
+      for(QRecord record : records)
+      {
+         List<String> row = new ArrayList<>();
+         columns.forEach(field -> row.add(PrintingRecordProcesses.text(record, field)));
+         rows.add(row);
+      }
+      String title = input.getValueString("title") != null ? input.getValueString("title") : table.getLabel();
+      Integer total = input.getValueInteger("printingRowCount");
+      if(total == null)
+      {
+         CountInput count = new CountInput();
+         count.setTableName(table.getName());
+         count.setFilter(filter.clone().withSkip(null).withLimit(null));
+         count.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
+         total = new CountAction().execute(count).getCount();
+      }
+      int skip = filter.getSkip() == null ? 0 : filter.getSkip();
+      String scope = all ? (total != null && total > records.size() ? "first " + records.size() + " of " + total + " rows (print limit " + filter.getLimit() + ")" : "all " + records.size() + " rows")
+         : "rows " + (records.isEmpty() ? 0 : skip + 1) + "-" + (skip + records.size()) + (total != null ? " of " + total : "");
+      String described = input.getValueString("filterDescription");
+      String sort = sortText(table, filter);
+      String subtitle = scope + " - " + (described != null && !described.isBlank() ? "filter " + described : "no filter") + (sort.isEmpty() ? "" : " - sort " + sort);
+      byte[] bytes = PrintingTableDocuments.pdf(title, subtitle, (table.getLabel() == null ? table.getName() : table.getLabel()) + " - " + PrintingRecordProcesses.printedBy(),
+         columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, widths(input.getValueString("columnWidths")), pageSize, orientation(input));
+      String message = all && total != null && total > records.size()
+         ? "Printed the first " + records.size() + " of " + total + " rows: the print limit is " + filter.getLimit() + " rows. Narrow the filter to print the rest." : null;
+      return (new Rendered(title, bytes, message));
+   }
+
+
+
+   /***************************************************************************
     ** Request identity, and for a table list the number of rows it would print.
     ***************************************************************************/
    public static class Prepare implements BackendStep
@@ -378,45 +436,14 @@ public final class PrintingListProcesses
          {
             throw new QException("Restart the print to obtain a safe request identity");
          }
-         String pageSize = input.getValueString("pageSize") == null ? "LETTER" : input.getValueString("pageSize").toUpperCase(Locale.ROOT);
-         String title;
-         byte[] bytes;
-         if(TABLE_LIST.equals(input.getProcessName()))
+         Rendered rendered = render(input, TABLE_LIST.equals(input.getProcessName()));
+         if(rendered.message() != null)
          {
-            QTableMetaData table = table(input);
-            List<QFieldMetaData> columns = columns(table, input.getValueString("columns"));
-            QQueryFilter filter = filter(input);
-            boolean all = "ALL".equalsIgnoreCase(input.getValueString("scope"));
-            List<QRecord> records = read(table, filter, all);
-            List<List<String>> rows = new ArrayList<>();
-            for(QRecord record : records)
-            {
-               List<String> row = new ArrayList<>();
-               columns.forEach(field -> row.add(PrintingRecordProcesses.text(record, field)));
-               rows.add(row);
-            }
-            title = input.getValueString("title") != null ? input.getValueString("title") : table.getLabel();
-            Integer total = input.getValueInteger("printingRowCount");
-            int skip = filter.getSkip() == null ? 0 : filter.getSkip();
-            String scope = all ? (total != null && total > records.size() ? "first " + records.size() + " of " + total + " rows (print limit " + filter.getLimit() + ")" : "all " + records.size() + " rows")
-               : "rows " + (records.isEmpty() ? 0 : skip + 1) + "-" + (skip + records.size()) + (total != null ? " of " + total : "");
-            String described = input.getValueString("filterDescription");
-            String sort = sortText(table, filter);
-            String subtitle = scope + " - " + (described != null && !described.isBlank() ? "filter " + described : "no filter") + (sort.isEmpty() ? "" : " - sort " + sort);
-            bytes = PrintingTableDocuments.pdf(title, subtitle, (table.getLabel() == null ? table.getName() : table.getLabel()) + " - " + PrintingRecordProcesses.printedBy(),
-               columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, widths(input.getValueString("columnWidths")), pageSize, orientation(input));
-            if(all && total != null && total > records.size())
-            {
-               output.addValue("printingTruncated", true);
-               output.addValue("printingMessage", "Printed the first " + records.size() + " of " + total + " rows: the print limit is " + filter.getLimit() + " rows. Narrow the filter to print the rest.");
-            }
+            output.addValue("printingTruncated", true);
+            output.addValue("printingMessage", rendered.message());
          }
-         else
-         {
-            title = input.getValueString("title") == null || input.getValueString("title").isBlank() ? "Screen" : input.getValueString("title");
-            String subtitle = input.getValueString("subtitle");
-            bytes = PrintingTextDocuments.pdf(title, (subtitle == null || subtitle.isBlank() ? "" : subtitle + " - ") + PrintingRecordProcesses.printedBy(), input.getValueString("text"), pageSize, "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation")));
-         }
+         String title = rendered.title();
+         byte[] bytes = rendered.bytes();
          String job = PrintingRecordProcesses.queue(printer, title, bytes, copies, "list-print:" + request + ":" + input.getProcessName() + ":" + printer.getValueString("id"));
          output.addValue(PrintingRecordProcesses.JOB_IDS, job);
          output.addValue("result", "Queued print job " + job + ". Check Print jobs for its status." + (output.getValue("printingMessage") != null ? " " + output.getValue("printingMessage") : ""));

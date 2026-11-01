@@ -283,7 +283,7 @@ class PrintingListProcessesTest
    /***************************************************************************
     ** Run a process straight through with values.
     ***************************************************************************/
-   private static RunProcessOutput run(String process, Map<String, Serializable> values) throws QException
+   static RunProcessOutput run(String process, Map<String, Serializable> values) throws QException
    {
       RunProcessInput input = new RunProcessInput().withProcessName(process).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP);
       // as the UI API runs it: user input, so server-configured inputs would be refused
@@ -318,7 +318,7 @@ class PrintingListProcessesTest
     ** The process fixture plus person (sections, pets), pet, a hidden and an
     ** opted-out table, on the memory backend.
     ***************************************************************************/
-   private static PrintingProcessesTest.Fixture fixture() throws Exception
+   static PrintingProcessesTest.Fixture fixture() throws Exception
    {
       PrintingProcessesTest.Fixture fixture = PrintingProcessesTest.fixture();
       QInstance instance = fixture.instance();

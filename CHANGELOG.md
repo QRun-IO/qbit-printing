@@ -4,6 +4,13 @@
 
 Printing extension **2.1.0** (additive; the agent contract is unchanged).
 
+- Save as PDF: `printingRenderToPdf` renders the document a print would carry -
+  a record sheet (`kind` `RECORD`, `tableName`, `recordId`), a table list (`LIST`,
+  the `printingPrintTableList` values) or a text page (`TEXT`) - and returns it to
+  the caller as the standard process download (`downloadFileName`,
+  `serverFilePath`) instead of queueing a job. No printer is needed; reads enforce
+  the caller's permissions, and a list over the limit says so in
+  `printingMessage`. Clients offer it as "Save as PDF…" in their printer pickers.
 - Print anything: `PrintingRecordProcesses.registerAll(instance)` adds **Print** to
   every table that can be read one record at a time (call it after the host's
   tables are in the instance). Hidden tables, tables without a primary key or

@@ -219,6 +219,17 @@ public final class PrintingRecordProcesses
    static String submit(QTableMetaData table, QRecord selected, QRecord printer, int copies, String request) throws QException
    {
       Serializable primaryKey = selected.getValue(table.getPrimaryKeyField());
+      PrintingListProcesses.Rendered rendered = render(table, primaryKey);
+      return (queue(printer, rendered.title(), rendered.bytes(), copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id")));
+   }
+
+
+
+   /***************************************************************************
+    ** The record sheet of one record (read with the caller's permissions).
+    ***************************************************************************/
+   static PrintingListProcesses.Rendered render(QTableMetaData table, Serializable primaryKey) throws QException
+   {
       GetInput get = new GetInput();
       get.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
       get.setTableName(table.getName());
@@ -234,7 +245,7 @@ public final class PrintingRecordProcesses
       String tableLabel = table.getLabel() == null ? table.getName() : table.getLabel();
       String subtitle = tableLabel + " " + primaryKey + " - " + printedBy();
       byte[] bytes = PrintingRecordDocuments.pdf(tableLabel + ": " + label, subtitle, sections(table, record), children(table, record));
-      return (queue(printer, tableLabel + ": " + label, bytes, copies, "record-print:" + request + ":" + table.getName() + ":" + primaryKey + ":" + printer.getValueString("id")));
+      return (new PrintingListProcesses.Rendered(tableLabel + ": " + label, bytes, null));
    }
 
 
