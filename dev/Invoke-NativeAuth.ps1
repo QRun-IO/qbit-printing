@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 <#
 .SYNOPSIS
 Prepares or verifies the opt-in, unpublished native-session Docker qualification.

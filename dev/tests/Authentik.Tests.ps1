@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # No Docker or HTTP calls: these regressions exercise private bootstrap state.
 BeforeAll {
    $script:authScript = Join-Path $PSScriptRoot '../Invoke-Authentik.ps1'

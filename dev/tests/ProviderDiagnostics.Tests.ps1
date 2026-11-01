@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 BeforeAll {
    $path = Join-Path $PSScriptRoot '../Invoke-Dev.ps1'
    $tokens = $null

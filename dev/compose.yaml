@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Every published port is bound to host loopback; no live printing configuration is imported.
 x-owned: &owned
   labels:

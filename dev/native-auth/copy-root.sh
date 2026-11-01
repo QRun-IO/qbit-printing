@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 attempt=0
 while [ ! -s /data/caddy/pki/authorities/local/root.crt ]; do
