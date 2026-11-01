@@ -13,10 +13,15 @@ Printing extension **2.1.0** (additive; the agent contract is unchanged).
   with their labels, remaining fields under "Other fields", and a summary of each
   child list (association): its label, row count and first ten rows.
 - New `printingPrintTableList`: a table list (grid) of any readable table with the
-  caller's columns (in order), filter, sort and either the current page (`scope`
-  `PAGE`, the filter's skip/limit) or all rows up to `maxRows` (1000 by default,
-  5000 at most); Letter or A4, portrait or landscape; the header repeats on every
-  page. `printingRowCount` reports the matching rows before printing.
+  caller's columns (in order) and widths, filter and sort, either the whole result
+  (`scope` `ALL`, the default: read a thousand rows at a time up to `maxRows`,
+  10,000 by default and at most; a larger result prints its first rows and says
+  so in the header and in `printingMessage`) or the current page (`PAGE`, the
+  filter's skip/limit). Letter or A4; orientation `AUTO` (landscape when the
+  columns need it), portrait or landscape. The header repeats on every page; the
+  page header carries the table, the rows printed of the total, the filter text
+  and the sort, and the footer the table, time, user and "Page n of m".
+  `printingRowCount` reports the matching rows before printing.
 - New `printingPrintText`: any text (a capture of a terminal screen) as a
   monospace PDF, wrapped and broken across pages.
 - All documents share one page writer with "Page n of m" footers and a running

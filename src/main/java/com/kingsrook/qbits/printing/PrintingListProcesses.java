@@ -61,9 +61,13 @@ import com.kingsrook.qqq.backend.core.utils.JsonUtils;
  ** - printingPrintTableList: a table list (grid) of any readable table. Values:
  **   tableName, columns (comma separated, in order; default the visible
  **   fields), filterJSON (a QQueryFilter with orderBys; its skip/limit are the
- **   page), scope PAGE (the filter's skip/limit) or ALL (from the start, up to
- **   maxRows, default 1000, at most 5000), pageSize LETTER/A4, orientation
- **   PORTRAIT/LANDSCAPE, title, then the printer and copies.
+ **   page), scope PAGE (the filter's skip/limit) or ALL (the whole result,
+ **   read a thousand rows at a time, up to maxRows: default and most 10,000;
+ **   a larger result prints its first rows and says so), columnWidths (the
+ **   grid's widths in characters, comma separated, same order), pageSize
+ **   LETTER/A4, orientation PORTRAIT/LANDSCAPE/AUTO (landscape when the
+ **   columns need it; the default), title, filterDescription (the filter as
+ **   the user sees it), then the printer and copies.
  ** - printingPrintText: any text as a monospace PDF (a capture of a terminal
  **   screen). Values: title, text, subtitle, pageSize, orientation, printer,
  **   copies.
@@ -76,8 +80,9 @@ public final class PrintingListProcesses
 {
    public static final String TABLE_LIST = "printingPrintTableList";
    public static final String TEXT = "printingPrintText";
-   public static final int DEFAULT_MAX_ROWS = 1000;
-   public static final int MAX_ROWS = 5000;
+   public static final int MAX_ROWS = 10_000;
+   public static final int DEFAULT_MAX_ROWS = MAX_ROWS;
+   static final int QUERY_PAGE = 1000;
    static final String REQUEST_ID = "printingListRequestId";
 
 
@@ -97,13 +102,13 @@ public final class PrintingListProcesses
    public static void register(QInstance instance)
    {
       choices(instance, "printing_pageSize", List.of("LETTER", "A4"), List.of("Letter", "A4"));
-      choices(instance, "printing_orientation", List.of("PORTRAIT", "LANDSCAPE"), List.of("Portrait", "Landscape"));
-      choices(instance, "printing_listScope", List.of("PAGE", "ALL"), List.of("The current page", "All rows (up to the limit)"));
+      choices(instance, "printing_orientation", List.of("AUTO", "PORTRAIT", "LANDSCAPE"), List.of("Automatic (landscape when the columns need it)", "Portrait", "Landscape"));
+      choices(instance, "printing_listScope", List.of("ALL", "PAGE"), List.of("All rows (current filter and sort)", "The current page"));
       instance.addProcess(process(TABLE_LIST, "Print a table list", List.of(
          new QFieldMetaData("tableName", QFieldType.STRING).withLabel("Table").withIsRequired(true).withIsEditable(false),
-         new QFieldMetaData("scope", QFieldType.STRING).withLabel("Rows").withPossibleValueSourceName("printing_listScope").withDefaultValue("PAGE"),
+         new QFieldMetaData("scope", QFieldType.STRING).withLabel("Rows").withPossibleValueSourceName("printing_listScope").withDefaultValue("ALL"),
          new QFieldMetaData("maxRows", QFieldType.INTEGER).withLabel("Most rows (all rows)").withDefaultValue(DEFAULT_MAX_ROWS),
-         new QFieldMetaData("orientation", QFieldType.STRING).withLabel("Orientation").withPossibleValueSourceName("printing_orientation").withDefaultValue("LANDSCAPE"))));
+         new QFieldMetaData("orientation", QFieldType.STRING).withLabel("Orientation").withPossibleValueSourceName("printing_orientation").withDefaultValue("AUTO"))));
       instance.addProcess(process(TEXT, "Print text", List.of(
          new QFieldMetaData("title", QFieldType.STRING).withLabel("Title").withIsEditable(false),
          new QFieldMetaData("orientation", QFieldType.STRING).withLabel("Orientation").withPossibleValueSourceName("printing_orientation").withDefaultValue("PORTRAIT"))));
@@ -239,6 +244,89 @@ public final class PrintingListProcesses
 
 
    /***************************************************************************
+    ** The rows to print: the page as given, or the whole result read a page at
+    ** a time up to the filter's limit (the print limit).
+    ***************************************************************************/
+   static List<QRecord> read(QTableMetaData table, QQueryFilter filter, boolean all) throws QException
+   {
+      List<QRecord> out = new ArrayList<>();
+      int limit = filter.getLimit() == null ? 50 : filter.getLimit();
+      int skip = filter.getSkip() == null ? 0 : filter.getSkip();
+      while(out.size() < limit)
+      {
+         int size = all ? Math.min(QUERY_PAGE, limit - out.size()) : limit;
+         QueryInput query = new QueryInput();
+         query.setTableName(table.getName());
+         query.setFilter(filter.clone().withSkip(skip + out.size()).withLimit(size));
+         query.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
+         query.setShouldGenerateDisplayValues(true);
+         query.setShouldTranslatePossibleValues(true);
+         List<QRecord> page = new QueryAction().execute(query).getRecords();
+         out.addAll(page);
+         if(!all || page.size() < size)
+         {
+            break;
+         }
+      }
+      return (out);
+   }
+
+
+
+   /***************************************************************************
+    ** The sort as labels: "Last name, First name descending".
+    ***************************************************************************/
+   static String sortText(QTableMetaData table, QQueryFilter filter)
+   {
+      if(filter.getOrderBys() == null)
+      {
+         return ("");
+      }
+      List<String> parts = new ArrayList<>();
+      for(var orderBy : filter.getOrderBys())
+      {
+         String name = orderBy.getFieldName();
+         QFieldMetaData field = name == null ? null : table.getFields().get(name);
+         parts.add((field == null || field.getLabel() == null ? name : field.getLabel()) + (orderBy.getIsAscending() ? "" : " descending"));
+      }
+      return (String.join(", ", parts));
+   }
+
+
+
+   /***************************************************************************
+    ** The grid's column widths ("12,30,8"), or null.
+    ***************************************************************************/
+   static int[] widths(String text)
+   {
+      if(text == null || text.isBlank())
+      {
+         return (null);
+      }
+      try
+      {
+         return (Arrays.stream(text.split(",")).map(String::trim).mapToInt(Integer::parseInt).toArray());
+      }
+      catch(NumberFormatException exception)
+      {
+         return (null);
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** AUTO unless PORTRAIT or LANDSCAPE was chosen.
+    ***************************************************************************/
+   static String orientation(RunBackendStepInput input)
+   {
+      String value = input.getValueString("orientation");
+      return (value == null || value.isBlank() ? "AUTO" : value.toUpperCase(Locale.ROOT));
+   }
+
+
+
+   /***************************************************************************
     ** Request identity, and for a table list the number of rows it would print.
     ***************************************************************************/
    public static class Prepare implements BackendStep
@@ -290,7 +378,6 @@ public final class PrintingListProcesses
          {
             throw new QException("Restart the print to obtain a safe request identity");
          }
-         boolean landscape = "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation"));
          String pageSize = input.getValueString("pageSize") == null ? "LETTER" : input.getValueString("pageSize").toUpperCase(Locale.ROOT);
          String title;
          byte[] bytes;
@@ -299,13 +386,8 @@ public final class PrintingListProcesses
             QTableMetaData table = table(input);
             List<QFieldMetaData> columns = columns(table, input.getValueString("columns"));
             QQueryFilter filter = filter(input);
-            QueryInput query = new QueryInput();
-            query.setTableName(table.getName());
-            query.setFilter(filter);
-            query.setPermissionEnforcement(PermissionEnforcement.ENFORCE);
-            query.setShouldGenerateDisplayValues(true);
-            query.setShouldTranslatePossibleValues(true);
-            List<QRecord> records = new QueryAction().execute(query).getRecords();
+            boolean all = "ALL".equalsIgnoreCase(input.getValueString("scope"));
+            List<QRecord> records = read(table, filter, all);
             List<List<String>> rows = new ArrayList<>();
             for(QRecord record : records)
             {
@@ -314,21 +396,30 @@ public final class PrintingListProcesses
                rows.add(row);
             }
             title = input.getValueString("title") != null ? input.getValueString("title") : table.getLabel();
-            Serializable total = input.getValue("printingRowCount");
-            String scope = "ALL".equalsIgnoreCase(input.getValueString("scope")) ? "all rows" : "rows " + ((filter.getSkip() == null ? 0 : filter.getSkip()) + 1) + "-" + ((filter.getSkip() == null ? 0 : filter.getSkip()) + records.size());
+            Integer total = input.getValueInteger("printingRowCount");
+            int skip = filter.getSkip() == null ? 0 : filter.getSkip();
+            String scope = all ? (total != null && total > records.size() ? "first " + records.size() + " of " + total + " rows (print limit " + filter.getLimit() + ")" : "all " + records.size() + " rows")
+               : "rows " + (records.isEmpty() ? 0 : skip + 1) + "-" + (skip + records.size()) + (total != null ? " of " + total : "");
             String described = input.getValueString("filterDescription");
-            String subtitle = scope + (total != null ? " of " + total : "") + (described != null && !described.isBlank() ? " - " + described : "") + " - " + PrintingRecordProcesses.printedBy();
-            bytes = PrintingTableDocuments.pdf(title, subtitle, columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, pageSize, landscape);
+            String sort = sortText(table, filter);
+            String subtitle = scope + " - " + (described != null && !described.isBlank() ? "filter " + described : "no filter") + (sort.isEmpty() ? "" : " - sort " + sort);
+            bytes = PrintingTableDocuments.pdf(title, subtitle, (table.getLabel() == null ? table.getName() : table.getLabel()) + " - " + PrintingRecordProcesses.printedBy(),
+               columns.stream().map(field -> field.getLabel() == null ? field.getName() : field.getLabel()).toList(), rows, widths(input.getValueString("columnWidths")), pageSize, orientation(input));
+            if(all && total != null && total > records.size())
+            {
+               output.addValue("printingTruncated", true);
+               output.addValue("printingMessage", "Printed the first " + records.size() + " of " + total + " rows: the print limit is " + filter.getLimit() + " rows. Narrow the filter to print the rest.");
+            }
          }
          else
          {
             title = input.getValueString("title") == null || input.getValueString("title").isBlank() ? "Screen" : input.getValueString("title");
             String subtitle = input.getValueString("subtitle");
-            bytes = PrintingTextDocuments.pdf(title, (subtitle == null || subtitle.isBlank() ? "" : subtitle + " - ") + PrintingRecordProcesses.printedBy(), input.getValueString("text"), pageSize, landscape);
+            bytes = PrintingTextDocuments.pdf(title, (subtitle == null || subtitle.isBlank() ? "" : subtitle + " - ") + PrintingRecordProcesses.printedBy(), input.getValueString("text"), pageSize, "LANDSCAPE".equalsIgnoreCase(input.getValueString("orientation")));
          }
          String job = PrintingRecordProcesses.queue(printer, title, bytes, copies, "list-print:" + request + ":" + input.getProcessName() + ":" + printer.getValueString("id"));
          output.addValue(PrintingRecordProcesses.JOB_IDS, job);
-         output.addValue("result", "Queued print job " + job + ". Check Print jobs for its status.");
+         output.addValue("result", "Queued print job " + job + ". Check Print jobs for its status." + (output.getValue("printingMessage") != null ? " " + output.getValue("printingMessage") : ""));
       }
    }
 }

@@ -54,6 +54,7 @@ final class PrintingLayout implements AutoCloseable
    private float y;
    private List<String> repeatHeader = List.of();
    private int repeatSize = 8;
+   private String footer = "";
 
 
 
@@ -98,6 +99,16 @@ final class PrintingLayout implements AutoCloseable
    int columns(int fontSize)
    {
       return (Math.max(20, (int) ((size.getWidth() - 2 * MARGIN) / (0.6f * fontSize))));
+   }
+
+
+
+   /***************************************************************************
+    ** Text at the bottom left of every page (who printed it and when).
+    ***************************************************************************/
+   void footer(String text)
+   {
+      footer = text == null ? "" : text;
    }
 
 
@@ -189,6 +200,14 @@ final class PrintingLayout implements AutoCloseable
                footer.newLineAtOffset(size.getWidth() - MARGIN - text.length() * 4.8f, MARGIN - 14);
                footer.showText(text);
                footer.endText();
+               if(!this.footer.isEmpty())
+               {
+                  footer.beginText();
+                  footer.setFont(font, 8);
+                  footer.newLineAtOffset(MARGIN, MARGIN - 14);
+                  footer.showText(safe(PrintingRecordDocuments.truncate(this.footer, Math.max(10, columns(8) - text.length() - 2))));
+                  footer.endText();
+               }
             }
          }
          ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -296,10 +315,20 @@ final class PrintingLayout implements AutoCloseable
 
 
    /***************************************************************************
-    ** Width-limited columns for a table: header and cell lengths, shrunk
-    ** (widest first) until the row fits, never below 4 characters.
+    ** Width-limited columns for a table: natural widths shrunk to the line.
     ***************************************************************************/
    static int[] columnWidths(List<String> headers, List<List<String>> rows, int available)
+   {
+      return (fit(naturalWidths(headers, rows), available));
+   }
+
+
+
+   /***************************************************************************
+    ** Each column's natural width: the header or the 90th percentile of its
+    ** cells, between 4 and 60 characters.
+    ***************************************************************************/
+   static int[] naturalWidths(List<String> headers, List<List<String>> rows)
    {
       int count = headers.size();
       int[] widths = new int[count];
@@ -314,11 +343,31 @@ final class PrintingLayout implements AutoCloseable
          int typical = lengths.isEmpty() ? 0 : lengths.get(Math.max(0, (int) Math.ceil(lengths.size() * 0.9) - 1));
          widths[c] = Math.max(4, Math.min(60, Math.max(headers.get(c).length(), typical)));
       }
-      int gaps = Math.max(0, count - 1) * 2;
-      while(sum(widths) + gaps > available)
+      return (widths);
+   }
+
+
+
+   /***************************************************************************
+    ** The width a row of these columns takes, with two-space gaps.
+    ***************************************************************************/
+   static int lineWidth(int[] widths)
+   {
+      return (sum(widths) + Math.max(0, widths.length - 1) * 2);
+   }
+
+
+
+   /***************************************************************************
+    ** Shrink widths (widest first, never below 4) until a row fits.
+    ***************************************************************************/
+   static int[] fit(int[] start, int available)
+   {
+      int[] widths = start.clone();
+      while(lineWidth(widths) > available)
       {
          int widest = 0;
-         for(int c = 1; c < count; c++)
+         for(int c = 1; c < widths.length; c++)
          {
             if(widths[c] > widths[widest])
             {
