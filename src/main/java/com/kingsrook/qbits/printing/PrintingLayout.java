@@ -81,6 +81,7 @@ final class PrintingLayout implements AutoCloseable
          {
             line(subtitle, 9);
          }
+         y -= 4;
          rule();
          y -= 6;
       }
