@@ -36,6 +36,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Verify owned source notices and rejection paths
+        run: |
+          python3 .github/scripts/test-source-headers.py
+          python3 .github/scripts/check-source-headers.py
       - name: Checkstyle, unit tests and HTTP contract tests
         run: bash ./mvnw --batch-mode --no-transfer-progress -Pui-demo verify
       - name: Prepare JAR, POM and checksums
