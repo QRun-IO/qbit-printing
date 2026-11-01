@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased (0.4.0-SNAPSHOT)
+
+Printing extension **2.1.0** (additive; the agent contract is unchanged).
+
+- Print anything: `PrintingRecordProcesses.registerAll(instance)` adds **Print** to
+  every table that can be read one record at a time (call it after the host's
+  tables are in the instance). Hidden tables, tables without a primary key or
+  `TABLE_GET`, and tables carrying `PrintingTableSettings().withPrintable(false)`
+  are skipped.
+- The record sheet now follows the table's metadata: field sections in tier order
+  with their labels, remaining fields under "Other fields", and a summary of each
+  child list (association): its label, row count and first ten rows.
+- New `printingPrintTableList`: a table list (grid) of any readable table with the
+  caller's columns (in order) and widths, filter and sort, either the whole result
+  (`scope` `ALL`, the default: read a thousand rows at a time up to `maxRows`,
+  10,000 by default and at most; a larger result prints its first rows and says
+  so in the header and in `printingMessage`) or the current page (`PAGE`, the
+  filter's skip/limit). Letter or A4; orientation `AUTO` (landscape when the
+  columns need it), portrait or landscape. The header repeats on every page; the
+  page header carries the table, the rows printed of the total, the filter text
+  and the sort, and the footer the table, time, user and "Page n of m".
+  `printingRowCount` reports the matching rows before printing.
+- New `printingPrintText`: any text (a capture of a terminal screen) as a
+  monospace PDF, wrapped and broken across pages.
+- All documents share one page writer with "Page n of m" footers and a running
+  title on later pages. Table and record reads enforce the user's permissions.
+
+## 0.3.1-SNAPSHOT
+
+- Add record printing: `PrintingRecordProcesses.register(instance, table)` adds a
+  **Print** process (`printingPrintRecords_{table}`) to a host table's records and
+  selections. It asks for an approved, exposed PDF printer and a copy count, shows
+  the standard review, then renders each selected record as a Letter record sheet
+  (`PrintingRecordDocuments`: heading, visible non-binary fields with display
+  values, wrapped and continued across pages) and queues one PDF job per record.
+  The queued job IDs are returned in the process value `printingJobIds`.
+- Fix selection actions whose first step is a form (**Print a test page**,
+  **Print a test label** on selected printers, and **Print**): over the UI API the
+  record selection reaches only the init call, so the review answered "No records
+  were selected". The prepare step now keeps the selection as `queryFilterJson`.
+
 ## 0.3.0-rc.1 — 2026-10-31
 
 Upgrade the server before the matching Windows connector. Native printing API
