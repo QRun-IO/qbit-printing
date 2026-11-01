@@ -268,6 +268,8 @@ class PrintingListProcessesTest
    private static RunProcessOutput run(String process, Map<String, Serializable> values) throws QException
    {
       RunProcessInput input = new RunProcessInput().withProcessName(process).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP);
+      // as the UI API runs it: user input, so server-configured inputs would be refused
+      input.setInputSource(com.kingsrook.qqq.backend.core.model.actions.tables.QInputSource.USER);
       values.forEach(input::withValue);
       RunProcessOutput output = new RunProcessAction().execute(input);
       if(output.getException().isPresent())

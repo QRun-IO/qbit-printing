@@ -105,12 +105,12 @@ public final class PrintingListProcesses
       choices(instance, "printing_orientation", List.of("AUTO", "PORTRAIT", "LANDSCAPE"), List.of("Automatic (landscape when the columns need it)", "Portrait", "Landscape"));
       choices(instance, "printing_listScope", List.of("ALL", "PAGE"), List.of("All rows (current filter and sort)", "The current page"));
       instance.addProcess(process(TABLE_LIST, "Print a table list", List.of(
-         new QFieldMetaData("tableName", QFieldType.STRING).withLabel("Table").withIsRequired(true).withIsEditable(false),
+         new QFieldMetaData("tableName", QFieldType.STRING).withLabel("Table").withIsRequired(true),
          new QFieldMetaData("scope", QFieldType.STRING).withLabel("Rows").withPossibleValueSourceName("printing_listScope").withDefaultValue("ALL"),
          new QFieldMetaData("maxRows", QFieldType.INTEGER).withLabel("Most rows (all rows)").withDefaultValue(DEFAULT_MAX_ROWS),
          new QFieldMetaData("orientation", QFieldType.STRING).withLabel("Orientation").withPossibleValueSourceName("printing_orientation").withDefaultValue("AUTO"))));
       instance.addProcess(process(TEXT, "Print text", List.of(
-         new QFieldMetaData("title", QFieldType.STRING).withLabel("Title").withIsEditable(false),
+         new QFieldMetaData("title", QFieldType.STRING).withLabel("Title"),
          new QFieldMetaData("orientation", QFieldType.STRING).withLabel("Orientation").withPossibleValueSourceName("printing_orientation").withDefaultValue("PORTRAIT"))));
    }
 
