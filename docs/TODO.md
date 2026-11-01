@@ -21,17 +21,20 @@
 
 ## Script quality gates
 
-- [x] Pin Ruff and strict Pyright with a locked restore; reject Python outside `.github/scripts/` and zero-file Pyright runs; negative tool probes pass locally.
+- [x] Pin Ruff and strict Pyright (official npm package) with locked restores; reject Python outside `.github/scripts/` and zero-file Pyright runs; negative tool probes pass locally.
 - [ ] Observe the new `verify` job steps pass on hosted CI before relying on them.
 
 ## Integrated compiler, standards and fixture gates
 
 - [x] Layer the reviewed Error Prone/NullAway compiler gate, null contracts and
   style corrections over the merged 2.3.0 source without relaxing any security check.
-- [ ] Qualify this integrated runtime again (compile gate, full test suite with
-  adversarial regressions, eight compiler probes, development fixture proofs); the
-  earlier 133-test/204-jar results describe the old baseline only.
-- [ ] Observe the `development-clients` and `development-servers` jobs pass on hosted CI.
+- [x] Integrated source compiles clean under Error Prone 2.51.0/NullAway/-Werror for
+  main and test sources (R27), and the full local verify passed: 189 reported, 0
+  failures, 0 errors, one intentional 10k-workload opt-in skip, zero Checkstyle
+  violations (R28). This qualifies the integrated source only; the earlier
+  133-test/204-jar results describe the old baseline.
+- [ ] Observe the `development-clients` and `development-servers` jobs, the compiler
+  guard and the script-quality gates pass on hosted CI.
 
 ## Current local development qualification
 
