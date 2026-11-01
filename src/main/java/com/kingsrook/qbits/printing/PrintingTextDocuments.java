@@ -32,6 +32,7 @@ import com.kingsrook.qqq.backend.core.exceptions.QException;
 public final class PrintingTextDocuments
 {
    static final int FONT_SIZE = 8;
+   static final float MIN_FONT_SIZE = 5.5f;
    static final int MAX_CHARACTERS = 2_000_000;
 
 
@@ -60,13 +61,16 @@ public final class PrintingTextDocuments
       }
       try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle))
       {
-         int width = layout.columns(FONT_SIZE);
-         for(String line : text.replace("\r\n", "\n").replace('\r', '\n').replace("\t", "    ").split("\n", -1))
+         String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').replace("\t", "    ").split("\n", -1);
+         float size = fontSize(lines, layout.columns(1) * 1f);
+         int width = layout.columns(size);
+         layout.leading(1.2f);
+         for(String line : lines)
          {
             String rest = line.stripTrailing();
             do
             {
-               layout.line(rest.length() > width ? rest.substring(0, width) : rest, FONT_SIZE);
+               layout.line(rest.length() > width ? rest.substring(0, width) : rest, size);
                rest = rest.length() > width ? rest.substring(width) : "";
             }
             while(!rest.isEmpty());
@@ -77,5 +81,22 @@ public final class PrintingTextDocuments
       {
          throw new QException("Could not render the text: " + exception.getMessage(), exception);
       }
+   }
+
+
+
+   /***************************************************************************
+    ** The font size (8 down to 5.5 points) at which the widest line fits, so a
+    ** screen capture keeps its layout; wider text still wraps at 5.5.
+    ***************************************************************************/
+   static float fontSize(String[] lines, float charactersAtOnePoint)
+   {
+      int widest = 1;
+      for(String line : lines)
+      {
+         widest = Math.max(widest, line.stripTrailing().length());
+      }
+      float fits = charactersAtOnePoint / widest;
+      return (Math.max(MIN_FONT_SIZE, Math.min(FONT_SIZE, (float) Math.floor(fits * 2) / 2)));
    }
 }

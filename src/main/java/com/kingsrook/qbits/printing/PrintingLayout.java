@@ -55,6 +55,7 @@ final class PrintingLayout implements AutoCloseable
    private List<String> repeatHeader = List.of();
    private int repeatSize = 8;
    private String footer = "";
+   private float leading = 1.35f;
 
 
 
@@ -97,9 +98,20 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** How many monospace characters fit across the page at a font size.
     ***************************************************************************/
-   int columns(int fontSize)
+   int columns(float fontSize)
    {
       return (Math.max(20, (int) ((size.getWidth() - 2 * MARGIN) / (0.6f * fontSize))));
+   }
+
+
+
+   /***************************************************************************
+    ** Line spacing as a multiple of the font size (1.35 by default; text
+    ** captures use less so box-drawing characters join up).
+    ***************************************************************************/
+   void leading(float factor)
+   {
+      leading = factor;
    }
 
 
@@ -128,18 +140,18 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** One line at a font size; breaks the page first when it does not fit.
     ***************************************************************************/
-   void line(String text, int fontSize) throws IOException
+   void line(String text, float fontSize) throws IOException
    {
-      float leading = fontSize * 1.35f;
-      if(y - leading < MARGIN + 14)
+      float step = fontSize * leading;
+      if(y - step < MARGIN + 14)
       {
          newPage();
          for(String header : repeatHeader)
          {
-            draw(header, repeatSize, repeatSize * 1.35f);
+            draw(header, repeatSize, repeatSize * leading);
          }
       }
-      draw(text, fontSize, leading);
+      draw(text, fontSize, step);
    }
 
 
@@ -274,9 +286,9 @@ final class PrintingLayout implements AutoCloseable
    /***************************************************************************
     ** Draw one line at the current position.
     ***************************************************************************/
-   private void draw(String text, int fontSize, float leading) throws IOException
+   private void draw(String text, float fontSize, float step) throws IOException
    {
-      y -= leading;
+      y -= step;
       content.beginText();
       content.setFont(font, fontSize);
       content.newLineAtOffset(MARGIN, y);

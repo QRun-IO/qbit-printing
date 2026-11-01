@@ -248,6 +248,24 @@ class PrintingListProcessesTest
 
 
    /***************************************************************************
+    ** A 150-column terminal capture keeps its lines on a landscape page (the
+    ** font shrinks to fit); much wider text still wraps at the smallest size.
+    ***************************************************************************/
+   @Test
+   void wideScreenCaptureFitsWithoutWrapping() throws Exception
+   {
+      String wide = "| " + "y".repeat(146) + " |";
+      try(PDDocument document = PDDocument.load(PrintingTextDocuments.pdf("Screen", "", wide + "\n" + wide, "LETTER", true)))
+      {
+         assertTrue(new PDFTextStripper().getText(document).contains(wide));
+      }
+      assertEquals(8f, PrintingTextDocuments.fontSize(new String[] {"short"}, 1000), 0.01);
+      assertEquals(PrintingTextDocuments.MIN_FONT_SIZE, PrintingTextDocuments.fontSize(new String[] {"z".repeat(5000)}, 1000), 0.01);
+   }
+
+
+
+   /***************************************************************************
     ** Column widths shrink widest-first to fit, never below four.
     ***************************************************************************/
    @Test
