@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Exercise the exact CI guards using synthetic evidence only."""
 import contextlib
 import copy

@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kingsrook, LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,5 +13,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Qqq.PrintAgent.Core"><HintPath>/core/Qqq.PrintAgent.Core.dll</HintPath></Reference>
+    <Compile Include="../../client/WorkloadDiscovery.cs" Link="WorkloadDiscovery.cs" />
   </ItemGroup>
 </Project>

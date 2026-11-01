@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 Kingsrook, LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <Configuration status="ERROR">
   <Appenders><Console name="Console" target="SYSTEM_ERR"><PatternLayout pattern="%level %logger{1}: %message%n"/></Console></Appenders>
   <Loggers>

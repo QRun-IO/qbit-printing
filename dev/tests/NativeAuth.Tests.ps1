@@ -1,4 +1,7 @@
 #Requires -Version 7.4
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # No Docker, TLS, provider or QQQ calls; only private input and result validation.
 BeforeAll {
    $script:nativeScript = Join-Path $PSScriptRoot '../Invoke-NativeAuth.ps1'

@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Local copy of KofTwentyTwo/standards security.yml at
 # fdf5ed029603c938615a32b1beca3628b8787945 (v0.1.2).
 # Scanner pins and security gates are preserved. SCA scans Maven-selected runtime

@@ -1,3 +1,5 @@
+// Copyright 2026 Kingsrook, LLC
+
 // SPDX-License-Identifier: Apache-2.0
 using System.Collections.Concurrent;
 using System.Diagnostics;

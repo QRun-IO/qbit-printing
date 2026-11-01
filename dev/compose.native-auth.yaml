@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Opt-in unpublished core qualification. No service is a replacement for the
 # released RC.20 TABLE development host or an installed printing deployment.
 services:

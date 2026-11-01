@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 FROM maven:3.9.11-eclipse-temurin-21@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237 AS build
 # DEVELOPMENT ONLY: exact public candidate, never installed into a host Maven cache.
 ADD --checksum=sha256:d99bafdf5520d0dc039b598787c003f23505cec3a652eb8ded496a24c6ed6060 https://github.com/QRun-IO/qqq/archive/ecf0f550a0357cec6387c2b54efca128a405a629.tar.gz /tmp/core.tar.gz

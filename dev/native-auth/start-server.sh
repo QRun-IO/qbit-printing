@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 set -eu
 # Only this disposable container's JRE trust store is changed. The mounted file
 # is the public root certificate; the CA private key is never mounted here.
