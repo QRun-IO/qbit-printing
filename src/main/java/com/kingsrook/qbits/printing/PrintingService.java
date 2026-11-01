@@ -1201,7 +1201,11 @@ public class PrintingService
       }
       if(options.has("paperWidthMm") || options.has("paperHeightMm"))
       {
-         throw new PrintingException(400, "Custom paper dimensions are not supported yet; configure the Windows queue");
+         // Explicit job paper is a complete, positive size and is never combined with a queue media profile.
+         if(!validPaperMillimetres(options.opt("paperWidthMm")) || !validPaperMillimetres(options.opt("paperHeightMm")) || options.has("mediaProfile"))
+         {
+            throw new PrintingException(400, "Paper dimensions require both a width and height in millimetres (up to 2000) and cannot be combined with a media profile");
+         }
       }
       PrintingMediaProfile.selection(options);
       options.put("copies", count).put("scale", scale);
@@ -1215,6 +1219,16 @@ public class PrintingService
 
 
    /***************************************************************************
+    ** A finite number within the protocol's physical paper bounds.
+    ***************************************************************************/
+   private static boolean validPaperMillimetres(@Nullable Object value)
+   {
+      return (value instanceof Number number && Double.isFinite(number.doubleValue()) && number.doubleValue() > 0 && number.doubleValue() <= 2000);
+   }
+
+
+
+   /***************************************************************************
     ** Claim one job; replay the same assignment until the device advances it.
     ***************************************************************************/
    public JSONObject testPrint(String deviceId, JSONObject request) throws Exception
@@ -1222,9 +1236,15 @@ public class PrintingService
       String format = required(request.optString("format"), "format");
       TestPrintProfile profile = TestPrintProfile.resolve(format, request.has("testProfile") ? request.optString("testProfile") : null);
       byte[] bytes = "PDF".equals(format) ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
-      return submit(new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
+      JSONObject job = new JSONObject().put("deviceId", deviceId).put("printerId", required(request.optString("printerId"), "printerId"))
          .put("title", "QQQ print test").put("format", format).put("contentBase64", Base64.getEncoder().encodeToString(bytes))
-         .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId")));
+         .put("idempotencyKey", "device-test:" + deviceId + ":" + required(request.optString("requestId"), "requestId"));
+      JSONObject options = profile.jobOptions(format);
+      if(options != null)
+      {
+         job.put("options", options);
+      }
+      return submit(job);
    }
 
 

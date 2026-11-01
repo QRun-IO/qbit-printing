@@ -103,7 +103,18 @@ public class PrintingProcesses implements BackendStep
       for(TestPrintProfile profile : TestPrintProfile.values())
       {
          QPossibleValue<String> option = new QPossibleValue<>(profile.name(), profile.getLabel());
-         pdf.add(option);
+         if(profile.getDpi() > 0 && profile.getHeightInches() != 6)
+         {
+            // PDF is vector, so the printer resolution is irrelevant: one friendly choice per short stock.
+            if(profile.getDpi() == 300)
+            {
+               pdf.add(new QPossibleValue<>(profile.name(), "4 x " + profile.getHeightInches() + " in label"));
+            }
+         }
+         else
+         {
+            pdf.add(option);
+         }
          if(profile.getDpi() > 0)
          {
             zpl.add(option);
@@ -350,8 +361,14 @@ public class PrintingProcesses implements BackendStep
       {
          TestPrintProfile profile = TestPrintProfile.resolve(pdf ? "PDF" : "ZPL", profileName);
          byte[] bytes = pdf ? PrintingTestDocuments.pdf(profile) : PrintingTestDocuments.zpl(profile);
-         JSONObject job = currentService().submit(new JSONObject().put("deviceId", printer.getValueString("device_id")).put("printerId", printer.getValueString("printer_id"))
-            .put("title", "QQQ print test").put("format", pdf ? "PDF" : "ZPL").put("contentBase64", Base64.getEncoder().encodeToString(bytes)).put("idempotencyKey", key));
+         JSONObject request = new JSONObject().put("deviceId", printer.getValueString("device_id")).put("printerId", printer.getValueString("printer_id"))
+            .put("title", "QQQ print test").put("format", pdf ? "PDF" : "ZPL").put("contentBase64", Base64.getEncoder().encodeToString(bytes)).put("idempotencyKey", key);
+         JSONObject options = profile.jobOptions(pdf ? "PDF" : "ZPL");
+         if(options != null)
+         {
+            request.put("options", options);
+         }
+         JSONObject job = currentService().submit(request);
          return job.getString("jobId");
       }
       catch(java.sql.SQLException | PrintingException exception)

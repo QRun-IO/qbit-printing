@@ -1,5 +1,24 @@
 # Session state — 2026-10-31
 
+## Standards and small-label release cohort — 2026-11-01
+
+The strict standards tree (commit `43253f6`) combines the 2.3.0 operator/media/retained source with the
+Error Prone 2.51.0 / NullAway / `-Werror` compiler gate, null contracts, strict headers, the development
+fixture style gates and the official-npm Pyright script gates. Observed locally on that tree: main and test
+compile clean and the full `-Pui-demo verify` passed (189 reported, 0 failures, 0 errors, one intentional
+opt-in 10,000-job skip, 0 Checkstyle violations). This qualifies that integrated source only.
+
+The 4 x 1 and 4 x 2 inch label work (compact layouts, explicit PDF job paper in millimetres that never mixes
+with a media profile, and the 4 x 6 path unchanged) is being merged onto it in the release-integration tree.
+Its four conflicts (`PrintingProcesses`, `PrintingService`, `PrintingTestDocuments`, `TestPrintProfile`) were
+resolved by keeping all label behavior and tests and layering the strict contracts: `jobOptions` is
+`@Nullable` (null means the queue default applies), `validPaperMillimetres` accepts a missing value, redundant
+return wrappers are removed, and no suppression or rule change was added. Submission, authority, retained
+binding, replay and queue code paths were not edited. **Pending, not observed:** the release cohort compile and
+full verify, hosted CI, the final protocol fixture pin (the CI fixture ref still names the earlier reviewed
+commit until the merged protocol sha is pinned), publication and any physical print. The installed printer
+default is untouched; no printing was performed.
+
 ## Echo operator/media and retained-source candidate — 2026-11-01
 
 The isolated Echo candidate adds native printing extension **2.3.0** (after the protected-main 2.2.0 rendering extension) on the

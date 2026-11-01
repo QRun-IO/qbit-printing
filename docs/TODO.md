@@ -36,6 +36,14 @@
 - [ ] Observe the `development-clients` and `development-servers` jobs, the compiler
   guard and the script-quality gates pass on hosted CI.
 
+## Small-label release cohort
+
+- [x] Merge the 4 x 1 / 4 x 2 label profiles, compact PDF/ZPL layouts, explicit PDF job paper and their tests
+  onto the strict standards tree, keeping the strict headers, null contracts and Error Prone fixes.
+- [ ] Run the single cohort gate (compile, full verify, compiler guard) on the merged tree; no result is claimed yet.
+- [ ] Pin the final merged protocol fixture sha in CI and confirm version/protocol references agree across the cohort.
+- [ ] Observe hosted CI, then publish; physical confirmation of the short labels stays an owner step (4 x 6 stock is loaded).
+
 ## Current local development qualification
 
 - [x] Reuse production discovery and the shared major-2 gate in the optional
