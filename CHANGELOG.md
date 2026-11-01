@@ -2,7 +2,11 @@
 
 ## Unreleased (0.4.0-SNAPSHOT)
 
-Printing extension **2.1.0** (additive; the agent contract is unchanged).
+Printing extension **2.2.0** (additive; the agent contract is unchanged). 2.1.0 added
+the record, table-list and text print processes; 2.2.0 adds `printingRenderToPdf`,
+the header and footer values on every document and content sections. Clients
+should offer a feature when its process is in the metadata, not by comparing
+versions.
 
 - The app's header and footer on every page of every document (record sheets,
   table lists, text and content pages): app name, title or breadcrumb, server,
