@@ -12,7 +12,7 @@ Maintainers create reviewed version tags. CI produces JAR/POM/checksum assets an
 
 ## Script quality
 
-Owned `.github/scripts/*.py` follow the KofTwentyTwo standard at revision `fbfc8d2cf3b5e16ae9750b04cf9de1794f1e7152` (config adapted from its `python` profile): three-space indentation, Ruff 0.17.3 format/lint and strict Pyright 1.1.414. Restore with `uv sync --locked`, then run:
+Owned `.github/scripts/*.py` follow the KofTwentyTwo standard at revision `fbfc8d2cf3b5e16ae9750b04cf9de1794f1e7152` (config adapted from its `python` profile): three-space indentation, Ruff 0.17.3 format/lint (locked in `uv.lock`) and strict Pyright 1.1.414 (Microsoft's npm package, a development-only dependency locked in `package-lock.json` and run through Node 24). Restore with `uv sync --locked` and `npm ci --ignore-scripts`, then run:
 
 ```text
 uv run --locked --no-sync python .github/scripts/test-script-quality.py
