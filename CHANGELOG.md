@@ -2,11 +2,27 @@
 
 ## Unreleased (0.4.0-SNAPSHOT)
 
-Printing extension **2.2.0** (additive; the agent contract is unchanged). 2.1.0 added
-the record, table-list and text print processes; 2.2.0 adds `printingRenderToPdf`,
-the header and footer values on every document and content sections. Clients
-should offer a feature when its process is in the metadata, not by comparing
-versions.
+Printing extension **2.3.0** (additive; wire payload v1 and the agent subprotocol are
+unchanged). 2.1.0 added the record, table-list and text print processes; 2.2.0 added
+`printingRenderToPdf`, the header and footer values on every document and content
+sections; 2.3.0 adds the least-privilege operator catalog/submission/request lookup,
+reported Windows queue-default media (`printer-media-v1`) and the opt-in
+retained-source facade. Clients should offer a feature when its process is in the
+metadata, not by comparing versions. An agent that does not advertise
+`printer-media-v1` stays a three-capability peer and cannot claim a job carrying a
+media selection, whatever extension version it discovers.
+
+- Realtime shutdown now waits, with a bound, for channel workers that are already
+  running before the host's durable state is released. Previously the executor was
+  only told to stop, so a late drain could query a stopped file database and
+  recreate it empty (found as a temporary-directory cleanup error in a full test
+  run).
+
+Observed locally on the merged candidate: full `-Pui-demo verify` 189 reported,
+188 executed, one intentional opt-in workload skip, zero failures/errors, zero
+Checkstyle violations; five consecutive focused realtime runs passed. Hosted CI on
+the final signed head, publication and consumer qualification have not run; no
+physical output is claimed.
 
 - The app's header and footer on every page of every document (record sheets,
   table lists, text and content pages): app name, title or breadcrumb, server,

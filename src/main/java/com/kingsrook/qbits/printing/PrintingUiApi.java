@@ -49,11 +49,11 @@ public final class PrintingUiApi
       MiddlewareSpecExtensionsMetaData.ofOrWithNew(instance).withExtension(extension());
    }
 
-   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims; 2.1.0 adds the record, table-list and text print processes; 2.2.0 adds printingRenderToPdf, the header/footer values and content sections. */
+   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims; 2.1.0 adds the record, table-list and text print processes; 2.2.0 adds printingRenderToPdf, the header/footer values and content sections; 2.3.0 adds authorized operator submission, reported queue-default media and the retained-source facade. */
    public static MiddlewareSpecExtension extension()
    {
-      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.2.0")
-         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes; render to PDF with the app header and footer.")
+      return (new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.3.0")
+         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes; render to PDF with the app header and footer; least-privilege operator catalog and printer-media-v1.")
          .withSpec(Session.class)
          .withSpec(Bind.class)
          .withSpec(Enroll.class)
@@ -70,7 +70,43 @@ public final class PrintingUiApi
          .withSpec(Receipt.class)
          .withSpec(Action.class)
          .withSpec(Commands.class)
-         .withSpec(Command.class));
+         .withSpec(Command.class)
+         .withSpec(OperatorCatalog.class)
+         .withSpec(OperatorSubmit.class)
+         .withSpec(OperatorRequest.class));
+   }
+
+
+   /** Current-actor, approved/exposed printer catalog; no administrative permission. */
+   public static class OperatorCatalog extends PrintingUiApiSpec
+   {
+      /** Public registry constructor. */
+      public OperatorCatalog()
+      {
+         super("OperatorCatalog", HttpMethod.GET, "/operator/printers", null, "OperatorCatalog");
+      }
+   }
+
+
+   /** Operator document submission uses the existing durable queue. */
+   public static class OperatorSubmit extends PrintingUiApiSpec
+   {
+      /** Public registry constructor. */
+      public OperatorSubmit()
+      {
+         super("OperatorSubmit", HttpMethod.POST, "/operator/jobs", "OperatorSubmit", "Job");
+      }
+   }
+
+
+   /** Exact actor/request lookup replaces general job history access. */
+   public static class OperatorRequest extends PrintingUiApiSpec
+   {
+      /** Public registry constructor. */
+      public OperatorRequest()
+      {
+         super("OperatorRequest", HttpMethod.GET, "/operator/requests/{requestId}", null, "Job");
+      }
    }
 
 

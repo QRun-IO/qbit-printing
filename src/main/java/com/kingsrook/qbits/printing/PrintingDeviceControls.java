@@ -266,8 +266,8 @@ final class PrintingDeviceControls
       }
       String version = text(request, "agentVersion", 100);
       long applied = integer(request, "lastAppliedRevision");
-      if(!(request.opt("capabilities") instanceof JSONArray capabilities) || capabilities.length() > 2
-         || capabilities.toList().stream().anyMatch(value -> !REMOTE.contains(value)) || Set.copyOf(capabilities.toList()).size() != capabilities.length())
+      if(!(request.opt("capabilities") instanceof JSONArray capabilities) || capabilities.length() > 3
+         || capabilities.toList().stream().anyMatch(value -> !REMOTE.contains(value) && !"printer-media-v1".equals(value)) || Set.copyOf(capabilities.toList()).size() != capabilities.length())
       {
          throw new PrintingException(400, "Invalid control capabilities");
       }

@@ -43,7 +43,15 @@ public class PrintingReadPermission extends PrintingAdminPermission
    @Override
    public void checkPermissionsThrowing(AbstractActionInput input, MetaDataWithPermissionRules metadata) throws QPermissionDeniedException
    {
-      super.checkPermissionsThrowing(input, metadata);
+      if(metadata instanceof com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData table
+         && (PrintingTables.DEVICE.equals(table.getName()) || PrintingTables.PRINTER.equals(table.getName())))
+      {
+         new PrintingOperatorPermission().checkPermissionsThrowing(input, metadata);
+      }
+      else
+      {
+         super.checkPermissionsThrowing(input, metadata);
+      }
       if(input != null && !(input instanceof QueryInput) && !(input instanceof GetInput) && !(input instanceof CountInput)
          && !(input instanceof MetaDataInput) && !(input instanceof TableMetaDataInput))
       {

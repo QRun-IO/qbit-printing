@@ -252,7 +252,31 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       }
       finally
       {
-         workers.shutdown();
+         stopWorkers();
+      }
+   }
+
+
+   /**
+    * Stop accepting channel work and wait, bounded, for drains already running. Every channel was fenced and its session closed first, so
+    * an in-flight drain fails quickly; without this wait it could query durable state after the host has stopped (and, for a file database,
+    * recreate it empty), which is what left a test's temporary directory populated after cleanup.
+    */
+   private void stopWorkers()
+   {
+      workers.shutdown();
+      try
+      {
+         if(!workers.awaitTermination(5, TimeUnit.SECONDS))
+         {
+            workers.shutdownNow();
+            workers.awaitTermination(5, TimeUnit.SECONDS);
+         }
+      }
+      catch(InterruptedException exception)
+      {
+         workers.shutdownNow();
+         Thread.currentThread().interrupt();
       }
    }
 
@@ -437,8 +461,8 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
             {
                if(hello != null || !payload.keySet().equals(Set.of("agentVersion", "capabilities", "lastAppliedRevision", "lastSettingsRevision", "limits"))
                   || !payload.getJSONArray("capabilities").toList().contains("realtime-v1")
-                  || payload.getJSONArray("capabilities").length() > 3
-                  || !Set.of("realtime-v1", "REFRESH_INVENTORY", "CANCEL_SPOOL").containsAll(payload.getJSONArray("capabilities").toList()))
+                  || payload.getJSONArray("capabilities").length() > 4
+                  || !Set.of("realtime-v1", "REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1").containsAll(payload.getJSONArray("capabilities").toList()))
                {
                   throw new PrintingException(409, "Realtime capability is required");
                }
@@ -545,7 +569,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
          JSONArray capabilities = new JSONArray();
          for(Object value : hello.getJSONArray("capabilities"))
          {
-            if(Set.of("REFRESH_INVENTORY", "CANCEL_SPOOL").contains(value))
+            if(Set.of("REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1").contains(value))
             {
                capabilities.put(value);
             }

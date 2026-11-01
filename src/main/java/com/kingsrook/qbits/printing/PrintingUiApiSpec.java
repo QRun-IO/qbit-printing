@@ -72,7 +72,8 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    {
       return (new BasicOperation().withHttpMethod(method).withPath(PrintingUiApi.PREFIX + path)
          .withOperationId("printing" + operation).withShortSummary("Printing " + operation)
-         .withLongDescription("Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication."));
+         .withLongDescription(operation.startsWith("Operator") ? "Requires the current QQQ user session, printing_operator or printing_admin, current tenant and native destination record access. Submissions additionally require printingSubmit process and credential/channel write authority."
+            : "Requires the current QQQ user session, printing_admin permission and native record access. Device operations additionally require secondary device headers bound to this principal. No primary device-bearer authentication."));
    }
 
 
@@ -111,7 +112,7 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          parameters.add(new Parameter().withName(PrintingAgentAuthorization.DEVICE_HEADER).withIn(In.HEADER).withRequired(required).withSchema(PrintingApiSchemas.text(36)));
          parameters.add(new Parameter().withName(PrintingAgentAuthorization.TOKEN_HEADER).withIn(In.HEADER).withRequired(required).withSchema(PrintingApiSchemas.text(128)).withDescription("Private secondary device proof; never log."));
       }
-      for(String name : List.of("deviceId", "jobId", "commandId"))
+      for(String name : List.of("deviceId", "jobId", "commandId", "requestId"))
       {
          if(path.contains("{" + name + "}"))
          {
@@ -123,6 +124,11 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
          parameters.add(new Parameter().withName("limit").withIn(In.QUERY).withSchema(new Schema().withType(Type.INTEGER)).withDescription("1 through 200; default 50."));
          parameters.add(new Parameter().withName("before").withIn(In.QUERY).withSchema(PrintingApiSchemas.text(128)));
       }
+      if("OperatorCatalog".equals(operation))
+      {
+         parameters.add(new Parameter().withName("limit").withIn(In.QUERY).withSchema(new Schema().withType(Type.INTEGER)).withDescription("1 through 200; default 50."));
+         parameters.add(new Parameter().withName("after").withIn(In.QUERY).withSchema(PrintingApiSchemas.text(200)));
+      }
       return (parameters);
    }
 
@@ -132,8 +138,22 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    public JsonInput buildInput(Context context) throws Exception
    {
       context.header("Cache-Control", "no-store");
-      PrintingControlAuthorization.principal();
-      if(context.bodyAsBytes().length > ("Inventory".equals(operation) ? 2097152 : 32768))
+      if(operation.startsWith("Operator"))
+      {
+         PrintingOperatorAuthorization.principal();
+      }
+      else
+      {
+         PrintingControlAuthorization.principal();
+      }
+      long maximum = "Inventory".equals(operation) ? 2097152 : 32768;
+      if("OperatorSubmit".equals(operation))
+      {
+         PrintingOperatorAuthorization.requireSubmission();
+         PrintingRealtimePolicy policy = PrintingProcesses.currentService().realtimePolicy();
+         maximum = ((Math.max(policy.get("maxPdfBytes"), policy.get("maxZplBytes")) + 2) / 3) * 4 + 65536;
+      }
+      if(context.bodyAsBytes().length > maximum)
       {
          throw new PrintingException(413, "Printing request exceeds its size limit");
       }
@@ -157,6 +177,17 @@ public abstract class PrintingUiApiSpec extends AbstractJsonEndpointSpec
    protected Object handle(JsonInput input) throws Exception
    {
       PrintingService service = PrintingProcesses.currentService();
+      if(operation.startsWith("Operator"))
+      {
+         JSONObject result = switch(operation)
+         {
+            case "OperatorCatalog" -> PrintingOperatorAuthorization.catalog(input.getQueryParamInteger("limit") == null ? 50 : input.getQueryParamInteger("limit"), input.getQueryParam("after"));
+            case "OperatorSubmit" -> PrintingOperatorAuthorization.submit(new JSONObject(input.getBody()));
+            case "OperatorRequest" -> PrintingOperatorAuthorization.observe(input.getPathParam("requestId"));
+            default -> throw new PrintingException(400, "Unknown operator operation");
+         };
+         return result.toMap();
+      }
       String principal = PrintingControlAuthorization.principal();
       String device = input.getPathParam("_verifiedDevice");
       JSONObject body = new JSONObject(input.getBody());
