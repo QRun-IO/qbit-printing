@@ -54,7 +54,7 @@ final class PrintingLayout implements AutoCloseable
    private float y;
    private List<String> repeatHeader = List.of();
    private int repeatSize = 8;
-   private String footer = "";
+   private PrintingChrome chrome;
    private float leading = 1.35f;
 
 
@@ -65,6 +65,17 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    PrintingLayout(String pageSize, boolean landscape, String title, String subtitle) throws QException
    {
+      this(pageSize, landscape, title, subtitle, null);
+   }
+
+
+
+   /***************************************************************************
+    ** With the app's header and footer on every page (defaults when null).
+    ***************************************************************************/
+   PrintingLayout(String pageSize, boolean landscape, String title, String subtitle, PrintingChrome chrome) throws QException
+   {
+      this.chrome = chrome == null ? PrintingChrome.defaults(title) : chrome;
       try(InputStream stream = PrintingLayout.class.getResourceAsStream(PrintingTestDocuments.FONT_RESOURCE))
       {
          if(stream == null)
@@ -117,11 +128,11 @@ final class PrintingLayout implements AutoCloseable
 
 
    /***************************************************************************
-    ** Text at the bottom left of every page (who printed it and when).
+    ** A note above the footer of every page (a grid's filter and sort).
     ***************************************************************************/
    void footer(String text)
    {
-      footer = text == null ? "" : text;
+      chrome = chrome.withFooterNote(text);
    }
 
 
@@ -143,7 +154,7 @@ final class PrintingLayout implements AutoCloseable
    void line(String text, float fontSize) throws IOException
    {
       float step = fontSize * leading;
-      if(y - step < MARGIN + 14)
+      if(y - step < bottom())
       {
          newPage();
          for(String header : repeatHeader)
@@ -161,7 +172,7 @@ final class PrintingLayout implements AutoCloseable
     ***************************************************************************/
    void keep(int lines, int fontSize) throws IOException
    {
-      if(y - lines * fontSize * 1.35f < MARGIN + 14)
+      if(y - lines * fontSize * leading < bottom())
       {
          newPage();
       }
@@ -208,19 +219,17 @@ final class PrintingLayout implements AutoCloseable
             try(PDPageContentStream footer = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true))
             {
                String text = "Page " + (i + 1) + " of " + total;
-               footer.beginText();
-               footer.setFont(font, 8);
-               footer.newLineAtOffset(size.getWidth() - MARGIN - text.length() * 4.8f, MARGIN - 14);
-               footer.showText(text);
-               footer.endText();
-               if(!this.footer.isEmpty())
+               float base = MARGIN - 14;
+               footer.setLineWidth(0.5f);
+               footer.moveTo(MARGIN, base + (hasNote() ? 20 : 10));
+               footer.lineTo(size.getWidth() - MARGIN, base + (hasNote() ? 20 : 10));
+               footer.stroke();
+               if(hasNote())
                {
-                  footer.beginText();
-                  footer.setFont(font, 8);
-                  footer.newLineAtOffset(MARGIN, MARGIN - 14);
-                  footer.showText(safe(PrintingRecordDocuments.truncate(this.footer, Math.max(10, columns(8) - text.length() - 2))));
-                  footer.endText();
+                  at(footer, MARGIN, base + 10, PrintingRecordDocuments.truncate(chrome.footerNote(), columns(7.5f)), 7.5f);
                }
+               at(footer, size.getWidth() - MARGIN - text.length() * 4.8f, base, text, 8);
+               at(footer, MARGIN, base, PrintingRecordDocuments.truncate(chrome.footerLeft(), Math.max(10, columns(8) - text.length() - 2)), 8);
             }
          }
          ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -273,12 +282,75 @@ final class PrintingLayout implements AutoCloseable
       PDPage page = new PDPage(size);
       document.addPage(page);
       content = new PDPageContentStream(document, page);
-      y = size.getHeight() - MARGIN;
+      y = size.getHeight() - MARGIN + 14;
+      header();
       if(document.getNumberOfPages() > 1)
       {
          draw(PrintingRecordDocuments.truncate(title, columns(8)) + " (continued)", 8, 12);
          y -= 4;
       }
+   }
+
+
+
+   /***************************************************************************
+    ** The app's header band: the app and server/user/time, then the title or
+    ** breadcrumb, then a rule.
+    ***************************************************************************/
+   private void header() throws IOException
+   {
+      String right = chrome.headerRight();
+      int rightChars = Math.min(right.length(), columns(7.5f) / 2 + 10);
+      String rightText = PrintingRecordDocuments.truncate(right, rightChars);
+      y -= 9;
+      at(content, MARGIN, y, PrintingRecordDocuments.truncate(chrome.app(), Math.max(10, columns(9) - rightText.length())), 9);
+      at(content, size.getWidth() - MARGIN - rightText.length() * 4.5f, y, rightText, 7.5f);
+      if(chrome.title() != null && !chrome.title().isBlank())
+      {
+         y -= 10;
+         at(content, MARGIN, y, PrintingRecordDocuments.truncate(chrome.title(), columns(7.5f)), 7.5f);
+      }
+      y -= 4;
+      content.setLineWidth(0.5f);
+      content.moveTo(MARGIN, y);
+      content.lineTo(size.getWidth() - MARGIN, y);
+      content.stroke();
+      content.setLineWidth(1f);
+      y -= 6;
+   }
+
+
+
+   /***************************************************************************
+    ** Whether pages carry a footer note.
+    ***************************************************************************/
+   private boolean hasNote()
+   {
+      return (chrome.footerNote() != null && !chrome.footerNote().isBlank());
+   }
+
+
+
+   /***************************************************************************
+    ** The lowest baseline body text may use, above the footer band.
+    ***************************************************************************/
+   private float bottom()
+   {
+      return (MARGIN + (hasNote() ? 22 : 12));
+   }
+
+
+
+   /***************************************************************************
+    ** Text at a position on a content stream.
+    ***************************************************************************/
+   private void at(PDPageContentStream stream, float x, float baseline, String text, float fontSize) throws IOException
+   {
+      stream.beginText();
+      stream.setFont(font, fontSize);
+      stream.newLineAtOffset(x, baseline);
+      stream.showText(safe(text));
+      stream.endText();
    }
 
 
