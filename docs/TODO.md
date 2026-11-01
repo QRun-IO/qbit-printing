@@ -1,5 +1,21 @@
 # Follow-up
 
+## Echo integration candidate
+
+- [x] Implement authorized operator catalog, native submission/process permission,
+  exact actor/request lookup and reported driver-default media revisions.
+- [x] Integrate the opt-in atomic retained-source facade using the same queue,
+  current authority, immutable acceptance and exact device-event observation.
+- [x] Close native callback authority changes and preserve the exact accepted
+  printer-row identity during read-only request reconciliation.
+- [x] Complete combined candidate verification: 183 reported tests, 182 executed,
+  one opt-in workload skip, zero failures/errors and Checkstyle violations.
+  Preserve exact source, draft protocol fixtures and frozen runtime hashes.
+- [ ] Qualify Echo/Generation's exact core tuple and configured source authority;
+  do not silently adopt experimental core or bypass external-upload admission.
+- [ ] Publish the reviewed additive contract and coordinate client/runtime adoption
+  before owner-operated end-to-end physical acceptance.
+
 ## Current local development qualification
 
 - [x] Supply portable, owned Docker Start/Test/Stop commands with private synthetic

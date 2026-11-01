@@ -277,9 +277,14 @@ public class PrintingService
          "CREATE TABLE IF NOT EXISTS printing_device (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, facility_id VARCHAR(200) NOT NULL, name VARCHAR(200) NOT NULL, agent_version VARCHAR(100) NOT NULL, token_hash VARCHAR(64) UNIQUE NOT NULL, last_seen_at VARCHAR(40) NOT NULL, enabled INTEGER NOT NULL)",
          "CREATE TABLE IF NOT EXISTS printing_printer (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, device_id VARCHAR(36) NOT NULL REFERENCES printing_device(id), printer_id VARCHAR(200) NOT NULL, name VARCHAR(300) NOT NULL, driver_name VARCHAR(300), port_name VARCHAR(300), status VARCHAR(40) NOT NULL, formats VARCHAR(100) NOT NULL, enabled INTEGER NOT NULL, last_seen_at VARCHAR(40) NOT NULL, UNIQUE(device_id, printer_id))",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS available INTEGER DEFAULT 0 NOT NULL",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS media_profiles_json TEXT DEFAULT '[]' NOT NULL",
          "CREATE TABLE IF NOT EXISTS printing_job (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, device_id VARCHAR(36) NOT NULL REFERENCES printing_device(id), printer_id VARCHAR(200) NOT NULL, title VARCHAR(300) NOT NULL, format VARCHAR(10) NOT NULL, content_hash VARCHAR(64) NOT NULL, content_base64 TEXT NOT NULL, content_length INTEGER NOT NULL, options_json VARCHAR(2000) NOT NULL, idempotency_key VARCHAR(300) NOT NULL, created_at VARCHAR(40) NOT NULL, status VARCHAR(40) NOT NULL, message VARCHAR(2000), spooler_job_id VARCHAR(100), UNIQUE(tenant_id, idempotency_key))",
          "CREATE TABLE IF NOT EXISTS printing_event (id VARCHAR(100) PRIMARY KEY, job_id VARCHAR(36) NOT NULL REFERENCES printing_job(id), status VARCHAR(40) NOT NULL, event_json VARCHAR(4000) NOT NULL, created_at VARCHAR(40) NOT NULL)",
          "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS printer_row_id VARCHAR(36)",
+         "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS retained_actor_id VARCHAR(200)",
+         "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS retained_binding_json VARCHAR(16000)",
+         "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS accepted_event_id VARCHAR(128)",
+         "ALTER TABLE printing_event ADD COLUMN IF NOT EXISTS event_origin VARCHAR(40)",
          "ALTER TABLE printing_job ALTER COLUMN content_base64 DROP NOT NULL",
          "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS content_available INTEGER DEFAULT 1 NOT NULL",
          "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS completed_at VARCHAR(40)",
@@ -780,6 +785,7 @@ public class PrintingService
                   update(connection, "INSERT INTO printing_printer (id, tenant_id, device_id, printer_id, name, driver_name, port_name, status, formats, enabled, last_seen_at, available, queue_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, ?)", UUID.randomUUID().toString(), tenantId, deviceId, printerId, name, driver, port, status, formats, now, name);
                }
                String rowId = query(connection, "SELECT id FROM printing_printer WHERE device_id=? AND printer_id=?", deviceId, printerId).getFirst().getString("id");
+               update(connection, "UPDATE printing_printer SET media_profiles_json=? WHERE id=?", PrintingMediaProfile.inventory(printer).toString(), rowId);
                updateProfile(connection, "printing_printer", rowId, printer, "displayName", "queue_name");
             }
             update(connection, "UPDATE printing_device SET last_seen_at=? WHERE id=?", Instant.now().toString(), deviceId);
@@ -818,6 +824,15 @@ public class PrintingService
     ***************************************************************************/
    public JSONObject submit(JSONObject request) throws SQLException
    {
+      return (submitAuthorized(request, null, null));
+   }
+
+
+   /** Native operators retain current authority throughout shared queue admission. */
+   JSONObject submitAuthorized(JSONObject request, String printerRowId, SubmissionAuthorization authorize) throws SQLException
+   {
+      SubmissionGuard guard = authorize == null ? null : new SubmissionGuard(printerRowId, authorize);
+      checkSubmission(guard);
       String format = required(request.optString("format"), "format");
       long maximum = realtimePolicy().documentLimit(format);
       if(request.getString("contentBase64").length() > ((maximum + 2) / 3) * 4)
@@ -845,7 +860,47 @@ public class PrintingService
       {
          throw new PrintingException(400, "PDF header is missing");
       }
-      return (submitPrepared(request, hash(content), content.length, connection -> content));
+      return (submitPrepared(request, hash(content), content.length, connection -> content, null, guard));
+   }
+
+
+   /** A caller-owned current authorization check, never externally asserted proof. */
+   @FunctionalInterface
+   interface SubmissionAuthorization
+   {
+      /** Recheck caller identity, current ceilings and exact destination. */
+      void check() throws com.kingsrook.qqq.backend.core.exceptions.QException;
+   }
+
+
+   /** Native row identity and live authority are independent of retained-source proof. */
+   private record SubmissionGuard(String printerRowId, SubmissionAuthorization authorize)
+   {
+      /** Host callbacks cannot retarget an authorized native row to another queue. */
+      void requirePrinter(JSONObject row, String field)
+      {
+         if(!printerRowId.equals(row.optString(field)))
+         {
+            throw new PrintingException(409, "The authorized print destination changed");
+         }
+      }
+   }
+
+
+   /** Preserve checked native authorization through the SQL transaction boundary. */
+   private static void checkSubmission(SubmissionGuard guard) throws SQLException
+   {
+      if(guard != null)
+      {
+         try
+         {
+            guard.authorize().check();
+         }
+         catch(com.kingsrook.qqq.backend.core.exceptions.QException exception)
+         {
+            throw new SQLException("Print submission authorization failed", exception);
+         }
+      }
    }
 
 
@@ -869,6 +924,58 @@ public class PrintingService
     ***************************************************************************/
    private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader) throws SQLException
    {
+      return (submitPrepared(request, digest, contentLength, loader, null, null));
+   }
+
+
+   /** Only the native facade supplies retained bindings and current-authority checks. */
+   JSONObject submitRetained(JSONObject request, JSONObject binding, String actor, RetainedPrintFacade.Checked authorize, RetainedContent loader) throws SQLException
+   {
+      binding.put("options", printOptions(request));
+      if(binding.toString().length() > 16000)
+      {
+         throw new PrintingException(400, "Retained print binding is too large");
+      }
+      JSONObject source = binding.getJSONObject("source");
+      BoundSubmission bound = new BoundSubmission(binding.toString(), actor);
+      return (submitPrepared(request, source.getString("sha256"), source.getInt("sizeBytes"), connection ->
+      {
+         try
+         {
+            byte[] bytes = loader.read();
+            if("PDF".equals(request.getString("format")) && !new String(bytes, 0, Math.min(5, bytes.length), StandardCharsets.US_ASCII).equals("%PDF-"))
+            {
+               throw new PrintingException(400, "PDF header is missing");
+            }
+            return bytes;
+         }
+         catch(com.kingsrook.qqq.backend.core.exceptions.QException exception)
+         {
+            throw new SQLException("Retained content authorization failed", exception);
+         }
+      }, bound, new SubmissionGuard(binding.getString("printerRecordId"), authorize::run)));
+   }
+
+
+   /** Deferred current-owner content read after shared capacity admission. */
+   @FunctionalInterface
+   interface RetainedContent
+   {
+      /** Return only authorized exact bytes. */
+      byte[] read() throws com.kingsrook.qqq.backend.core.exceptions.QException;
+   }
+
+
+   /** Request-local immutable binding; never an externally accepted JSON proof. */
+   private record BoundSubmission(String json, String actor)
+   {
+   }
+
+
+   /** Reuse the existing storage reservation, queue admission, and commit path. */
+   private JSONObject submitPrepared(JSONObject request, String digest, int contentLength, DocumentLoader loader, BoundSubmission bound, SubmissionGuard guard) throws SQLException
+   {
+      checkSubmission(guard);
       String deviceId = required(request.optString("deviceId"), "deviceId");
       String printerId = required(request.optString("printerId"), "printerId");
       String key = required(request.optString("idempotencyKey"), "idempotencyKey");
@@ -898,16 +1005,32 @@ public class PrintingService
                requireDevice(connection, deviceId);
                query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
                requireDevice(connection, deviceId);
-               List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+               checkSubmission(guard);
+               List<JSONObject> previous = query(connection, "SELECT " + JOB_COLUMNS + ", retained_binding_json, retained_actor_id, accepted_event_id FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
                if(!previous.isEmpty())
                {
                   JSONObject old = previous.getFirst();
+                  if(guard != null)
+                  {
+                     guard.requirePrinter(old, "printer_row_id");
+                  }
+                  if(key.startsWith("operator:") && !old.getString("title").equals(title))
+                  {
+                     throw new PrintingException(409, "Idempotency key was already used for a different request");
+                  }
+                  if((bound == null) != old.isNull("retained_binding_json")
+                     || (bound != null && (!new JSONObject(bound.json()).similar(new JSONObject(old.getString("retained_binding_json"))) || !bound.actor().equals(old.getString("retained_actor_id")))))
+                  {
+                     throw new PrintingException(409, "Idempotency key belongs to a different accepted source");
+                  }
                   if(!old.getString("device_id").equals(deviceId) || !old.getString("printer_id").equals(printerId) || !old.getString("content_hash").equals(digest) || !old.getString("format").equals(format) || !new JSONObject(old.getString("options_json")).similar(options))
                   {
                      throw new PrintingException(409, "Idempotency key was already used for a different request");
                   }
+                  JSONObject replay = bound == null ? job(old) : accepted(connection, old);
+                  checkSubmission(guard);
                   connection.commit();
-                  return (job(old));
+                  return (replay);
                }
                if(query(connection, "SELECT id FROM printing_document_orphan WHERE tenant_id=? AND idempotency_key=? LIMIT 1", tenantId, key).isEmpty())
                {
@@ -933,10 +1056,16 @@ public class PrintingService
             {
                throw new PrintingException(400, "Printer is not enabled for this format");
             }
+            if(guard != null)
+            {
+               guard.requirePrinter(printers.getFirst(), "id");
+            }
             if(contentLength > contentLimit)
             {
                throw new PrintingException(413, "Document exceeds the current configured format limit");
             }
+            PrintingMediaProfile.requireCurrent(printers.getFirst(), options);
+            checkSubmission(guard);
             PrintingAdmission.reserve(connection, tenantId, deviceId, id, contentLength, new PrintingAdmissionSettings(dataSource, tenantId, admissionLimits).effective(connection));
             if(storageTableName != null)
             {
@@ -955,26 +1084,44 @@ public class PrintingService
                {
                   throw new PrintingException(400, "Printer is not enabled for this format");
                }
+               if(guard != null)
+               {
+                  guard.requirePrinter(printers.getFirst(), "id");
+               }
             }
+            PrintingMediaProfile.requireCurrent(printers.getFirst(), options);
+            checkSubmission(guard);
             byte[] content = loader.load(connection);
             if(content.length != contentLength || !hash(content).equals(digest))
             {
                throw new PrintingException(409, "Stored print document integrity validation failed");
             }
+            checkSubmission(guard);
             if(storageTableName != null)
             {
                documentStorage.put(storageTableName, reference, format, content);
             }
+            checkSubmission(guard);
             update(connection, "INSERT INTO printing_job (id, tenant_id, device_id, printer_id, title, format, content_hash, content_base64, content_length, options_json, idempotency_key, created_at, status, printer_row_id, content_storage_table, content_reference, content_binding) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?)", id, tenantId, deviceId, printerId, title, format, digest, storageTableName == null ? Base64.getEncoder().encodeToString(content) : null, content.length, options.toString(), key, Instant.now().toString(), printers.getFirst().getString("id"), storageTableName, reference, binding);
+            if(bound != null)
+            {
+               String eventId = UUID.randomUUID().toString();
+               String acceptedAt = Instant.now().toString();
+               update(connection, "UPDATE printing_job SET retained_actor_id=?, retained_binding_json=?, accepted_event_id=? WHERE id=?", bound.actor(), bound.json(), eventId, id);
+               JSONObject event = new JSONObject().put("type", "ACCEPTED").put("origin", "SERVER_ACCEPTANCE").put("status", "QUEUED");
+               update(connection, "INSERT INTO printing_event (id, job_id, status, event_json, created_at, event_origin) VALUES (?, ?, 'QUEUED', ?, ?, 'SERVER_ACCEPTANCE')", eventId, id, event.toString(), acceptedAt);
+            }
             update(connection, "DELETE FROM printing_document_orphan WHERE id=? AND tenant_id=?", id, tenantId);
-            JSONObject result = job(query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE id=?", id).getFirst());
+            JSONObject stored = query(connection, "SELECT " + JOB_COLUMNS + ", retained_binding_json, retained_actor_id, accepted_event_id FROM printing_job WHERE id=?", id).getFirst();
+            JSONObject result = bound == null ? job(stored) : accepted(connection, stored);
+            checkSubmission(guard);
             connection.commit();
             realtimeBus.publish(tenantId, deviceId);
             return (result);
          }
          catch(Exception exception)
          {
-            connection.rollback();
+            rollbackAfterFailure(connection, exception);
             if(uploadedId != null)
             {
                try
@@ -983,7 +1130,10 @@ public class PrintingService
                }
                catch(Exception cleanupFailure)
                {
-                  exception.addSuppressed(cleanupFailure);
+                  if(cleanupFailure != exception)
+                  {
+                     exception.addSuppressed(cleanupFailure);
+                  }
                }
             }
             throw exception;
@@ -997,6 +1147,13 @@ public class PrintingService
     ** Preserve request intent: reject malformed types instead of coercing them.
     ***************************************************************************/
    private JSONObject printOptions(JSONObject request) throws SQLException
+   {
+      return (printOptions(request, Math.toIntExact(realtimePolicy().get("maxCopies"))));
+   }
+
+
+   /** Normalize an immutable intent without reading or creating tenant settings during reconciliation. */
+   private static JSONObject printOptions(JSONObject request, int maximumCopies)
    {
       if(request.has("options") && !(request.opt("options") instanceof JSONObject))
       {
@@ -1021,7 +1178,7 @@ public class PrintingService
          }
       }
       Object scale = options.has("scale") ? options.opt("scale") : "ACTUAL_SIZE";
-      if(count < 1 || count > realtimePolicy().get("maxCopies") || !(scale instanceof String) || !Set.of("ACTUAL_SIZE", "FIT").contains(scale))
+      if(count < 1 || count > maximumCopies || !(scale instanceof String) || !Set.of("ACTUAL_SIZE", "FIT").contains(scale))
       {
          throw new PrintingException(400, "Invalid print options");
       }
@@ -1029,6 +1186,7 @@ public class PrintingService
       {
          throw new PrintingException(400, "Custom paper dimensions are not supported yet; configure the Windows queue");
       }
+      PrintingMediaProfile.selection(options);
       options.put("copies", count).put("scale", scale);
       if(options.toString().length() > 2000)
       {
@@ -1179,7 +1337,7 @@ public class PrintingService
             requireDevice(connection, deviceId);
             query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
             requireDevice(connection, deviceId);
-            JSONObject control = query(connection, "SELECT dispatch_paused,connection_state FROM printing_device WHERE tenant_id=? AND id=?", tenantId, deviceId).getFirst();
+            JSONObject control = query(connection, "SELECT dispatch_paused,connection_state,control_capabilities FROM printing_device WHERE tenant_id=? AND id=?", tenantId, deviceId).getFirst();
             if(control.getInt("dispatch_paused") == 1 || !"CONNECTED".equals(control.getString("connection_state")))
             {
                connection.commit();
@@ -1192,6 +1350,11 @@ public class PrintingService
                return (new JSONObject().put("job", JSONObject.NULL));
             }
             JSONObject selected = candidates.getFirst();
+            if(new JSONObject(selected.getString("options_json")).has("mediaProfile")
+               && !new JSONArray(control.optString("control_capabilities", "[]")).toList().contains("printer-media-v1"))
+            {
+               throw new PrintingException(409, "This job requires an agent that validates printer media profiles");
+            }
             if("QUEUED".equals(selected.getString("status")))
             {
                update(connection, "UPDATE printing_job SET status='CLAIMED' WHERE id=?", selected.getString("id"));
@@ -1313,7 +1476,7 @@ public class PrintingService
                throw new PrintingException(409, "Invalid state transition");
             }
             String eventTime = Instant.now().toString();
-            update(connection, "INSERT INTO printing_event VALUES (?, ?, ?, ?, ?)", eventId, jobId, status, event.toString(), eventTime);
+            update(connection, "INSERT INTO printing_event (id, job_id, status, event_json, created_at, event_origin) VALUES (?, ?, ?, ?, ?, 'DEVICE_OBSERVATION')", eventId, jobId, status, event.toString(), eventTime);
             if(Set.of("SPOOLED", "SPOOLER_COMPLETED").contains(status))
             {
                update(connection, "UPDATE printing_job SET completed_at=? WHERE id=?", eventTime, jobId);
@@ -1390,7 +1553,7 @@ public class PrintingService
          for(JSONObject row : rows.subList(0, Math.min(limit, rows.size())))
          {
             result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("name", row.getString("queue_name")).put("displayName", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location"))
-               .put("driverName", row.optString("driver_name")).put("portName", row.optString("port_name")).put("status", row.getString("status")).put("formats", new JSONArray(row.getString("formats"))).put("enabled", row.getInt("enabled") == 1).put("available", row.getInt("available") == 1).put("lastSeenAt", row.getString("last_seen_at")));
+               .put("mediaProfiles", new JSONArray(row.getString("media_profiles_json"))).put("driverName", row.optString("driver_name")).put("portName", row.optString("port_name")).put("status", row.getString("status")).put("formats", new JSONArray(row.getString("formats"))).put("enabled", row.getInt("enabled") == 1).put("available", row.getInt("available") == 1).put("lastSeenAt", row.getString("last_seen_at")));
          }
          JSONObject response = new JSONObject().put("printers", result).put("nextCursor", JSONObject.NULL);
          if(rows.size() > limit)
@@ -1496,6 +1659,126 @@ public class PrintingService
 
 
 
+   /** Cleanup never replaces the acceptance/authorization failure that caused rollback. */
+   static void rollbackAfterFailure(Connection connection, Exception original)
+   {
+      try
+      {
+         connection.rollback();
+      }
+      catch(Exception cleanupFailure)
+      {
+         if(cleanupFailure != original)
+         {
+            original.addSuppressed(cleanupFailure);
+         }
+      }
+   }
+
+
+   /** Exact accepted-source lookup; unresolved object reservations never mean absence. */
+   JSONObject findRetained(String key, JSONObject expected) throws SQLException
+   {
+      if(expected != null)
+      {
+         expected.put("options", printOptions(new JSONObject().put("options", expected.getJSONObject("options")), 32767));
+      }
+      try(Connection connection = dataSource.getConnection())
+      {
+         connection.setAutoCommit(false);
+         try
+         {
+            PrintingAdmission.lock(connection, tenantId);
+            JSONObject result = findRetained(connection, key, expected);
+            connection.commit();
+            return (result);
+         }
+         catch(Exception exception)
+         {
+            rollbackAfterFailure(connection, exception);
+            throw exception;
+         }
+      }
+   }
+
+
+   /** The existing admission lock makes absence consistent with in-flight submissions. */
+   private JSONObject findRetained(Connection connection, String key, JSONObject expected) throws SQLException
+   {
+      List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + ", retained_binding_json, retained_actor_id, accepted_event_id FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+      if(rows.isEmpty())
+      {
+         if(!query(connection, "SELECT id FROM printing_document_orphan WHERE tenant_id=? AND idempotency_key=?", tenantId, key).isEmpty())
+         {
+            throw new PrintingException(409, "Retained print acceptance is pending recovery");
+         }
+         return null;
+      }
+      JSONObject row = rows.getFirst();
+      if(row.isNull("retained_binding_json") || (expected != null && !expected.similar(new JSONObject(row.getString("retained_binding_json")))))
+      {
+         throw new PrintingException(409, "Accepted source binding differs");
+      }
+      return (accepted(connection, row));
+   }
+
+
+   /** Verify the server acceptance event and immutable job content/destination before returning proof. */
+   private JSONObject accepted(Connection connection, JSONObject row) throws SQLException
+   {
+      if(row.isNull("retained_binding_json") || row.isNull("accepted_event_id") || row.isNull("retained_actor_id"))
+      {
+         throw new PrintingException(409, "Job has no retained acceptance binding");
+      }
+      JSONObject binding = new JSONObject(row.getString("retained_binding_json"));
+      JSONObject source = binding.getJSONObject("source");
+      if(!tenantId.equals(binding.getString("tenantId")) || !row.getString("retained_actor_id").equals(binding.getString("actorId"))
+         || !row.getString("idempotency_key").equals(RetainedPrintFacade.key(binding.getString("requestId")))
+         || !row.getString("device_id").equals(binding.getString("deviceId")) || !row.getString("printer_id").equals(binding.getString("printerId"))
+         || !row.getString("printer_row_id").equals(binding.getString("printerRecordId")) || !row.getString("title").equals(binding.getString("title"))
+         || !row.getString("content_hash").equals(source.getString("sha256")) || row.getLong("content_length") != source.getLong("sizeBytes")
+         || !row.getString("format").equals("application/pdf".equals(source.getString("mediaType")) ? "PDF" : "ZPL")
+         || !new JSONObject(row.getString("options_json")).similar(binding.getJSONObject("options")))
+      {
+         throw new PrintingException(409, "Accepted job binding is inconsistent");
+      }
+      List<JSONObject> events = query(connection, "SELECT * FROM printing_event WHERE id=? AND job_id=? AND event_origin='SERVER_ACCEPTANCE' AND status='QUEUED'", row.getString("accepted_event_id"), row.getString("id"));
+      if(events.size() != 1 || !new JSONObject(events.getFirst().getString("event_json")).similar(new JSONObject().put("type", "ACCEPTED").put("origin", "SERVER_ACCEPTANCE").put("status", "QUEUED")))
+      {
+         throw new PrintingException(409, "Committed server acceptance event is absent or inconsistent");
+      }
+      return (new JSONObject().put("jobId", row.getString("id")).put("acceptedEventId", row.getString("accepted_event_id"))
+         .put("acceptedAt", events.getFirst().getString("created_at")).put("binding", binding));
+   }
+
+
+   /** Old unclassified events and server acceptance are not device observation evidence. */
+   JSONObject retainedObservation(String key, String eventId) throws SQLException
+   {
+      JSONObject acceptance = findRetained(key, null);
+      if(acceptance == null)
+      {
+         throw new PrintingException(404, "Accepted print intent not found");
+      }
+      try(Connection connection = dataSource.getConnection())
+      {
+         List<JSONObject> events = query(connection, "SELECT * FROM printing_event WHERE id=? AND job_id=? AND event_origin='DEVICE_OBSERVATION'", eventId, acceptance.getString("jobId"));
+         if(events.size() != 1)
+         {
+            throw new PrintingException(404, "Committed device observation not found");
+         }
+         JSONObject row = events.getFirst();
+         JSONObject event = new JSONObject(row.getString("event_json"));
+         if(!eventId.equals(event.getString("eventId")) || !row.getString("status").equals(event.getString("status")))
+         {
+            throw new PrintingException(409, "Device observation is inconsistent");
+         }
+         return (new JSONObject().put("acceptance", acceptance).put("recordedAt", row.getString("created_at"))
+            .put("state", row.getString("status")).put("spoolerJobId", event.opt("spoolerJobId") == null ? JSONObject.NULL : event.opt("spoolerJobId")));
+      }
+   }
+
+
    /***************************************************************************
     ** Find an accepted request during durable-effect reconciliation.
     ***************************************************************************/
@@ -1505,6 +1788,32 @@ public class PrintingService
       {
          List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
          return (rows.isEmpty() ? null : job(rows.getFirst()));
+      }
+   }
+
+
+   /** The native row accepted with an operator request is private authorization data. */
+   record OperatorAcceptance(JSONObject job, String printerRowId)
+   {
+   }
+
+
+   /** Read the exact committed row binding; a replacement queue cannot inherit history. */
+   OperatorAcceptance findOperatorAcceptance(String key) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         List<JSONObject> rows = query(connection, "SELECT " + JOB_COLUMNS + " FROM printing_job WHERE tenant_id=? AND idempotency_key=?", tenantId, key);
+         if(rows.isEmpty())
+         {
+            return null;
+         }
+         JSONObject row = rows.getFirst();
+         if(row.isNull("printer_row_id") || row.getString("printer_row_id").isBlank())
+         {
+            throw new PrintingException(409, "Accepted print destination binding is unavailable");
+         }
+         return new OperatorAcceptance(job(row), row.getString("printer_row_id"));
       }
    }
 

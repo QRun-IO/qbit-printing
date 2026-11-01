@@ -53,6 +53,55 @@ public class PrintingRealtimeTest
    Path directory;
 
 
+   /** An old client cannot ignore media intent, including after replacing a capable connection. */
+   @Test
+   void mediaCapabilityIsReplacedOnEveryAuthenticatedHello() throws Exception
+   {
+      String jdbc = "jdbc:h2:file:" + directory.resolve("media-realtime").toString().replace('\\', '/');
+      PrintingLocalHost host = new PrintingLocalHost(new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, "synthetic-management-token-long-enough", "operator", "synthetic-realtime-password-1234"));
+      AtomicReference<Javalin> app = new AtomicReference<>();
+      QApplicationLauncher launcher = QApplicationLauncher.run(host, new QApplicationLauncherConfig().withRegisterShutdownHook(false).withServerCustomizer(server ->
+      {
+         host.configure(server, false);
+         server.withJavalinConfigurationCustomizer(app::set);
+      }));
+      PrintingService service = launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
+         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService();
+      String base = "http://127.0.0.1:" + app.get().port();
+      JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Media fixture").put("deviceName", "Media fixture").put("agentVersion", "test"), "operator");
+      String device = enrolled.getString("deviceId");
+      String proof = enrolled.getString("deviceToken");
+      JSONObject media = new PrintingMediaProfile("default", "a".repeat(64), "4 x 6", 101600, 152400, 300, 300).json();
+      service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic queue").put("formats", new JSONArray().put("ZPL"))
+         .put("mediaProfiles", new JSONArray().put(media))));
+      service.enablePrinter(device, "queue", true);
+      String job = service.submit(request(device, "media").put("options", new JSONObject().put("mediaProfile", new JSONObject().put("id", "default").put("revision", "a".repeat(64))))).getString("jobId");
+      try(HttpClient http = HttpClient.newHttpClient())
+      {
+         String cookie = login(http, base);
+         try(PrintingSocketFixture old = PrintingSocketFixture.connect(http, base, cookie, device, proof))
+         {
+            assertEquals(409, assertThrows(PrintingException.class, () -> service.claim(device)).getStatus());
+            assertEquals("QUEUED", service.getJob(job).getString("status"));
+         }
+         try(PrintingSocketFixture capable = PrintingSocketFixture.open(http, base, cookie, device, proof))
+         {
+            capable.initialize(new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL").put("printer-media-v1"));
+            assertEquals(job, service.claim(device).getJSONObject("job").getString("jobId"));
+         }
+         try(PrintingSocketFixture downgraded = PrintingSocketFixture.connect(http, base, cookie, device, proof))
+         {
+            assertEquals(409, assertThrows(PrintingException.class, () -> service.claim(device)).getStatus());
+            assertEquals("CLAIMED", service.getJob(job).getString("status"));
+         }
+      }
+      finally
+      {
+         launcher.stop();
+      }
+   }
+
+
    /** A transport ping while disconnected proves contact, never state application or normal heartbeat. */
    private static void disconnectedPingUpdatesContactOnly(PrintingService service, String device, PrintingSocketFixture socket) throws Exception
    {

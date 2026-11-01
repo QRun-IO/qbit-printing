@@ -67,7 +67,14 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
    /** Reconcile after the connection's subscription is already registered. */
    void initialize() throws Exception
    {
-      send("HELLO", "hello", new JSONObject().put("agentVersion", "synthetic-test").put("capabilities", new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL"))
+      initialize(new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL"));
+   }
+
+
+   /** Explicit capabilities permit downgrade/reconnect qualification without changing old clients. */
+   void initialize(JSONArray capabilities) throws Exception
+   {
+      send("HELLO", "hello", new JSONObject().put("agentVersion", "synthetic-test").put("capabilities", capabilities)
          .put("lastAppliedRevision", 0).put("lastSettingsRevision", 0).put("limits", PrintingRealtimePolicy.defaults().toJson(0)));
       JSONObject welcome = take("WELCOME").getJSONObject("payload");
       apply(welcome.getJSONObject("desiredState").getLong("revision"), welcome.getJSONObject("settings").getLong("revision"));
