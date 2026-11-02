@@ -21,6 +21,7 @@
 package com.kingsrook.qbits.printing;
 
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -30,8 +31,10 @@ import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 /*******************************************************************************
@@ -94,6 +97,42 @@ class PrintingMigrationTest
          {
             rows.next();
             assertEquals(1, rows.getInt(1));
+         }
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** File-backed state survives last-connection closure without reinitialization.
+    ** This checks cold reopen durability, not reproduction of every old-driver file.
+    ***************************************************************************/
+   @Test
+   void preservesAuditSchemaAndSettingsAcrossColdReopens(@TempDir Path directory) throws Exception
+   {
+      String url = "jdbc:h2:file:" + directory.resolve("cold-reopen").toAbsolutePath();
+      DriverDataSource source = new DriverDataSource(url, "sa", "");
+      PrintingService service = new PrintingService(source, "tenant-a");
+      service.initialize();
+      assertEquals(365, service.getRetentionSettings().getInt("days"));
+      service.saveRetentionSettings(400, false);
+      JSONObject device = service.enroll(service.createEnrollment("default", "Synthetic station")
+         .put("deviceName", "Synthetic station").put("agentVersion", "test"));
+      for(int restart = 0; restart < 3; restart++)
+      {
+         DriverDataSource reopened = new DriverDataSource(url + ";IFEXISTS=TRUE", "sa", "");
+         PrintingService restarted = new PrintingService(reopened, "tenant-a");
+         assertEquals(400, restarted.getRetentionSettings().getInt("days"));
+         assertEquals(device.getString("deviceId"), restarted.authenticate(device.getString("deviceToken")));
+         try(Connection connection = reopened.getConnection())
+         {
+            for(String table : List.of("printing_settings", "printing_document_orphan", "printing_resource_usage", "printing_admission_event"))
+            {
+               try(PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) FROM " + table); java.sql.ResultSet rows = statement.executeQuery())
+               {
+                  assertTrue(rows.next());
+               }
+            }
          }
       }
    }

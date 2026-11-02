@@ -1,0 +1,78 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Opt-in unpublished core qualification. No service is a replacement for the
+# released RC.20 TABLE development host or an installed printing deployment.
+services:
+  authentik-server:
+    networks:
+      default:
+        aliases:
+          - auth.printing.internal
+          - qqq.printing.internal
+          - callback.printing.internal
+
+  native-tls:
+    profiles: [native-auth]
+    image: caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    platform: linux/amd64
+    network_mode: service:authentik-server
+    depends_on: [authentik-server]
+    volumes:
+      - ${DEV_SOURCE_DIR}/dev/native-auth/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEV_SOURCE_DIR}/dev/native-auth/copy-root.sh:/etc/caddy/copy-root.sh:ro
+      - native-ca:/data
+      - native-trust:/trust
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+    cpus: 1
+    mem_limit: 256m
+
+  native-qqq:
+    profiles: [native-auth]
+    build:
+      context: ${DEV_SOURCE_DIR}
+      dockerfile: dev/native-auth/Dockerfile.server
+    image: ${PRINTING_DEV_PROJECT}-native-server:local
+    environment:
+      NATIVE_QQQ_PORT: "19082"
+      NATIVE_QQQ_ORIGIN: https://qqq.printing.internal
+      NATIVE_QQQ_DATABASE_PASSWORD: ${NATIVE_QQQ_DATABASE_PASSWORD:?Initialize experimental state first}
+      NATIVE_QQQ_REFRESH_KEY: ${NATIVE_QQQ_REFRESH_KEY:?Initialize experimental state first}
+      NATIVE_AUTH_ISSUER: ${NATIVE_AUTH_ISSUER:?Initialize experimental state first}
+      NATIVE_AUTH_CLIENT_ID: ${NATIVE_AUTH_CLIENT_ID:?Initialize experimental state first}
+      NATIVE_AUTH_CLIENT_SECRET: ${NATIVE_AUTH_CLIENT_SECRET:?Initialize experimental state first}
+      NATIVE_AUTH_REDIRECT_URI: https://callback.printing.internal/oauth/callback
+    volumes:
+      - native-trust:/trust:ro
+      - native-qqq-data:/data
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+    cpus: 2
+    mem_limit: 1g
+
+  native-client:
+    profiles: [native-auth]
+    build:
+      context: ${DEV_SOURCE_DIR}
+      dockerfile: dev/native-auth/Dockerfile.client
+    image: ${PRINTING_DEV_PROJECT}-native-client:local
+    volumes:
+      - native-trust:/trust:ro
+      - ${NATIVE_AUTH_INPUT_FILE:?Initialize experimental state first}:/work/input.json:ro
+      - ${NATIVE_AUTH_RESULT_FILE:?Initialize experimental state first}:/work/result.json
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+    cpus: 2
+    mem_limit: 512m
+
+volumes:
+  native-ca:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+  native-trust:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}
+  native-qqq-data:
+    labels:
+      io.qrun.printing.dev: ${PRINTING_DEV_PROJECT}

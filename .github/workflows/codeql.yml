@@ -1,3 +1,6 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 name: codeql
 on:
   pull_request:
@@ -5,10 +8,11 @@ on:
     branches: [main]
   schedule:
     - cron: '41 6 * * 1'
+  workflow_call:
 permissions: {}
 jobs:
   codeql:
-    uses: KofTwentyTwo/standards/.github/workflows/codeql.yml@fdf5ed029603c938615a32b1beca3628b8787945 # v0.1.2
+    uses: ./.github/workflows/codeql-analysis.yml
     permissions:
       contents: read
       security-events: write

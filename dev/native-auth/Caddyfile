@@ -1,0 +1,20 @@
+{
+   admin off
+   skip_install_trust
+   auto_https disable_redirects
+}
+
+https://auth.printing.internal {
+   tls internal
+   reverse_proxy 127.0.0.1:9000
+}
+
+https://qqq.printing.internal {
+   tls internal
+   reverse_proxy native-qqq:19082
+}
+
+https://callback.printing.internal {
+   tls internal
+   reverse_proxy native-client:8088
+}
