@@ -1,1 +1,6 @@
+<!--
+  Copyright 2026 Kingsrook, LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <Configuration><Appenders><Console name="Console"><PatternLayout pattern="%level %logger - %msg%n"/></Console></Appenders><Loggers><Root level="warn"><AppenderRef ref="Console"/></Root></Loggers></Configuration>

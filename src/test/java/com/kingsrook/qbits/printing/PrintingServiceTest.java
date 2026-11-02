@@ -45,6 +45,97 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrintingServiceTest
 {
    /***************************************************************************
+    ** Protocol maximum event fields persist; malformed/oversized values fail400.
+    ***************************************************************************/
+   @Test
+   void eventBoundsMatchProtocolAndInventoryRejectsUnsupportedEnums() throws Exception
+   {
+      PrintingService service = new PrintingService(source(), "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      configure(service, device);
+      String job = service.submit(request(device)).getString("jobId");
+      service.claim(device);
+      for(JSONObject bad : List.of(new JSONObject().put("message", "m".repeat(2049)), new JSONObject().put("spoolerJobId", "s".repeat(129)), new JSONObject().put("message", JSONObject.NULL)))
+      {
+         assertEquals(400, assertThrows(PrintingException.class, () -> service.event(device, job, bad.put("eventId", "invalid").put("status", "RECEIVED"))).getStatus());
+      }
+      service.event(device, job, new JSONObject().put("eventId", "e".repeat(128)).put("status", "SPOOLED").put("message", "m".repeat(2048)).put("spoolerJobId", "s".repeat(128)));
+      assertEquals(2048, service.getJob(job).getString("message").length());
+      assertEquals(128, service.getJob(job).getString("spoolerJobId").length());
+      for(JSONArray formats : List.of(new JSONArray(), new JSONArray(List.of("RAW")), new JSONArray(List.of("PDF", "PDF"))))
+      {
+         assertEquals(400, assertThrows(PrintingException.class, () -> service.inventory(device, new JSONArray().put(inventory().getJSONObject(0).put("formats", formats)))).getStatus());
+      }
+      assertTrue(service.printers(device).getJSONObject(0).getBoolean("available"));
+   }
+
+
+
+   /***************************************************************************
+    ** Changing a driver's capabilities must block previously queued formats.
+    ***************************************************************************/
+   @Test
+   void claimRechecksCurrentPrinterFormat() throws Exception
+   {
+      PrintingService service = new PrintingService(source(), "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      configure(service, device);
+      String job = service.submit(request(device)).getString("jobId");
+      service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "zebra").put("name", "New driver")
+         .put("formats", new JSONArray(List.of("PDF")))));
+      assertTrue(service.claim(device).isNull("job"));
+      assertEquals("QUEUED", service.getJob(job).getString("status"));
+      service.inventory(device, inventory());
+      assertEquals(job, service.claim(device).getJSONObject("job").getString("jobId"));
+   }
+
+
+
+   /***************************************************************************
+    ** Invalid JSON option types must not silently change the requested output.
+    ***************************************************************************/
+   @Test
+   void malformedPrintOptionsAreRejectedBeforeQueueing() throws Exception
+   {
+      PrintingService service = new PrintingService(source(), "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      configure(service, device);
+      for(Object options : List.of("invalid", new JSONArray(), JSONObject.NULL,
+         new JSONObject().put("copies", 1.5), new JSONObject().put("copies", "2"), new JSONObject().put("copies", JSONObject.NULL)))
+      {
+         assertEquals(400, assertThrows(PrintingException.class, () -> service.submit(request(device).put("options", options))).getStatus());
+      }
+      assertEquals(0, service.jobs().length());
+   }
+
+
+
+   /***************************************************************************
+    ** A failed status cannot erase evidence that a job may already have printed.
+    ***************************************************************************/
+   @Test
+   void failureAfterSubmissionStillRequiresDuplicateConsent() throws Exception
+   {
+      PrintingService service = new PrintingService(source(), "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      configure(service, device);
+      String id = service.submit(request(device)).getString("jobId");
+      service.claim(device);
+      service.event(device, id, new JSONObject().put("eventId", "spooled-before-failure").put("status", "SPOOLED").put("spoolerJobId", "42"));
+      service.event(device, id, new JSONObject().put("eventId", "later-failure").put("status", "FAILED"));
+      assertEquals(409, assertThrows(PrintingException.class, () -> service.retry(device, id, new JSONObject().put("requestId", "retry"))).getStatus());
+      assertEquals(1, service.jobs().length());
+      service.retry(device, id, new JSONObject().put("requestId", "retry").put("confirmDuplicateRisk", true));
+      assertEquals(2, service.jobs().length());
+   }
+
+
+
+   /***************************************************************************
     ** An independently reconstructed runtime reads durable jobs and credentials.
     ***************************************************************************/
    @Test
@@ -172,7 +263,12 @@ class PrintingServiceTest
          assertThrows(com.kingsrook.qqq.backend.core.exceptions.QPermissionDeniedException.class,
             () -> new PrintingReadPermission().checkPermissionsThrowing(new com.kingsrook.qqq.backend.core.model.actions.tables.insert.InsertInput(), instance.getTable(PrintingTables.DEVICE)));
          RunBackendStepOutput enrollment = new RunBackendStepOutput();
-         new PrintingProcesses().run(new RunBackendStepInput().withProcessName("printingEnrollDevice").addValue("facilityId", "warehouse").addValue("deviceName", "station"), enrollment);
+         RunBackendStepInput enrollmentInput = new RunBackendStepInput().withProcessName("printingEnrollDevice").addValue("facilityId", "default").addValue("deviceName", "station");
+         RunBackendStepOutput enrollmentPrepared = new RunBackendStepOutput();
+         new PrintingProcesses.PrepareEnrollment().run(enrollmentInput, enrollmentPrepared);
+         enrollmentInput.addValue("printingEnrollmentCode", enrollmentPrepared.getValueString("printingEnrollmentCode"))
+            .addValue("printingEnrollmentExpires", enrollmentPrepared.getValueString("printingEnrollmentExpires"));
+         new PrintingProcesses().run(enrollmentInput, enrollment);
          assertTrue(enrollment.getValueString("result").startsWith("Enrollment code:"));
          String device = enroll(service);
          service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "laser").put("name", "Laser").put("formats", new JSONArray(List.of("PDF")))));
@@ -181,7 +277,11 @@ class PrintingServiceTest
          query.setTableName(PrintingTables.PRINTER);
          String printerRow = new com.kingsrook.qqq.backend.core.actions.tables.QueryAction().execute(query).getRecords().getFirst().getValueString("id");
          RunBackendStepOutput result = new RunBackendStepOutput();
-         new PrintingProcesses().run(new RunBackendStepInput().withProcessName("printingTestPdf").addValue("deviceId", device).addValue("printerId", printerRow), result);
+         RunBackendStepInput printInput = new RunBackendStepInput().withProcessName("printingTestPdf").addValue("deviceId", device).addValue("printerId", printerRow);
+         RunBackendStepOutput prepared = new RunBackendStepOutput();
+         new PrintingProcesses.PrepareTest().run(printInput, prepared);
+         printInput.addValue("printingTestRequestId", prepared.getValueString("printingTestRequestId"));
+         new PrintingProcesses().run(printInput, result);
          assertTrue(result.getValueString("result").startsWith("Queued print job"));
          JSONObject job = service.claim(device).getJSONObject("job");
          assertEquals("PDF", job.getString("format"));
