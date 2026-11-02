@@ -49,7 +49,6 @@ import com.kingsrook.qqq.backend.core.model.metadata.processes.QFrontendStepMeta
 import com.kingsrook.qqq.backend.core.model.metadata.processes.QProcessMetaData;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractLoadStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.AbstractTransformStep;
-import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ExtractViaQueryStep;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.ProcessSummaryProviderInterface;
 import com.kingsrook.qqq.backend.core.processes.implementations.etl.streamedwithfrontend.StreamedETLWithFrontendProcess;
 import org.json.JSONObject;
@@ -82,7 +81,7 @@ public class PrintingJobProcesses
          values.put(StreamedETLWithFrontendProcess.FIELD_PREVIEW_MESSAGE, retry
             ? "Each selected job will create a new print job. Previously spooled or uncertain output may print twice. Inspect the printer before continuing."
             : "Only selected jobs still queued in QQQ will be canceled. Jobs already received by a device must be inspected in the Windows companion.");
-         QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(ExtractViaQueryStep.class, Transform.class, Load.class, values)
+         QProcessMetaData process = StreamedETLWithFrontendProcess.defineProcessMetaData(PrintingExtract.class, Transform.class, Load.class, values)
             .withName(name).withLabel(retry ? "Print again" : "Cancel queued jobs").withTableName(PrintingTables.JOB).withMinInputRecords(1)
             .withPermissionRules(PrintingProcesses.permissionRules());
          if(retry)
@@ -124,6 +123,7 @@ public class PrintingJobProcesses
    static QRecord resolve(RunBackendStepInput input, String id) throws QException
    {
       GetInput get = new GetInput();
+      get.setPermissionEnforcement(com.kingsrook.qqq.backend.core.actions.permissions.PermissionEnforcement.ENFORCE);
       get.setTableName(PrintingTables.JOB);
       get.setPrimaryKey(id);
       QRecord job = new GetAction().execute(get).getRecord();
@@ -132,7 +132,8 @@ public class PrintingJobProcesses
          throw new QException("Choose an accessible print job");
       }
       String state = job.getValueString("status");
-      if(CANCEL.equals(input.getProcessName()) ? !"QUEUED".equals(state) : !Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
+      boolean alreadyCanceled = "FAILED".equals(state) && PrintingService.CANCELED_BEFORE_DISPATCH.equals(job.getValueString("message"));
+      if(CANCEL.equals(input.getProcessName()) ? (!"QUEUED".equals(state) && !alreadyCanceled) : !Set.of("FAILED", "OUTCOME_UNKNOWN", "SPOOLED", "SPOOLER_COMPLETED").contains(state))
       {
          throw new QException("Job " + job.getValueString("title") + " is " + state + " and cannot be processed by this action");
       }

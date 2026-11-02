@@ -1,7 +1,10 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Local copy of KofTwentyTwo/standards security.yml at
 # fdf5ed029603c938615a32b1beca3628b8787945 (v0.1.2).
-# Scanner pins and security gates are preserved. SCA alone resolves Maven POMs
-# first and mounts that fresh local repository read-only into pinned Trivy.
+# Scanner pins and security gates are preserved. SCA scans Maven-selected runtime
+# coordinates with ui-demo enabled; independent POM resolution can choose different versions.
 name: security
 
 on:
@@ -59,16 +62,25 @@ jobs:
         with:
           persist-credentials: false
 
-      # Fresh Maven resolution supplies transitive POMs before Trivy scans. This
-      # avoids Maven Central throttling from the scanner's concurrent resolver.
+      # Resolve the actual deployed profile, including frontend assets.
       # Do not restore an Actions cache in this security job.
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: temurin
           java-version: '21'
-      - name: Resolve Maven dependencies
-        run: bash ./mvnw --batch-mode --no-transfer-progress dependency:resolve
+      - name: Test inventory guards
+        run: python3 .github/scripts/test-maven-inventory.py
+      - name: Resolve selected runtime graph and SBOM
+        run: |
+          set -euo pipefail
+          bash ./mvnw --batch-mode --no-transfer-progress -Pui-demo \
+            dependency:list -DincludeScope=runtime -DoutputFile=target/runtime-dependencies.txt \
+            org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom \
+            -DincludeCompileScope=true -DincludeRuntimeScope=true \
+            -DincludeProvidedScope=false -DincludeSystemScope=false -DincludeTestScope=false \
+            -DoutputFormat=json -DoutputName=printing-runtime -Dcyclonedx.skipAttach=true
+          python3 .github/scripts/check-maven-inventory.py target/runtime-dependencies.txt target/printing-runtime.json
 
       # SARIF for code scanning carries MEDIUM and above for visibility; the gate
       # below fails only on the configured severities (HIGH and CRITICAL by default).
@@ -77,18 +89,15 @@ jobs:
           TRIVY_IMAGE: ghcr.io/aquasecurity/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD:/src" -e HOME=/root -v "$HOME/.m2/repository:/root/.m2/repository:ro" "$TRIVY_IMAGE" \
-            fs --scanners vuln --severity MEDIUM,HIGH,CRITICAL \
-            --cache-dir /src/.trivycache --skip-dirs .trivycache \
-            --list-all-pkgs --format json --output /src/trivy.json --exit-code 0 /src
-          # Fail closed if Maven analysis did not include the actual dependency graph.
-          jq -e 'any(.Results[]?.Packages[]?; .Name == "com.kingsrook.qqq:qqq-backend-core") and
-            any(.Results[]?.Packages[]?; .Name == "com.google.guava:guava")' trivy.json > /dev/null
+          docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
+            sbom --scanners vuln --severity MEDIUM,HIGH,CRITICAL \
+            --cache-dir /src/.trivycache --list-all-pkgs --format json \
+            --output /src/trivy.json --exit-code 0 /src/target/printing-runtime.json
+          python3 .github/scripts/check-maven-inventory.py target/runtime-dependencies.txt target/printing-runtime.json trivy.json
           docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
             convert --format sarif --output /src/trivy.sarif /src/trivy.json
-          docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" \
-            convert --format cyclonedx --output /src/printing.cdx.json /src/trivy.json
-          jq -e '.components | length > 0' printing.cdx.json > /dev/null
+          # OSV reads the identical verified Maven graph, without another resolver.
+          cp target/printing-runtime.json printing.cdx.json
 
       - name: Upload SARIF to code scanning
         # Fork pull requests get a read-only token, so only same-repository runs upload.
@@ -109,12 +118,13 @@ jobs:
         run: |
           set -euo pipefail
           status=0
-          docker run --rm -v "$PWD:/src:ro" "$OSV_IMAGE" scan source --lockfile /src/printing.cdx.json --format json > osv.json || status=$?
+          docker run --rm -v "$PWD:/src:ro" "$OSV_IMAGE" scan source --lockfile /src/printing.cdx.json --all-packages --format json > osv.json || status=$?
           # 0: nothing found, 1: vulnerabilities found. Other statuses fail closed.
           case "$status" in
             0|1) ;;
             *) echo "::error title=OSV-Scanner failed::exit code $status"; exit 1 ;;
           esac
+          python3 .github/scripts/check-maven-inventory.py target/runtime-dependencies.txt target/printing-runtime.json trivy.json --osv osv.json
           malicious=$(jq -r '
             [ .results[]?.packages[]?
               | .package as $p
@@ -137,6 +147,18 @@ jobs:
           set -euo pipefail
           docker run --rm -v "$PWD:/src:ro" "$TRIVY_IMAGE" \
             convert --severity HIGH,CRITICAL --format table --exit-code 1 /src/trivy.json
+
+      - name: Retain dependency scan evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maven-runtime-security-inventory
+          path: |
+            target/runtime-dependencies.txt
+            target/printing-runtime.json
+            trivy.json
+            osv.json
+          if-no-files-found: error
 
   workflows:
     name: security / workflows

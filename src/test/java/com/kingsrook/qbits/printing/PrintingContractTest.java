@@ -21,10 +21,13 @@
 package com.kingsrook.qbits.printing;
 
 
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -36,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
@@ -48,6 +52,32 @@ class PrintingContractTest
    private static final Path FIXTURES = Path.of(System.getProperty("printing.protocol.fixtures", "../qqq-print-protocol/fixtures"));
 
 
+   /** Default hosts cannot consume enrollment codes through the legacy bearer transport. */
+   @Test
+   void legacyEnrollmentRequiresExplicitHostOptIn() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:default-policy-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "contract-tenant");
+      service.initialize();
+      JSONObject enrollment = service.createEnrollment("default", "Migration").put("deviceName", "Migration").put("agentVersion", "test");
+      PrintingRoutes routes = new PrintingRoutes(service, context -> true);
+      Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
+      try(HttpClient client = HttpClient.newHttpClient())
+      {
+         String base = "http://127.0.0.1:" + app.port() + PrintingRoutes.BASE;
+         assertEquals(403, send(client, base, "POST", "/enroll", ADMIN, enrollment).statusCode());
+         assertEquals("default", service.enrollmentFacility(enrollment.getString("enrollmentCode")));
+         JSONObject existing = service.enroll(enrollment);
+         assertEquals(200, send(client, base, "POST", "/device/heartbeat", existing.getString("deviceToken"), new JSONObject().put("agentVersion", "test")).statusCode());
+         service.authorizeAgent(existing.getString("deviceId"), existing.getString("deviceToken"), "native-user", true);
+         assertEquals(401, send(client, base, "POST", "/device/heartbeat", existing.getString("deviceToken"), new JSONObject().put("agentVersion", "test")).statusCode());
+      }
+      finally
+      {
+         app.stop();
+      }
+   }
+
+
 
    /***************************************************************************
     ** Enrollment through spool acknowledgment uses exactly the connector wire DTOs.
@@ -57,7 +87,7 @@ class PrintingContractTest
    {
       PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:contract-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "contract-tenant");
       service.initialize();
-      PrintingRoutes routes = new PrintingRoutes(service, context -> ADMIN.equals(PrintingRoutes.bearer(context)));
+      PrintingRoutes routes = new PrintingRoutes(service, context -> ADMIN.equals(PrintingRoutes.bearer(context)), PrintingRoutes.LegacyEnrollment.ENABLED);
       Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
       try(HttpClient client = HttpClient.newHttpClient())
       {
@@ -113,6 +143,89 @@ class PrintingContractTest
          assertTrue(error.has("code"));
          assertTrue(error.has("message"));
          assertFalse(error.has("error"));
+      }
+      finally
+      {
+         app.stop();
+      }
+   }
+
+
+
+   /** Legacy compatibility transport preserves the same shared control contract and authorization boundary. */
+   @Test
+   void sharedControlFixturesRequireScopedAuthorizationAndPreserveReplay() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:control-contract-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "contract-tenant");
+      service.initialize();
+      PrintingRoutes routes = new PrintingRoutes(service, context -> ADMIN.equals(PrintingRoutes.bearer(context)), PrintingRoutes.LegacyEnrollment.ENABLED);
+      Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
+      try(HttpClient client = HttpClient.newHttpClient())
+      {
+         String base = "http://127.0.0.1:" + app.port() + PrintingRoutes.BASE;
+         JSONObject enrolled = service.enroll(fixture("enroll.request.json").put("enrollmentCode", service.createEnrollment("facility", "device").getString("enrollmentCode")));
+         String token = enrolled.getString("deviceToken");
+         String device = enrolled.getString("deviceId");
+         String actions = "/admin/devices/" + device + "/actions";
+         String history = "/admin/devices/" + device + "/commands";
+         assertEquals("device-control-v1", json(send(client, base, "GET", "/version", null, null), 200).getJSONArray("capabilities").getString(0));
+         JSONObject poll = fixture("control-poll.request.json").put("lastAppliedRevision", 0);
+         json(send(client, base, "POST", "/device/control/poll", null, poll), 401);
+         json(send(client, base, "POST", "/device/control/poll", token, poll), 200);
+         JSONObject refresh = fixture("action-refresh-inventory.request.json").put("issuedAt", java.time.Instant.now().toString());
+         json(send(client, base, "POST", actions, token, refresh), 403);
+         JSONObject command = json(send(client, base, "POST", actions, ADMIN, refresh), 200);
+         assertEquals(command.toString(), json(send(client, base, "POST", actions, ADMIN, refresh), 200).toString());
+         String commandId = command.getString("commandId");
+         assertEquals(commandId, json(send(client, base, "POST", "/device/control/poll", token, poll), 200).getJSONArray("commands").getJSONObject(0).getString("commandId"));
+         JSONObject receipt = fixture("control-inventory-refreshed.receipt.json");
+         String receiptPath = "/device/control/commands/" + commandId + "/receipt";
+         json(send(client, base, "POST", receiptPath, token, receipt), 200);
+         json(send(client, base, "POST", receiptPath, token, receipt), 200);
+         json(send(client, base, "POST", receiptPath, token, new JSONObject(receipt.toString()).put("message", "changed")), 409);
+         json(send(client, base, "POST", receiptPath, token, new JSONObject(receipt.toString()).put("message", "x".repeat(9000))), 413);
+         json(send(client, base, "GET", history, token, null), 403);
+         assertEquals("SUCCEEDED", json(send(client, base, "GET", history + "/" + commandId, ADMIN, null), 200).getString("status"));
+         json(send(client, base, "GET", history + "?limit=201", ADMIN, null), 400);
+         JSONObject revoke = fixture("action-revoke.request.json").put("issuedAt", java.time.Instant.now().toString());
+         json(send(client, base, "POST", actions, ADMIN, revoke), 200);
+         json(send(client, base, "POST", "/device/control/poll", token, poll), 401);
+         json(send(client, base, "POST", "/device/jobs/claim", token, new JSONObject()), 401);
+         assertEquals(2, json(send(client, base, "GET", history, ADMIN, null), 200).getJSONArray("commands").length());
+      }
+      finally
+      {
+         app.stop();
+      }
+   }
+
+
+   /***************************************************************************
+    ** Claim waits for its bounded JSON body before committing the response.
+    ***************************************************************************/
+   @Test
+   void claimConsumesSplitRequestBodyBeforeResponding() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:split-body-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "contract-tenant");
+      service.initialize();
+      String code = service.createEnrollment("default", "Synthetic device").getString("enrollmentCode");
+      String token = service.enroll(fixture("enroll.request.json").put("enrollmentCode", code)).getString("deviceToken");
+      PrintingRoutes routes = new PrintingRoutes(service, context -> false);
+      Javalin app = Javalin.create(routes::acceptJavalinConfig).start("127.0.0.1", 0);
+      try(Socket socket = new Socket("127.0.0.1", app.port()))
+      {
+         socket.setSoTimeout(250);
+         String headers = "POST " + PrintingRoutes.BASE + "/device/jobs/claim HTTP/1.1\r\nHost: 127.0.0.1:" + app.port()
+            + "\r\nAuthorization: Bearer " + token + "\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{";
+         socket.getOutputStream().write(headers.getBytes(StandardCharsets.US_ASCII));
+         socket.getOutputStream().flush();
+         assertThrows(SocketTimeoutException.class, () -> socket.getInputStream().read());
+         socket.setSoTimeout(5000);
+         socket.getOutputStream().write('}');
+         socket.getOutputStream().flush();
+         String response = new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+         assertTrue(response.startsWith("HTTP/1.1 200"));
+         assertTrue(response.contains("\"job\":null"));
       }
       finally
       {
