@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 Kingsrook, LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
    <modelVersion>4.0.0</modelVersion>
    <parent><groupId>com.kingsrook</groupId><artifactId>qbit-build-parent</artifactId><version>2.0.0</version><relativePath/></parent>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.1.2-rc.1</version>
+   <version>0.4.0-SNAPSHOT</version>
    <name>QQQ Printing</name>
    <licenses><license><name>Apache License, Version 2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0</url></license></licenses>
    <properties>
@@ -22,14 +27,26 @@
    <dependencies>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-core</artifactId><version>${qqq.version}</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-module-rdbms</artifactId><version>${qqq.version}</version></dependency>
+      <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-backend-module-filesystem</artifactId><version>${qqq.version}</version></dependency>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-middleware-javalin</artifactId><version>${qqq.version}</version></dependency>
-      <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><version>2.3.232</version><scope>runtime</scope></dependency>
+      <!-- H2 2.4.240 fixes close-time compaction data loss (upstream #4247 / #4249). -->
+      <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><version>2.4.240</version><scope>runtime</scope></dependency>
       <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>6.0.1</version><scope>test</scope></dependency>
    </dependencies>
    <profiles><profile><id>ui-demo</id><dependencies>
       <dependency><groupId>com.kingsrook.qqq</groupId><artifactId>qqq-frontend-next</artifactId><version>1.0.0-RC.37</version><scope>runtime</scope></dependency>
    </dependencies></profile></profiles>
-   <build><plugins>
+   <build>
+      <resources>
+         <resource><directory>src/main/resources</directory></resource>
+         <resource>
+            <directory>${project.basedir}</directory>
+            <targetPath>META-INF</targetPath>
+            <includes><include>LICENSE</include><include>NOTICE</include></includes>
+            <filtering>false</filtering>
+         </resource>
+      </resources>
+      <plugins>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><version>3.3.1</version>
          <dependencies><dependency><groupId>com.puppycrawl.tools</groupId><artifactId>checkstyle</artifactId><version>10.12.6</version></dependency></dependencies>
          <configuration><configLocation>checkstyle/config.xml</configLocation><includeTestSourceDirectory>true</includeTestSourceDirectory><consoleOutput>true</consoleOutput><violationSeverity>warning</violationSeverity><failOnViolation>true</failOnViolation></configuration>
@@ -37,6 +54,7 @@
       </plugin>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version></plugin>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.6.1</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>3.4.2</version><configuration><archive><manifestEntries><Implementation-Version>${project.version}</Implementation-Version></manifestEntries></archive></configuration></plugin>
       <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.6.3</version><configuration><mainClass>com.kingsrook.qbits.printing.PrintingDemo</mainClass></configuration></plugin>
    </plugins></build>
 </project>

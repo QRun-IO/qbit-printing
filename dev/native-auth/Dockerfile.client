@@ -1,0 +1,22 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
+# Same exact published production Core source as the normal development workload.
+ADD --checksum=sha256:82fcdbf7240760939a63b219aeb15a2333b3a8a02b52307a8a328500fca71fb6 https://github.com/QRun-IO/qqq-print-agent/archive/346fc285198908c47a2ee9db7b9adb53d5e88c3c.tar.gz /tmp/client.tar.gz
+RUN mkdir /client && tar -xzf /tmp/client.tar.gz -C /client --strip-components=1 && rm /tmp/client.tar.gz
+RUN dotnet build /client/src/Qqq.PrintAgent.Core/Qqq.PrintAgent.Core.csproj -c Release -p:Platform=x64 -p:Version=0.3.1-rc.1 -p:RestoreLockedMode=true --nologo
+RUN mkdir /core && cp /client/src/Qqq.PrintAgent.Core/bin/x64/Release/net10.0/Qqq.PrintAgent.Core.dll /core/
+WORKDIR /fixture/dev/native-auth/client
+COPY dev/native-auth/client .
+COPY dev/client/WorkloadDiscovery.cs /fixture/dev/client/WorkloadDiscovery.cs
+RUN dotnet build -c Release --nologo -o /out
+RUN dotnet /out/NativeAuth.dll --check-discovery
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b
+WORKDIR /app
+COPY --from=build /out .
+COPY dev/native-auth/start-client.sh /app/start-client.sh
+RUN chmod 0555 /app/start-client.sh
+ENV DOTNET_EnableDiagnostics=0
+ENTRYPOINT ["/app/start-client.sh"]

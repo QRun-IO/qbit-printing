@@ -1,0 +1,67 @@
+# Copyright 2026 Kingsrook, LLC
+# SPDX-License-Identifier: Apache-2.0
+
+name: development
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      native-auth:
+        description: Run the opt-in, unpublished native-auth candidate qualification
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scripts:
+    name: development-scripts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Analyze and test development scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
+          Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force
+          Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0
+          Import-Module Pester -RequiredVersion 5.7.1
+          $issues = @(Invoke-ScriptAnalyzer -Path dev -Recurse -Severity Warning,Error)
+          if ($issues.Count) { $issues | Format-Table; throw 'Development script analysis failed.' }
+          $configuration = New-PesterConfiguration
+          $configuration.Run.Path = './dev/tests'
+          $configuration.Run.Exit = $true
+          $configuration.TestRegistry.Enabled = $false
+          Invoke-Pester -Configuration $configuration
+
+  docker:
+    name: development-docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run disposable S3 and network printing smoke tests
+        shell: pwsh
+        run: ./dev/Invoke-Dev.ps1 -Action Test
+      - name: Run opt-in real native provider qualification
+        if: github.event_name == 'workflow_dispatch' && inputs.native-auth
+        shell: pwsh
+        run: ./dev/Invoke-Dev.ps1 -Action Test -ExperimentalNativeAuth

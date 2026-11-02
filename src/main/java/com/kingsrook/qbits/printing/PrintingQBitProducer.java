@@ -22,11 +22,20 @@ package com.kingsrook.qbits.printing;
 
 
 import java.util.List;
+import com.kingsrook.qqq.backend.core.actions.customizers.TableCustomizers;
+import com.kingsrook.qqq.backend.core.actions.dashboard.widgets.ChildRecordListRenderer;
 import com.kingsrook.qqq.backend.core.exceptions.QException;
+import com.kingsrook.qqq.backend.core.model.actions.tables.query.QCriteriaOperator;
+import com.kingsrook.qqq.backend.core.model.actions.tables.query.QFilterOrderBy;
+import com.kingsrook.qqq.backend.core.model.actions.tables.query.QQueryFilter;
 import com.kingsrook.qqq.backend.core.model.metadata.QInstance;
 import com.kingsrook.qqq.backend.core.model.metadata.code.QCodeReference;
 import com.kingsrook.qqq.backend.core.model.metadata.fields.QFieldMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.fields.QFieldType;
+import com.kingsrook.qqq.backend.core.model.metadata.fields.QVirtualFieldMetaData;
+import com.kingsrook.qqq.backend.core.model.metadata.joins.JoinOn;
+import com.kingsrook.qqq.backend.core.model.metadata.joins.JoinType;
+import com.kingsrook.qqq.backend.core.model.metadata.joins.QJoinMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.layout.QAppMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.layout.QIcon;
 import com.kingsrook.qqq.backend.core.model.metadata.permissions.QPermissionRules;
@@ -37,7 +46,9 @@ import com.kingsrook.qqq.backend.core.model.metadata.qbits.QBitMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.qbits.QBitProducer;
 import com.kingsrook.qqq.backend.core.model.metadata.security.QSecurityKeyType;
 import com.kingsrook.qqq.backend.core.model.metadata.security.RecordSecurityLock;
+import com.kingsrook.qqq.backend.core.model.metadata.tables.Association;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.Capability;
+import com.kingsrook.qqq.backend.core.model.metadata.tables.ExposedJoin;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QFieldSection;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QSupplementalTableMetaData;
 import com.kingsrook.qqq.backend.core.model.metadata.tables.QTableMetaData;
@@ -79,15 +90,39 @@ public class PrintingQBitProducer implements QBitProducer
       {
          throw new QException("The initial printing QBit supports the printing namespace only");
       }
-      instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion("0.1.0-rc.1").withNamespace("printing").withConfig(config));
+      config.getService().withRetentionPolicy(config.getRetentionPolicy()).withAdmissionLimits(config.getAdmissionLimits());
+      config.getService().configureStorage(instance, config.getStorageTableName());
+      instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion(version()).withNamespace("printing").withConfig(config));
       instance.addSecurityKeyType(new QSecurityKeyType().withName("printing_tenant"));
       QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "display_name", "computer_name", "description", "location", "agent_version", "last_seen_at"));
       devices.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Enabled").withPossibleValueSourceName("printing_enabled"));
+      devices.withField(new QFieldMetaData("dispatch_paused", QFieldType.INTEGER).withLabel("Printing paused").withPossibleValueSourceName("printing_paused"));
+      devices.withField(new QFieldMetaData("connection_state", QFieldType.STRING).withLabel("Requested connection").withPossibleValueSourceName("printing_connectionState"));
+      devices.withField(new QFieldMetaData("control_revision", QFieldType.LONG).withLabel("Requested control revision"));
+      devices.withField(new QFieldMetaData("control_applied_revision", QFieldType.LONG).withLabel("Observed control revision"));
+      devices.withField(new QFieldMetaData("control_version", QFieldType.INTEGER).withLabel("Agent control version"));
+      devices.withField(new QFieldMetaData("control_capabilities", QFieldType.STRING).withLabel("Agent control capabilities"));
+      devices.withField(new QFieldMetaData("control_last_poll_at", QFieldType.STRING).withLabel("Last control connection"));
+      devices.withField(new QFieldMetaData("revoked_at", QFieldType.STRING).withLabel("Access revoked at"));
+      devices.withVirtualField(new QVirtualFieldMetaData("device_status", QFieldType.STRING).withLabel("Device status").withPossibleValueSourceName("printing_deviceStatus").withIsQuerySelectable(true));
+      devices.withVirtualField(new QVirtualFieldMetaData("control_status", QFieldType.STRING).withLabel("Control application").withPossibleValueSourceName("printing_controlApplication").withIsQuerySelectable(true));
+      devices.withCustomizer(TableCustomizers.POST_QUERY_RECORD, new QCodeReference(PrintingDeviceStatus.class));
+      devices.getField("facility_id").withLabel("Facility").withPossibleValueSourceName(PrintingFacilities.register(instance, config));
       QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at"));
       printers.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Approved for printing").withPossibleValueSourceName("printing_approved"));
       printers.withField(new QFieldMetaData("available", QFieldType.INTEGER).withLabel("Exposed by device").withPossibleValueSourceName("printing_available"));
       QTableMetaData jobs = table(PrintingTables.JOB, "Print jobs", List.of("id", "tenant_id", "device_id", "printer_row_id", "title", "format", "content_hash", "options_json", "idempotency_key", "created_at", "status", "message", "spooler_job_id"));
       jobs.withField(new QFieldMetaData("content_length", QFieldType.INTEGER).withLabel("Document size (bytes)"));
+      QTableMetaData commands = table(PrintingTables.COMMAND, "Device control history", List.of("id", "tenant_id", "device_id", "request_id", "action", "job_id", "actor", "status", "created_at", "expires_at", "result_code"));
+      commands.withField(new QFieldMetaData("cancelled_job_count", QFieldType.INTEGER).withLabel("Queued jobs canceled"));
+      commands.getField("device_id").withLabel("Print device").withPossibleValueSourceName(PrintingTables.DEVICE);
+      commands.getField("job_id").withLabel("Print job").withPossibleValueSourceName(PrintingTables.JOB);
+      commands.getField("action").withPossibleValueSourceName("printing_controlAction");
+      commands.getField("status").withLabel("Recorded status").withPossibleValueSourceName("printing_commandStatus");
+      commands.withVirtualField(new QVirtualFieldMetaData("command_status", QFieldType.STRING).withLabel("Current status")
+         .withPossibleValueSourceName("printing_commandStatus").withIsQuerySelectable(true));
+      commands.withCustomizer(TableCustomizers.POST_QUERY_RECORD, new QCodeReference(PrintingCommandStatus.class));
+      commands.withRecordLabelFormatAndFields("%s", "action");
       jobs.getField("printer_row_id").withLabel("Printer").withPossibleValueSourceName(PrintingTables.PRINTER);
       jobs.getField("format").withPossibleValueSourceName("printing_format");
       jobs.getField("status").withPossibleValueSourceName("printing_jobStatus");
@@ -105,6 +140,12 @@ public class PrintingQBitProducer implements QBitProducer
       binaryValues(instance, "printing_enabled", "Disabled", "Enabled");
       binaryValues(instance, "printing_approved", "Not approved", "Approved");
       binaryValues(instance, "printing_available", "Not exposed", "Exposed");
+      binaryValues(instance, "printing_paused", "Running", "Paused");
+      enumValues(instance, "printing_connectionState", List.of("CONNECTED", "DISCONNECTED"));
+      enumValues(instance, "printing_deviceStatus", List.of("ONLINE", "OFFLINE", "PAUSED", "DISCONNECTED", "REVOKED", "UNKNOWN"));
+      enumValues(instance, "printing_controlApplication", List.of("APPLIED", "PENDING", "UNKNOWN"));
+      enumValues(instance, "printing_commandStatus", List.of("PENDING", "SUCCEEDED", "FAILED", "EXPIRED", "OUTCOME_UNKNOWN", "UNKNOWN"));
+      enumValues(instance, "printing_controlAction", List.of("PAUSE_DISPATCH", "RESUME_DISPATCH", "DISCONNECT", "RECONNECT", "REVOKE", "REFRESH_INVENTORY", "CLEAR_QUEUE", "CANCEL_SPOOL"));
       enumValues(instance, "printing_format", List.of("PDF", "ZPL"));
       enumValues(instance, "printing_jobStatus", List.of("QUEUED", "CLAIMED", "RECEIVED", "SUBMITTING", "SPOOLED", "SPOOLER_COMPLETED", "FAILED", "OUTCOME_UNKNOWN"));
       enumValues(instance, "printing_printerStatus", List.of("READY", "OFFLINE", "PAUSED", "ERROR", "UNKNOWN"));
@@ -116,15 +157,27 @@ public class PrintingQBitProducer implements QBitProducer
       printers.getField("device_id").withLabel("Print device");
       instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.DEVICE));
       instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.PRINTER));
-      layout(devices, List.of("name", "location", "description", "facility_id", "enabled", "last_seen_at"));
+      instance.addPossibleValueSource(com.kingsrook.qqq.backend.core.model.metadata.possiblevalues.QPossibleValueSource.newForTable(PrintingTables.JOB));
+      layout(devices, List.of("name", "device_status", "control_status", "location", "facility_id", "last_seen_at"));
       layout(printers, List.of("name", "location", "description", "device_id", "status", "enabled", "available", "last_seen_at"));
       layout(jobs, List.of("title", "device_id", "printer_row_id", "status", "created_at", "format"));
+      layout(commands, List.of("device_id", "action", "command_status", "created_at", "expires_at", "result_code", "cancelled_job_count"));
       instance.addTable(devices);
       instance.addTable(printers);
       instance.addTable(jobs);
-      QAppMetaData app = new QAppMetaData().withName("printing").withLabel("Printing").withIcon(new QIcon("print")).withChild(devices).withChild(printers).withChild(jobs);
+      instance.addTable(commands);
+      related(instance, devices, printers, "device_id", "Printers");
+      related(instance, devices, jobs, "device_id", "Jobs and queue");
+      related(instance, devices, commands, "device_id", "Control history");
+      related(instance, printers, jobs, "printer_row_id", "Jobs and queue");
+      QAppMetaData app = new QAppMetaData().withName("printing").withLabel("Printing").withIcon(new QIcon("print")).withChild(devices).withChild(printers).withChild(jobs).withChild(commands);
       app.withPermissionRules(PrintingProcesses.permissionRules());
       PrintingProcesses.register(instance, app);
+      PrintingListProcesses.register(instance);
+      PrintingDeviceProcesses.register(instance);
+      PrintingUiApi.register(instance);
+      PrintingRetentionProcesses.register(instance, config);
+      PrintingRealtimeProcesses.register(instance, app);
       PrintingHome.register(instance, app);
       instance.addApp(app);
       QAppMetaData parent = instance.getApp("admin");
@@ -132,6 +185,42 @@ public class PrintingQBitProducer implements QBitProducer
       {
          parent.withChild(app);
       }
+   }
+
+
+
+   /***************************************************************************
+    ** Native related lists open the current device's work without raw-ID input.
+    ***************************************************************************/
+   private static void related(QInstance instance, QTableMetaData parent, QTableMetaData child, String childField, String label)
+   {
+      QJoinMetaData join = new QJoinMetaData().withLeftTable(parent.getName()).withRightTable(child.getName())
+         .withType(JoinType.ONE_TO_MANY).withJoinOn(new JoinOn("id", childField)).withInferredName();
+      instance.addJoin(join);
+      parent.withAssociation(new Association().withName(child.getName()).withAssociatedTableName(child.getName()).withJoinName(join.getName()));
+      parent.withExposedJoin(new ExposedJoin().withJoinTable(child.getName()).withJoinPath(List.of(join.getName())).withLabel(label));
+      instance.addWidget(ChildRecordListRenderer.widgetMetaDataBuilder(join).withLabel(label).withCanAddChildRecord(false).withMaxRows(50).getWidgetMetaData());
+      parent.withSection(new QFieldSection(join.getName(), label, new QIcon("list"), Tier.T2, null).withWidgetName(join.getName()));
+      if(PrintingTables.JOB.equals(child.getName()))
+      {
+         String queueWidget = parent.getName() + "_queue";
+         var widget = ChildRecordListRenderer.widgetMetaDataBuilder(join).withLabel("Current print queue").withCanAddChildRecord(false).withMaxRows(50)
+            .withBaseFilter(new QQueryFilter().withCriteria("status", QCriteriaOperator.IN, List.of("QUEUED", "CLAIMED", "RECEIVED", "SUBMITTING")))
+            .withOrderBys(List.of(new QFilterOrderBy("created_at", true))).getWidgetMetaData().withName(queueWidget);
+         instance.addWidget(widget);
+         parent.withSection(new QFieldSection(queueWidget, "Current print queue", new QIcon("pending_actions"), Tier.T2, null).withWidgetName(queueWidget));
+      }
+   }
+
+
+
+   /***************************************************************************
+    ** Read the build-produced JAR manifest; IDE/test class directories identify themselves honestly.
+    ***************************************************************************/
+   private static String version()
+   {
+      String version = PrintingQBitProducer.class.getPackage().getImplementationVersion();
+      return (version == null || version.isBlank() ? "development" : version);
    }
 
 
@@ -188,10 +277,17 @@ public class PrintingQBitProducer implements QBitProducer
    {
       table.getField("tenant_id").withIsHidden(true);
       java.util.LinkedHashMap<String, QFieldMetaData> ordered = new java.util.LinkedHashMap<>();
-      primary.forEach(name -> ordered.put(name, table.getField(name)));
+      primary.stream().filter(table.getFields()::containsKey).forEach(name -> ordered.put(name, table.getField(name)));
       ordered.putAll(table.getFields());
       table.setFields(ordered);
-      table.withSection(new QFieldSection(table.getName() + "_summary", "Summary", new QIcon("print"), Tier.T1, primary));
+      QFieldSection summary = new QFieldSection(table.getName() + "_summary", "Summary", new QIcon("print"), Tier.T1,
+         primary.stream().filter(table.getFields()::containsKey).toList());
+      if(table.getVirtualFields() != null && primary.stream().anyMatch(table.getVirtualFields()::containsKey))
+      {
+         summary.withAlternative(com.kingsrook.qqq.backend.core.model.metadata.tables.QFieldSectionAlternativeType.RECORD_VIEW,
+            section -> section.setFieldNames(primary));
+      }
+      table.withSection(summary);
       List<String> details = table.getFields().keySet().stream().filter(name -> !primary.contains(name) && !Boolean.TRUE.equals(table.getField(name).getIsHidden())).toList();
       table.withSection(new QFieldSection(table.getName() + "_details", "Details", new QIcon("info"), Tier.T3, details));
       table.withSupplementalMetaData(new DefaultColumns(primary.stream().filter(name -> !"description".equals(name)).toList()));
