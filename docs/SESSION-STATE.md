@@ -23,6 +23,10 @@ the full `-Pui-demo verify` passed with 193 tests, 0 failures, 0 errors, one int
 historical. **Still pending, not observed:** hosted Gitea CI, publication, installation and any physical print. The
 installed printer default is untouched; no printing was performed.
 
+**Release version:** the project version is now the immutable prerelease `0.4.0-rc.1` (it was `0.4.0-SNAPSHOT`, which the
+tag workflow cannot release). The release tag must be exactly `v0.4.0-rc.1`. The QQQ `4.1.0-RC.20` dependency tuple, the
+parent and all code are unchanged. Maven Central publication and deployment remain separate operations.
+
 ## Echo operator/media and retained-source candidate — 2026-11-01
 
 The isolated Echo candidate adds native printing extension **2.3.0** (after the protected-main 2.2.0 rendering extension) on the

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.4.0-SNAPSHOT)
+## 0.4.0-rc.1
 
 Printing extension **2.3.0** (additive; wire payload v1 and the agent subprotocol are
 unchanged). 2.1.0 added the record, table-list and text print processes; 2.2.0 added
