@@ -2,8 +2,45 @@
 
 ## Unreleased (0.4.0-SNAPSHOT)
 
-Printing extension **2.1.0** (additive; the agent contract is unchanged).
+Printing extension **2.3.0** (additive; wire payload v1 and the agent subprotocol are
+unchanged). 2.1.0 added the record, table-list and text print processes; 2.2.0 added
+`printingRenderToPdf`, the header and footer values on every document and content
+sections; 2.3.0 adds the least-privilege operator catalog/submission/request lookup,
+reported Windows queue-default media (`printer-media-v1`) and the opt-in
+retained-source facade. Clients should offer a feature when its process is in the
+metadata, not by comparing versions. An agent that does not advertise
+`printer-media-v1` stays a three-capability peer and cannot claim a job carrying a
+media selection, whatever extension version it discovers.
 
+- Realtime shutdown now waits, with a bound, for channel workers that are already
+  running before the host's durable state is released. Previously the executor was
+  only told to stop, so a late drain could query a stopped file database and
+  recreate it empty (found as a temporary-directory cleanup error in a full test
+  run).
+
+Observed locally on the merged candidate: full `-Pui-demo verify` 189 reported,
+188 executed, one intentional opt-in workload skip, zero failures/errors, zero
+Checkstyle violations; five consecutive focused realtime runs passed. Hosted CI on
+the final signed head, publication and consumer qualification have not run; no
+physical output is claimed.
+
+- The app's header and footer on every page of every document (record sheets,
+  table lists, text and content pages): app name, title or breadcrumb, server,
+  user and printed-at at the top; the client's footer (e.g. `qqq ui 1.0.1 ·
+  server`), a list's filter and sort, and "Page n of m" at the bottom. Clients
+  send `headerApp`, `headerTitle`, `headerServer`, `headerUser`, `headerPrintedAt`,
+  `footerLeft` and `footerNote`; missing ones default to the instance branding,
+  the session user, the current instant and "QQQ printing".
+- Content documents: `printingPrintText` and `printingRenderToPdf` (`TEXT`) take
+  `sections` (JSON `[{title, lines}]`), a screen's panels without navigation or
+  borders, rendered as headings with their lines wrapped to the page width.
+- Save as PDF: `printingRenderToPdf` renders the document a print would carry -
+  a record sheet (`kind` `RECORD`, `tableName`, `recordId`), a table list (`LIST`,
+  the `printingPrintTableList` values) or a text page (`TEXT`) - and returns it to
+  the caller as the standard process download (`downloadFileName`,
+  `serverFilePath`) instead of queueing a job. No printer is needed; reads enforce
+  the caller's permissions, and a list over the limit says so in
+  `printingMessage`. Clients offer it as "Save as PDF…" in their printer pickers.
 - Print anything: `PrintingRecordProcesses.registerAll(instance)` adds **Print** to
   every table that can be read one record at a time (call it after the host's
   tables are in the instance). Hidden tables, tables without a primary key or

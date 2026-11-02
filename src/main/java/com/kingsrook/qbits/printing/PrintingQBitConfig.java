@@ -36,6 +36,22 @@ public class PrintingQBitConfig implements QBitConfig
    private String storageTableName;
    private String schedulerName;
    private String facilityPossibleValueSourceName;
+   private transient RetainedPrintSourceAuthority retainedSourceAuthority;
+
+
+   /** Explicit trusted host integration; absent means retained submissions are disabled. */
+   public PrintingQBitConfig withRetainedSourceAuthority(RetainedPrintSourceAuthority value)
+   {
+      retainedSourceAuthority = java.util.Objects.requireNonNull(value);
+      return (this);
+   }
+
+
+   /** Never serialized into client metadata or supplied by a request. */
+   public RetainedPrintSourceAuthority getRetainedSourceAuthority()
+   {
+      return (retainedSourceAuthority);
+   }
 
 
 
