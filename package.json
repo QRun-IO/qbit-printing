@@ -1,0 +1,14 @@
+{
+  "name": "@qrun-io/qbit-printing-script-quality",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Development-only script quality tooling for QBit Printing; no runtime dependency.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "pyright": "1.1.414"
+  },
+  "packageManager": "npm@11.19.1"
+}

@@ -1,5 +1,58 @@
 # Session state — 2026-10-31
 
+## Echo operator/media and retained-source candidate — 2026-11-01
+
+The isolated Echo candidate adds native printing extension **2.3.0** (after the protected-main 2.2.0 rendering extension) on the
+unchanged product `0.4.0-SNAPSHOT` and QQQ `4.1.0-RC.20` dependency tuple.
+`printing_operator` permits the authorized printer/media catalog and exact-actor
+submission/reconciliation without device administration or general job history.
+Reported Windows queue-default media is revision-bound; clients without the current
+`printer-media-v1` capability cannot claim jobs carrying a media selection.
+
+The opt-in retained-source facade shares that boundary and commits immutable
+source/actor/destination/intent plus its server acceptance event inside the existing
+queue transaction. Its owner adapter is required and default-deny; read-only lookup
+never generates content or submits a replacement job. See
+[operator catalog](OPERATOR-CATALOG.md) and
+[retained acceptance](RETAINED-PRINT-FACADE.md) for exact contracts and limits.
+
+Protected main advanced to a rendering release at printing 2.2.0 (header/footer
+chrome, content sections, render-to-PDF) while this candidate was qualified, so the
+operator/media/retained feature was merged onto it and moved to 2.3.0. The earlier
+183-test gate is historical evidence of the pre-merge source only.
+
+Observed after the merge, locally: the OpenAPI contract was regenerated with the
+existing explicit update switch and its 1.0.0 compatibility baseline hash was
+unchanged. A sandbox full verify reported 188 tests with 11 loopback setup errors and
+no assertion failures (environmental). The first actual-user full verify reported 188
+tests, no assertion failures and **one error**:
+`PrintingRealtimeTest.mediaCapabilityIsReplacedOnEveryAuthenticatedHello` failed
+only when JUnit removed its temporary directory. Cause: `PrintingRealtimeRoutes.close()`
+shut its executor down without waiting, so a channel drain still running after the
+host stopped queried a deleted file database and recreated it empty. The fix waits
+(bounded) for running drains, with regression
+`closeWaitsForChannelWorkersAlreadyRunning`. After it, five consecutive focused
+`PrintingRealtimeTest` runs passed (4 tests each, no empty-database warnings) and the
+full `-Pui-demo verify` passed: **189 reported, 188 executed, one intentional opt-in
+workload skip, zero failures/errors, zero Checkstyle violations**; the source-header
+guard over 146 tracked files and staged whitespace checks passed. The earlier failing
+logs are preserved. This is local evidence only: hosted CI on the signed candidate
+head, publication and cross-QBit consumer qualification are pending. The suite runs
+against synthetic H2 fixtures; no live database, connector, printer or shared
+artifact has been changed. The
+experimental API 1.10 used by Echo is a separate owner-controlled tuple and has not
+been substituted for this candidate's qualified RC.20 dependencies. Publication,
+cross-QBit consumer qualification and any physical output remain separate gates.
+
+Native destination and storage callbacks cannot carry stale actor, session,
+credential, channel or row authority into admission, replay or commit. Receipt
+lookup authorizes the original stored printer-row ID; a replacement row with the
+same device/queue pair cannot inherit earlier acceptance history. The regressions
+reproduce both prior paths, verify denial and rollback, and preserve authorized
+read-only observation after the original queue loses exposure. Media IDs are
+bounded to the shared 128-character contract; long device display names remain
+supported without truncation.
+
 ## Local Docker development — 2026-11-01
 
 The optional native-auth probe now shares production Core discovery and the
