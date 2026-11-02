@@ -86,7 +86,17 @@ public final class PrintingRecordDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children) throws QException
    {
-      try(PrintingLayout layout = new PrintingLayout("LETTER", false, title, subtitle))
+      return (pdf(title, subtitle, sections, children, null));
+   }
+
+
+
+   /***************************************************************************
+    ** Render sections and child list summaries under the app's header/footer.
+    ***************************************************************************/
+   public static byte[] pdf(String title, String subtitle, List<Section> sections, List<ChildList> children, PrintingChrome chrome) throws QException
+   {
+      try(PrintingLayout layout = new PrintingLayout("LETTER", false, title, subtitle, chrome))
       {
          int columns = layout.columns(BODY_SIZE);
          int labelWidth = Math.min(28, Math.max(8, sections.stream().flatMap(s -> s.fields().keySet().stream()).mapToInt(String::length).max().orElse(8) + 1));

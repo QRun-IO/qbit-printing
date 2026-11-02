@@ -30,7 +30,10 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import com.kingsrook.qqq.middleware.javalin.QApplicationLauncher;
 import com.kingsrook.qqq.middleware.javalin.QApplicationLauncherConfig;
@@ -51,6 +54,89 @@ public class PrintingRealtimeTest
 {
    @TempDir
    Path directory;
+
+
+   /** An old client cannot ignore media intent, including after replacing a capable connection. */
+   @Test
+   void mediaCapabilityIsReplacedOnEveryAuthenticatedHello() throws Exception
+   {
+      String jdbc = "jdbc:h2:file:" + directory.resolve("media-realtime").toString().replace('\\', '/');
+      PrintingLocalHost host = new PrintingLocalHost(new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, "synthetic-management-token-long-enough", "operator", "synthetic-realtime-password-1234"));
+      AtomicReference<Javalin> app = new AtomicReference<>();
+      QApplicationLauncher launcher = QApplicationLauncher.run(host, new QApplicationLauncherConfig().withRegisterShutdownHook(false).withServerCustomizer(server ->
+      {
+         host.configure(server, false);
+         server.withJavalinConfigurationCustomizer(app::set);
+      }));
+      PrintingService service = launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
+         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService();
+      String base = "http://127.0.0.1:" + app.get().port();
+      JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Media fixture").put("deviceName", "Media fixture").put("agentVersion", "test"), "operator");
+      String device = enrolled.getString("deviceId");
+      String proof = enrolled.getString("deviceToken");
+      JSONObject media = new PrintingMediaProfile("default", "a".repeat(64), "4 x 6", 101600, 152400, 300, 300).json();
+      service.inventory(device, new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic queue").put("formats", new JSONArray().put("ZPL"))
+         .put("mediaProfiles", new JSONArray().put(media))));
+      service.enablePrinter(device, "queue", true);
+      String job = service.submit(request(device, "media").put("options", new JSONObject().put("mediaProfile", new JSONObject().put("id", "default").put("revision", "a".repeat(64))))).getString("jobId");
+      try(HttpClient http = HttpClient.newHttpClient())
+      {
+         String cookie = login(http, base);
+         try(PrintingSocketFixture old = PrintingSocketFixture.connect(http, base, cookie, device, proof))
+         {
+            assertEquals(409, assertThrows(PrintingException.class, () -> service.claim(device)).getStatus());
+            assertEquals("QUEUED", service.getJob(job).getString("status"));
+         }
+         try(PrintingSocketFixture capable = PrintingSocketFixture.open(http, base, cookie, device, proof))
+         {
+            capable.initialize(new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL").put("printer-media-v1"));
+            assertEquals(job, service.claim(device).getJSONObject("job").getString("jobId"));
+         }
+         try(PrintingSocketFixture downgraded = PrintingSocketFixture.connect(http, base, cookie, device, proof))
+         {
+            assertEquals(409, assertThrows(PrintingException.class, () -> service.claim(device)).getStatus());
+            assertEquals("CLAIMED", service.getJob(job).getString("status"));
+         }
+      }
+      finally
+      {
+         launcher.stop();
+      }
+   }
+
+
+   /**
+    * Closing the routes waits for a channel worker that is already running. A drain that outlived the host could query a stopped file
+    * database and recreate it empty, which previously left a test's temporary directory populated after cleanup.
+    */
+   @Test
+   void closeWaitsForChannelWorkersAlreadyRunning() throws Exception
+   {
+      PrintingService service = new PrintingService(new DriverDataSource("jdbc:h2:mem:routes-close-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""), "close-tenant");
+      PrintingRealtimeRoutes routes = new PrintingRealtimeRoutes(service);
+      java.lang.reflect.Field field = PrintingRealtimeRoutes.class.getDeclaredField("workers");
+      field.setAccessible(true);
+      ExecutorService workers = (ExecutorService) field.get(routes);
+      CountDownLatch started = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean();
+      workers.execute(() ->
+      {
+         started.countDown();
+         try
+         {
+            Thread.sleep(400);
+            finished.set(true);
+         }
+         catch(InterruptedException expected)
+         {
+            Thread.currentThread().interrupt();
+         }
+      });
+      assertTrue(started.await(5, TimeUnit.SECONDS));
+      routes.close();
+      assertTrue(finished.get(), "close() returned while a channel worker was still running");
+      assertTrue(workers.isTerminated());
+   }
 
 
    /** A transport ping while disconnected proves contact, never state application or normal heartbeat. */

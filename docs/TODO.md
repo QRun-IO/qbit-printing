@@ -1,5 +1,29 @@
 # Follow-up
 
+## Script quality gates
+
+- [x] Pin Ruff and strict Pyright with a locked restore; reject Python outside `.github/scripts/` and zero-file Pyright runs; negative tool probes pass locally.
+- [ ] Observe the new `verify` job steps pass on hosted CI before relying on them.
+
+## Echo integration candidate
+
+- [x] Implement authorized operator catalog, native submission/process permission,
+  exact actor/request lookup and reported driver-default media revisions.
+- [x] Integrate the opt-in atomic retained-source facade using the same queue,
+  current authority, immutable acceptance and exact device-event observation.
+- [x] Close native callback authority changes and preserve the exact accepted
+  printer-row identity during read-only request reconciliation.
+- [x] Complete local combined verification on the merged 2.3.0 candidate: 189
+  reported, 188 executed, one opt-in workload skip, zero failures/errors and
+  Checkstyle violations (the earlier 183-test gate was pre-merge). Preserve exact
+  source, draft protocol fixtures and frozen runtime hashes.
+- [ ] Pass hosted CI on the final signed candidate head; local results do not
+  replace it.
+- [ ] Qualify Echo/Generation's exact core tuple and configured source authority;
+  do not silently adopt experimental core or bypass external-upload admission.
+- [ ] Publish the reviewed additive contract and coordinate client/runtime adoption
+  before owner-operated end-to-end physical acceptance.
+
 ## Current local development qualification
 
 - [x] Reuse production discovery and the shared major-2 gate in the optional
