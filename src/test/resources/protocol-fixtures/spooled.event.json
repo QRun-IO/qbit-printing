@@ -1,0 +1,6 @@
+{
+  "eventId": "event-spooled-example",
+  "status": "SPOOLED",
+  "spoolerJobId": "42",
+  "message": "Accepted by the Windows spooler."
+}

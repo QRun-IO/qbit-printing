@@ -1,0 +1,9 @@
+{
+  "controlVersion": 1,
+  "agentVersion": "0.2.0-rc.1",
+  "capabilities": [
+    "REFRESH_INVENTORY",
+    "CANCEL_SPOOL"
+  ],
+  "lastAppliedRevision": 0
+}

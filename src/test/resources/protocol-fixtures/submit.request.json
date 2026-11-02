@@ -1,0 +1,12 @@
+{
+  "deviceId": "device-example",
+  "printerId": "zebra-example",
+  "title": "QQQ cloud print test",
+  "format": "ZPL",
+  "contentBase64": "XlhBCl5GTzQwLDQwXkEwTiwzNiwzNl5GRFFRUSBjbG91ZCBwcmludCB0ZXN0XkZTCl5GTzQwLDkwXkEwTiwyNCwyNF5GRFByb3RvY29sIHYxIC0gb25lIHRlc3QgbGFiZWxeRlMKXlhaCg==",
+  "idempotencyKey": "protocol-fixture-label-v1",
+  "options": {
+    "copies": 1,
+    "scale": "ACTUAL_SIZE"
+  }
+}

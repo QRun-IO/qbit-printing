@@ -1,0 +1,25 @@
+{
+  "printers": [
+    {
+      "printerId": "laser-example",
+      "name": "Local Laser",
+      "driverName": "Example Laser Driver",
+      "portName": "USB001",
+      "status": "READY",
+      "formats": [
+        "PDF"
+      ]
+    },
+    {
+      "printerId": "zebra-example",
+      "name": "Local Zebra",
+      "driverName": "Example Zebra Driver",
+      "portName": "USB002",
+      "status": "READY",
+      "formats": [
+        "PDF",
+        "ZPL"
+      ]
+    }
+  ]
+}

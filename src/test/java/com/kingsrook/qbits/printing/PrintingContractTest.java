@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrintingContractTest
 {
    private static final String ADMIN = "contract-test-administrator-token";
-   private static final Path FIXTURES = Path.of(System.getProperty("printing.protocol.fixtures", "../qqq-print-protocol/fixtures"));
+   private static final Path FIXTURES = Path.of(System.getProperty("printing.protocol.fixtures", "src/test/resources/protocol-fixtures"));
 
 
    /** Default hosts cannot consume enrollment codes through the legacy bearer transport. */
