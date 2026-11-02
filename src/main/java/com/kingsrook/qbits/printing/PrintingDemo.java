@@ -46,7 +46,7 @@ public final class PrintingDemo
       int port = Integer.parseInt(System.getenv().getOrDefault("QQQ_PRINT_PORT", "18081"));
       PrintingService service = new PrintingService(new DriverDataSource(url, "sa", ""), "demo");
       service.initialize();
-      PrintingRoutes routes = new PrintingRoutes(service, context -> MessageDigest.isEqual(adminToken.getBytes(StandardCharsets.UTF_8), PrintingRoutes.bearer(context).getBytes(StandardCharsets.UTF_8)));
+      PrintingRoutes routes = new PrintingRoutes(service, context -> MessageDigest.isEqual(adminToken.getBytes(StandardCharsets.UTF_8), PrintingRoutes.bearer(context).getBytes(StandardCharsets.UTF_8)), PrintingRoutes.LegacyEnrollment.ENABLED);
       Javalin app = Javalin.create(config ->
       {
          config.http.maxRequestSize = 29 * 1024 * 1024;
