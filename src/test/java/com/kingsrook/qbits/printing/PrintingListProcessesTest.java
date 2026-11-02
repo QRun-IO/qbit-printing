@@ -138,7 +138,8 @@ class PrintingListProcessesTest
       assertTrue(text.indexOf("Hopper") < text.indexOf("Lovelace"), text);
       assertTrue(text.contains("all 2 rows"), text);
       assertTrue(text.contains("sort Last name"), text);
-      assertTrue(text.contains("Person - printed "), "the footer names the table, time and user");
+      assertTrue(text.contains("No filter - sort: Last name"), "the footer note carries the filter and sort");
+      assertTrue(text.contains("QQQ printing"), "the default footer");
       assertTrue(text.contains("2 rows"), text);
       assertTrue(fixture.service().jobs().getJSONObject(0).getString("title").startsWith("Person"));
    }
@@ -283,7 +284,7 @@ class PrintingListProcessesTest
    /***************************************************************************
     ** Run a process straight through with values.
     ***************************************************************************/
-   private static RunProcessOutput run(String process, Map<String, Serializable> values) throws QException
+   static RunProcessOutput run(String process, Map<String, Serializable> values) throws QException
    {
       RunProcessInput input = new RunProcessInput().withProcessName(process).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP);
       // as the UI API runs it: user input, so server-configured inputs would be refused
@@ -318,7 +319,7 @@ class PrintingListProcessesTest
     ** The process fixture plus person (sections, pets), pet, a hidden and an
     ** opted-out table, on the memory backend.
     ***************************************************************************/
-   private static PrintingProcessesTest.Fixture fixture() throws Exception
+   static PrintingProcessesTest.Fixture fixture() throws Exception
    {
       PrintingProcessesTest.Fixture fixture = PrintingProcessesTest.fixture();
       QInstance instance = fixture.instance();

@@ -51,6 +51,16 @@ public final class PrintingTextDocuments
     ***************************************************************************/
    public static byte[] pdf(String title, String subtitle, String text, String pageSize, boolean landscape) throws QException
    {
+      return (pdf(title, subtitle, text, pageSize, landscape, null));
+   }
+
+
+
+   /***************************************************************************
+    ** Render text under the app's header/footer.
+    ***************************************************************************/
+   public static byte[] pdf(String title, String subtitle, String text, String pageSize, boolean landscape, PrintingChrome chrome) throws QException
+   {
       if(text == null || text.isEmpty())
       {
          throw new QException("There is no text to print");
@@ -59,7 +69,7 @@ public final class PrintingTextDocuments
       {
          throw new QException("The text is too long to print (at most " + MAX_CHARACTERS + " characters)");
       }
-      try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle))
+      try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle, chrome))
       {
          String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').replace("\t", "    ").split("\n", -1);
          float size = fontSize(lines, layout.columns(1) * 1f);
@@ -98,5 +108,63 @@ public final class PrintingTextDocuments
       }
       float fits = charactersAtOnePoint / widest;
       return (Math.max(MIN_FONT_SIZE, Math.min(FONT_SIZE, (float) Math.floor(fits * 2) / 2)));
+   }
+
+
+
+   /***************************************************************************
+    ** One section of a content document: a title (blank for none) and its
+    ** lines, as the client read them from a screen panel.
+    ***************************************************************************/
+   public record Section(String title, java.util.List<String> lines)
+   {
+   }
+
+
+
+   /***************************************************************************
+    ** A screen's content as a document: each section's title as a heading,
+    ** its lines in the monospace face, long lines wrapped at spaces to the page
+    ** width (no borders, no navigation).
+    ***************************************************************************/
+   public static byte[] sectionsPdf(String title, String subtitle, java.util.List<Section> sections, String pageSize, boolean landscape, PrintingChrome chrome) throws QException
+   {
+      if(sections.isEmpty() || sections.stream().allMatch(section -> section.lines().stream().allMatch(String::isBlank) && (section.title() == null || section.title().isBlank())))
+      {
+         throw new QException("There is no content to print");
+      }
+      int total = sections.stream().mapToInt(section -> section.lines().stream().mapToInt(String::length).sum()).sum();
+      if(total > MAX_CHARACTERS)
+      {
+         throw new QException("The content is too long to print (at most " + MAX_CHARACTERS + " characters)");
+      }
+      try(PrintingLayout layout = new PrintingLayout(pageSize, landscape, title, subtitle, chrome))
+      {
+         int width = layout.columns(FONT_SIZE);
+         boolean first = true;
+         for(Section section : sections)
+         {
+            if(section.title() != null && !section.title().isBlank())
+            {
+               layout.gap(first ? 0 : 8);
+               layout.keep(3, FONT_SIZE);
+               layout.line(section.title(), 11);
+               layout.gap(2);
+            }
+            first = false;
+            for(String line : section.lines())
+            {
+               for(String wrapped : PrintingRecordDocuments.wrap(line.stripTrailing(), width))
+               {
+                  layout.line(wrapped, FONT_SIZE);
+               }
+            }
+         }
+         return (layout.finish());
+      }
+      catch(IOException exception)
+      {
+         throw new QException("Could not render the content: " + exception.getMessage(), exception);
+      }
    }
 }

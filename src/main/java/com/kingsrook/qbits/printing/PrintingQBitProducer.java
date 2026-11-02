@@ -111,6 +111,7 @@ public class PrintingQBitProducer implements QBitProducer
       QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at"));
       printers.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Approved for printing").withPossibleValueSourceName("printing_approved"));
       printers.withField(new QFieldMetaData("available", QFieldType.INTEGER).withLabel("Exposed by device").withPossibleValueSourceName("printing_available"));
+      printers.withField(new QFieldMetaData("media_profiles_json", QFieldType.STRING).withLabel("Reported queue default media"));
       QTableMetaData jobs = table(PrintingTables.JOB, "Print jobs", List.of("id", "tenant_id", "device_id", "printer_row_id", "title", "format", "content_hash", "options_json", "idempotency_key", "created_at", "status", "message", "spooler_job_id"));
       jobs.withField(new QFieldMetaData("content_length", QFieldType.INTEGER).withLabel("Document size (bytes)"));
       QTableMetaData commands = table(PrintingTables.COMMAND, "Device control history", List.of("id", "tenant_id", "device_id", "request_id", "action", "job_id", "actor", "status", "created_at", "expires_at", "result_code"));
@@ -173,7 +174,9 @@ public class PrintingQBitProducer implements QBitProducer
       QAppMetaData app = new QAppMetaData().withName("printing").withLabel("Printing").withIcon(new QIcon("print")).withChild(devices).withChild(printers).withChild(jobs).withChild(commands);
       app.withPermissionRules(PrintingProcesses.permissionRules());
       PrintingProcesses.register(instance, app);
+      PrintingOperatorProcesses.register(instance);
       PrintingListProcesses.register(instance);
+      PrintingRenderProcesses.register(instance);
       PrintingDeviceProcesses.register(instance);
       PrintingUiApi.register(instance);
       PrintingRetentionProcesses.register(instance, config);
