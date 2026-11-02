@@ -15,3 +15,12 @@ jobs:
       fixture-repository: QRun-IO/qqq-print-protocol
       fixture-ref: 42c0d249f81395f00408ec0f92638dcbbf5deb03
       fixture-path: qqq-print-protocol
+  postpublish:
+    if: ${{ needs.release.outputs.capture == 'true' }}
+    needs: release
+    permissions:
+      contents: write
+      actions: write
+    uses: self:KofTwentyTwo/platform-ci/.gitea/workflows/qrun-source-version.yaml@qrun-release-v1
+    with:
+      runner: linux-small
