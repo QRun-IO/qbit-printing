@@ -1,16 +1,13 @@
 # Changelog
 
-## 1.0.0 — prepared; not yet published
+## 1.0.0
 
-Product version 1.0.0 for the same code as 0.4.0-rc.1: record, table-list and text print
-processes, PDF rendering with headers and footers, the least-privilege operator catalog,
+Product version 1.0.0 includes record, table-list and text print processes,
+PDF rendering with headers and footers, the least-privilege operator catalog,
 reported Windows queue-default media (`printer-media-v1`) and the opt-in retained-source
 facade. Native printing stays **2.3.0** with wire payload v1; 1.0 is a product version, not a
 wire change, and it pairs with Windows connector 1.0.1 and protocol 1.0.0. The QQQ dependency
-is the published 4.1.0-RC.21 candidate, which provides native session login. Local
-`-Pui-demo verify` passed against that dependency: 193 tests reported, zero failures or
-errors, one existing opt-in workload skip and zero Checkstyle violations. The printing
-1.0.0 release remains pending its normal CI and publication.
+is the published 4.1.0-RC.21 candidate, which provides native session login.
 
 ## 0.4.0-rc.1
 
