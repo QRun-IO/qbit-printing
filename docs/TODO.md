@@ -2,8 +2,9 @@
 
 ## CURRENT — 1.0.0 (everything below this section is historical)
 
-- [ ] Adopt the published QQQ 4.1 candidate coordinate supplied by root (`pom.xml` `qqq.version`, plus the active text that names it; see CHANGELOG/README).
-- [ ] Run the existing normal verification (`./mvnw -Pui-demo verify`), then the existing normal tag publication of `1.0.0`. Not yet done; not yet verified against the new core.
+- [x] Adopt the published QQQ `4.1.0-RC.21` candidate in `pom.xml` and the active release documentation; the BOM resolves from Maven Central.
+- [x] Complete the existing normal verification (`./mvnw -Pui-demo verify`) against RC.21: 193 tests reported, zero failures/errors, one existing opt-in workload skip and zero Checkstyle violations.
+- [ ] Complete the existing normal publication of `1.0.0` after its required CI checks.
 
 ## Echo integration candidate
 

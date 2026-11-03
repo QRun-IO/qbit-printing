@@ -2,13 +2,13 @@
 
 ## CURRENT checkpoint — 1.0.0 release preparation (2026-11-03)
 
-The tree is at the primary head `a583f91` (plus the identical `.gitea/workflows/qrun-release.yaml` caller) with the
-prepared 1.0.0 version (`pom.xml`, README, CHANGELOG). Windows connector 1.0.1 and protocol 1.0.0 are published.
-The QQQ pin stays `4.1.0-RC.20` until root supplies the published QQQ 4.1 candidate that provides native session
-login; the core's native-auth and PostgreSQL changes are merged on the core side and the shared publisher owns the core
-publication. Remaining: adopt that one coordinate, run the existing normal verification, then the existing normal
-tag publication. Nothing here is published or verified against the new core yet. Every checklist below is
-historical.
+The release branch includes the primary head `a583f91` and the prepared 1.0.0 version. Windows connector 1.0.1
+and protocol 1.0.0 are published. The QQQ pin is now the published `4.1.0-RC.21` candidate that provides native
+session login; its BOM was independently retrieved from Maven Central. The existing `-Pui-demo verify` gate
+passed against that dependency on 2026-11-03: 193 tests reported, zero failures or errors, one existing opt-in
+workload skip and zero Checkstyle violations. Main and test sources compile under the existing Error Prone,
+NullAway and warnings-as-errors checks. Printing 1.0.0 publication remains pending its normal CI and release
+process. Every checklist below is historical.
 
 ## Standards and small-label release cohort — 2026-11-01
 
