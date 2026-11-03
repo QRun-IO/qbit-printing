@@ -1,5 +1,10 @@
 # Follow-up
 
+## CURRENT — 1.0.0 (everything below this section is historical)
+
+- [ ] Adopt the published QQQ 4.1 candidate coordinate supplied by root (`pom.xml` `qqq.version`, plus the active text that names it; see CHANGELOG/README).
+- [ ] Run the existing normal verification (`./mvnw -Pui-demo verify`), then the existing normal tag publication of `1.0.0`. Not yet done; not yet verified against the new core.
+
 ## Echo integration candidate
 
 - [x] Implement authorized operator catalog, native submission/process permission,

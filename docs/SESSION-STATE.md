@@ -1,5 +1,15 @@
 # Session state — 2026-10-31
 
+## CURRENT checkpoint — 1.0.0 release preparation (2026-11-03)
+
+The tree is at the primary head `a583f91` (plus the identical `.gitea/workflows/qrun-release.yaml` caller) with the
+prepared 1.0.0 version (`pom.xml`, README, CHANGELOG). Windows connector 1.0.1 and protocol 1.0.0 are published.
+The QQQ pin stays `4.1.0-RC.20` until root supplies the published QQQ 4.1 candidate that provides native session
+login; the core's native-auth and PostgreSQL changes are merged on the core side and the shared publisher owns the core
+publication. Remaining: adopt that one coordinate, run the existing normal verification, then the existing normal
+tag publication. Nothing here is published or verified against the new core yet. Every checklist below is
+historical.
+
 ## Standards and small-label release cohort — 2026-11-01
 
 The strict standards tree (commit `43253f6`) combines the 2.3.0 operator/media/retained source with the
