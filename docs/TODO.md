@@ -1,5 +1,11 @@
 # Follow-up
 
+## CURRENT — 1.0.0 (everything below this section is historical)
+
+- [x] Adopt the published QQQ `4.1.0-RC.21` candidate in `pom.xml` and the active release documentation; the BOM resolves from Maven Central.
+- [x] Complete the existing normal verification (`./mvnw -Pui-demo verify`) against RC.21: 193 tests reported, zero failures/errors, one existing opt-in workload skip and zero Checkstyle violations.
+- [ ] Complete the existing normal publication of `1.0.0` after its required CI checks.
+
 ## Echo integration candidate
 
 - [x] Implement authorized operator catalog, native submission/process permission,

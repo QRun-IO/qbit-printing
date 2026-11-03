@@ -9,13 +9,13 @@
    <parent><groupId>com.kingsrook</groupId><artifactId>qbit-build-parent</artifactId><version>2.0.0</version><relativePath/></parent>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.4.0-rc.1</version>
+   <version>1.0.0</version>
    <name>QQQ Printing</name>
    <licenses><license><name>Apache License, Version 2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0</url></license></licenses>
    <properties>
       <maven.compiler.release>21</maven.compiler.release>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-      <qqq.version>4.1.0-RC.20</qqq.version>
+      <qqq.version>4.1.0-RC.21</qqq.version>
       <maven.compiler.proc>none</maven.compiler.proc>
    </properties>
    <dependencyManagement><dependencies>

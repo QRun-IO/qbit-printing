@@ -1,5 +1,15 @@
 # Session state — 2026-10-31
 
+## CURRENT checkpoint — 1.0.0 release preparation (2026-11-03)
+
+The release branch includes the primary head `a583f91` and the prepared 1.0.0 version. Windows connector 1.0.1
+and protocol 1.0.0 are published. The QQQ pin is now the published `4.1.0-RC.21` candidate that provides native
+session login; its BOM was independently retrieved from Maven Central. The existing `-Pui-demo verify` gate
+passed against that dependency on 2026-11-03: 193 tests reported, zero failures or errors, one existing opt-in
+workload skip and zero Checkstyle violations. Main and test sources compile under the existing Error Prone,
+NullAway and warnings-as-errors checks. Printing 1.0.0 publication remains pending its normal CI and release
+process. Every checklist below is historical.
+
 ## Standards and small-label release cohort — 2026-11-01
 
 The strict standards tree (commit `43253f6`) combines the 2.3.0 operator/media/retained source with the
