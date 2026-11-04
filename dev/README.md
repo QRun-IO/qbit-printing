@@ -32,13 +32,13 @@ The host provides native printing screens, settings, a dedicated MinIO document
 bucket and scheduled retention. No printer is enrolled automatically in this host.
 The test workload uses a separate disposable database and object store.
 
-Add `-Authentik` when creating an environment or running a fresh test to include
-real Authentik/PostgreSQL. See [the provider checks and remaining native grant
-prerequisite](AUTHENTIK.md). Provider discovery does not establish successful OIDC
-user login or refresh; the current QQQ RC.20 API lacks that native-client grant.
+The current application dependency is QQQ RC.21, which supplies native session
+login. The optional `-Authentik` diagnostic still asserts the older RC.20 API 1.8
+absence of that feature; it is a retained historical check, not a current RC.21
+login test. See [provider setup and fixture compatibility](AUTHENTIK.md).
+Authentik uses PostgreSQL; the printing host itself uses H2, not PostgreSQL or MySQL.
 
 ```powershell
-pwsh ./dev/Invoke-Dev.ps1 -Action Test -Authentik
 pwsh ./dev/Invoke-Dev.ps1 -Action Test -Workload 10000
 ```
 
@@ -126,11 +126,11 @@ It is opt-in, Test-only, and does not change the default released QQQ dependency
 
 ## Continuous integration
 
-The development workflow runs the Pester and PowerShell analysis checks on
-Windows and Ubuntu for every pull request and main-branch push. Ubuntu also runs
-the real 40-job/S3 Docker smoke. Both client fixture images also have build-only
-jobs on every pull request, including the optional native client; these jobs run
-only fake-HTTP discovery checks and do not start a provider.
+Primary Gitea CI runs the shared Maven verification with `ui-demo` and the pinned
+protocol fixtures. GitHub Actions were retired for this repository on 2026-11-04.
+The checked-in `.github/workflows/development.yml` records the former Windows/Linux
+Pester, image-build and Docker checks; it is not an active CI guarantee. The
+commands above remain available for intentional local development checks.
 
 Maven Checkstyle checks all four Java fixture sources in `dev/java` and
 `dev/native-auth/java` during `validate`. They are deliberately **not** Maven
@@ -149,5 +149,5 @@ package dependency were added. For a local build, supply the real pinned Core
 DLL through `-p:CoreAssemblyPath=/absolute/path/Qqq.PrintAgent.Core.dll`.
 
 The longer experimental native-auth profile is
-an explicit manual workflow option; it is not silently substituted for the
+an explicit local command; it is not silently substituted for the
 released dependency baseline.

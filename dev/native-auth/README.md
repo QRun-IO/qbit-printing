@@ -1,7 +1,9 @@
 # Experimental native Authentik qualification
 
-This optional profile tests an **unreleased upstream QQQ candidate**. It does
-not replace the default released RC.20 TABLE/MinIO development environment,
+This optional profile preserves a **historical upstream candidate** for reproducible
+qualification. The normal application now uses published QQQ RC.21 with native
+session login; this profile still builds its explicit older source pin. It does
+not replace the default TABLE/MinIO development environment,
 install a connector, or qualify the Windows browser callback UI.
 
 From the repository root, with Docker and PowerShell 7.4 or later:
@@ -77,9 +79,10 @@ private input/result files, rather than a host home or credential directory.
 The QQQ fixture uses fresh standard session, redirect-state and encrypted
 refresh-token tables. Its customizer maps the verified provider's synthetic
 `printing_admin` group to the existing native permission. It creates no device
-pairing, job, print operation or fabricated user session. Released RC.20 lacks
-the native-session grant; this experiment must stay opt-in until an appropriate
-immutable upstream tuple is published and separately adopted.
+pairing, job, print operation or fabricated user session. RC.20 lacked the
+native-session grant; RC.21 now supplies it in the ordinary application. This
+fixture remains opt-in and pinned to its recorded source rather than silently
+substituting a different runtime into historical results.
 
 ## Recorded local qualification
 
@@ -93,4 +96,4 @@ probe compatibility correction also passed all eight checks on 2026-11-01.
 All source files matched the pre-run hash manifest through completion, and
 independent cleanup again found no owned containers, volumes or networks.
 The native image's 12 discovery checks and default workload's nine checks pass.
-The unreleased upstream and installed-browser limitations above still apply.
+The historical source pin and installed-browser limitations above still apply.

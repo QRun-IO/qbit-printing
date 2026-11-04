@@ -1,9 +1,10 @@
 # Real-time printing host integration
 
-Release candidate [0.3.0-rc.1](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.3.0-rc.1)
-implements printing extension **2.0.0** (wire envelope v1). Upgrade the server
-before the matching Windows connector; a real-time connector rejects a server that advertises only extension
-1.x. There is no timed job/control polling fallback.
+[QQQ Printing 1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0)
+implements native printing extension **2.3.0** (wire envelope v1), paired with Windows
+connector **1.0.1**. Upgrade the server before the connector; a real-time connector
+rejects a server that advertises only extension 1.x. There is no timed job/control
+polling fallback.
 
 ## Connection and authorization
 
@@ -97,13 +98,15 @@ notifications to one another.
 The existing `/printing/v1` routes remain explicit legacy diagnostic compatibility.
 They are not a real-time fallback and cannot authorize a native bound device.
 The full message and settings contract is in
-[the shared protocol](https://github.com/QRun-IO/qqq-print-protocol).
+[the shared protocol](https://git.kof22.com/QRun-IO/qqq-print-protocol).
 
 ## Printing API major upgrade
 
-The extension is **2.0.0** because native HTTP claims now require a synchronized
+Extension **2.0.0** introduced the major-version change because native HTTP claims require a synchronized
 WebSocket. A published 1.0 HTTP-only connector no longer meets that precondition;
 this is a breaking behavior change even though request bodies remain wire v1.
 The QQQ framework API `/qqq/v1`, extension path `/qbit/printing` and WebSocket
 subprotocol `qqq-printing.v1` remain unchanged. Upgrade server and client together;
-an older client must report upgrade-required instead of using polling fallback.
+an incompatible older client must report upgrade-required instead of using polling fallback.
+Current extension 2.3.0 retains that requirement and adds operator/media support.
+The product/library version is independently 1.0.0.

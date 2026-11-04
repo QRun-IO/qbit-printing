@@ -1,12 +1,24 @@
 # Local Authentik reference
 
-Run the optional real-provider checks with Docker Compose and PowerShell 7.4+.
-The pinned fixture images use Linux/amd64; other hosts need Docker's corresponding
-Linux-container support or emulation:
+The released application uses QQQ 4.1.0-RC.21, including the native session-login
+grant. A production host configures QQQ's standard OAuth2/Authentik provider,
+trusted HTTPS, redirect registration and current user/tenant permissions. The
+Windows connector discovers that setup through the QQQ UI/UX API; provider
+refresh credentials remain on the server. See [the native authentication
+contract](https://git.kof22.com/QRun-IO/qqq-print-protocol/src/branch/main/docs/QQQ-AUTHENTICATION.md).
 
-```powershell
-pwsh ./dev/Invoke-Dev.ps1 -Action Test -Authentik
-```
+## Historical reference fixture compatibility
+
+The optional `Invoke-Dev.ps1 -Action Test -Authentik` diagnostic below was written
+for RC.20. `Invoke-Authentik.ps1` explicitly expects API 1.8 without
+`nativeSessionLogin`, so that diagnostic is not compatible with the current RC.21
+application baseline. Do not interpret its expected-absence assertion as a
+production native-authentication failure or use it as a 1.0 release gate. The
+separately pinned experimental profile remains available for reproducing its
+recorded result. No fixture code or pins were changed during documentation closeout.
+
+The following describes the retained fixture and its recorded scope. It requires
+Docker Compose, PowerShell 7.4+ and Linux/amd64 container support.
 
 The command creates a fresh, owned development project, runs the normal QQQ and
 MinIO smoke test plus the Authentik reference checks, then removes that project's
@@ -33,7 +45,7 @@ authentication.
   S256 capability. A valid state/S256 request with the registered callback
   continues to the provider login flow without following it. Changing only that
   callback to an unregistered redirect is rejected before any user login.
-- The current QQQ RC.20 host advertises UI API 1.8 without `nativeSessionLogin`.
+- The historical QQQ RC.20 host advertised UI API 1.8 without `nativeSessionLogin`.
   That expected absence is recorded as a native-client prerequisite failure,
   not silently replaced by bearer authentication or an unpublished core.
 
@@ -89,8 +101,8 @@ denials, logout replay rejection, renewal after expiry and provider revocation
 with the production Core client. Its synthetic HTTP driver and HTTPS callback
 receiver do not qualify the installed Windows browser UI or private URI callback.
 
-Production adoption still requires a compatible published central artifact
-tuple. Provider refresh tokens stay on the server. The short lifetime test does
+The released application now adopts the compatible QQQ RC.21 tuple; this
+historical experimental result does not by itself qualify a different host configuration. Provider refresh tokens stay on the server. The short lifetime test does
 not prove months or years of unattended use. Do not route the private Windows
 callback to a live companion whose connection must remain intact.
 
