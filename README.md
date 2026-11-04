@@ -2,11 +2,13 @@
 
 Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://git.kof22.com/QRun-IO/qqq-print-agent) 1.0.1 and the [shared protocol](https://git.kof22.com/QRun-IO/qqq-print-protocol) 1.0.0. The Windows connector opens an outbound, authenticated two-way WebSocket; documents download separately over HTTPS. The cloud needs no inbound route into the facility. Version **1.0.0** supports native printing **2.3**, wire payload v1, real-time jobs and controls, and native browser sign-in through QQQ. Upgrade the server before the matching Windows connector.
 
-**Current dependency:** QQQ **4.1.0-RC.21**, published on Maven Central with native session login, and Java 21. See the [printing releases](https://git.kof22.com/QRun-IO/qbit-printing/releases) for downloads. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. GitHub releases provide a library JAR, POM and SHA-256 checksums, with build attestations for all three assets. Verify the exact downloaded release; publication does not establish installed or physical-output acceptance. This repository does not claim Maven Central publication or provide a standalone executable/fat JAR.
+**Released:** [QQQ Printing 1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), with a library JAR, matching POM and `SHA256SUMS`. The same JAR/POM are published in the QRun-IO Gitea Maven registry. Gitea requires sign-in for downloads. The QBit itself is not published to Maven Central and is not a standalone executable/fat JAR. See [installation and release access](docs/RELEASES.md).
+
+**Runtime:** Java 21 and QQQ **4.1.0-RC.21**, published on Maven Central with native session login. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. Product version 1.0.0, native extension 2.3.0 and wire payload v1 are separate version contracts.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
-The 0.2.0-rc.1 source adds native record/selection actions, per-device printers/jobs/queue/history, desired versus observed status and standard-session authentication at the discovered `/qqq/v1/qbit/printing` extension. Device credentials become secondary identity proof alongside the current QQQ user's permissions. Upgrade the server before the 0.2.0 Windows client, then explicitly associate an existing unbound pairing during sign-in. These changes are included in the published release above. See the [authentication contract](https://github.com/QRun-IO/qqq-print-protocol/blob/main/docs/QQQ-AUTHENTICATION.md); bound devices cannot fall back to legacy `/printing/v1` authentication.
+Native record/selection actions expose per-device printers, jobs, queue and history, with desired versus observed status. The discovered `/qqq/v1/qbit/printing` extension uses standard QQQ session authentication. Device credentials are secondary identity proof alongside the current QQQ user's permissions. Existing unbound pairings require explicit association during sign-in. See the [authentication contract](https://git.kof22.com/QRun-IO/qqq-print-protocol/src/branch/main/docs/QQQ-AUTHENTICATION.md); bound devices cannot fall back to legacy `/printing/v1` authentication.
 
 ```mermaid
 flowchart LR
@@ -27,14 +29,14 @@ Java/.NET WebSocket jobs and S3 checks without an installed connector or printer
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings. This source pins protocol commit `42c0d249f81395f00408ec0f92638dcbbf5deb03` (the integrated contract under Gitea PR 2; the same ref CI checks out); use that commit for reproducible compatibility tests. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings from Gitea. Check out protocol commit `42c0d249f81395f00408ec0f92638dcbbf5deb03`, the immutable fixture ref in `.gitea/workflows/qrun-release.yaml`. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
-.\mvnw.cmd verify
+.\mvnw.cmd -Pui-demo verify
 .\mvnw.cmd dependency:build-classpath '-Dmdep.outputFile=target/runtime-classpath.txt' '-DincludeScope=runtime'
 ```
 
-On Linux/macOS use `bash ./mvnw verify` and the corresponding wrapper commands. First builds download dependencies; `-o` is only appropriate after they are cached.
+On Linux/macOS use `bash ./mvnw -Pui-demo verify` and the corresponding wrapper commands. First builds download dependencies; `-o` is only appropriate after they are cached.
 
 Checkstyle runs during validate. Tests exercise real H2 persistence, native QQQ metadata/processes and real loopback HTTP through Javalin, including the shared fixtures and withdrawal of a locally exposed printer. Keep `../qqq-print-protocol` checked out or pass `-Dprinting.protocol.fixtures=<fixture-directory>`.
 
@@ -70,14 +72,14 @@ Open `http://127.0.0.1:18082`. On Linux/macOS use `:` as the classpath separator
 
 The protocol-only `PrintingDemo` and synthetic, mock-authenticated `PrintingUiDemo` remain separate. Do not point the synthetic demo at real paired printer data. The local host retains database document storage until an actual dedicated S3 binding is configured in a deployment-owned application; it does not claim a remote cloud deployment.
 
-Local native deployment is accepted with authentication and access-denial checks, preserved pairing/history, connector reconnection and 365-day retention. The previously accepted 0.1.4-rc.1 release passed 73 tests and zero Checkstyle violations; the user confirmed all three Query diagnostic outputs good. Production S3/IAM and remote deployment remain separate qualification work. The 0.2.0 controls/authentication release passed 25 real client/native QQQ interoperability checks; the user later confirmed installed Letter PDF and Zebra ZPL output, the Connected footer and both printers. These results do not qualify installed or physical behavior for 0.3.
+The local setup uses the same native authorization and transport paths as an integrated application. Production authentication mappings, S3/IAM and database operation belong to the deploying host; the local fixture does not certify those settings. Dated test evidence is retained in [qualification notes](docs/QUALIFICATION-2026-11-01.md).
 
 ## Add to a QQQ application
 
-For a source checkout, `mvnw.cmd install` (or `bash ./mvnw install`) installs the verified library into your local Maven repository. For a GitHub release, download the JAR, matching POM and `SHA256SUMS`, verify the checksums, then install those artifacts locally or through your organization's artifact repository. Example using the release files in the current directory:
+Use the [authenticated Gitea Maven registry](docs/RELEASES.md#use-the-maven-registry), or download the release JAR, matching POM and `SHA256SUMS` and verify both files. For a local installation of the downloaded artifacts:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-0.3.0-rc.1.jar' '-DpomFile=qbit-printing-0.3.0-rc.1.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-1.0.0.jar' '-DpomFile=qbit-printing-1.0.0.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -86,7 +88,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>0.3.0-rc.1</version>
+   <version>1.0.0</version>
 </dependency>
 ```
 
@@ -106,12 +108,12 @@ new PrintingQBitProducer().withConfig(new PrintingQBitConfig()
    .withStorageTableName("printing_documents") // existing dedicated S3 storage table
    .withSchedulerName("appScheduler")          // existing host scheduler
    .withService(printing)).produce(qInstance, "printing");
-server.withAdditionalRouteProviders(List.of(new PrintingRoutes(printing, context -> hostPrintingAdminGuard(context))));
+server.withAdditionalRouteProviders(List.of(new PrintingRealtimeRoutes(printing)));
 ```
 
-`hostPrintingAdminGuard` is the host's own authenticated administrator policy, not a supplied library method. The service is bound to one tenant; use a separate host service instance for each tenant. Device token verification and job ownership are enforced on every device operation. Management service methods are intended for trusted application code; enforce user/facility authorization before calling them.
+The producer registers the native printing API; the additional provider supplies its WebSocket transport. Preserve any other host route providers and close the printing provider during shutdown. The same service instance must be used for metadata and transport. The service is bound to one tenant; use a separate host service instance for each tenant. Device token verification and job ownership are enforced on every device operation. Management service methods are intended for trusted application code; enforce user/facility authorization before calling them. See [real-time integration](docs/REALTIME.md).
 
-The storage/scheduler options above are included in 0.1.4-rc.1. Configure a dedicated private printing bucket for the customer/environment through existing QQQ S3 metadata; no bucket credentials belong in printing forms. Admin retention defaults to 365 days after successful completion. Scheduled cleanup handles bounded batches every five minutes and preserves active, failed and uncertain work plus all receipts/history. Without a configured storage binding, legacy database documents remain supported; without a host scheduler, automatic cleanup does not run. Review [storage configuration, bucket isolation and S3 versioning](docs/STORAGE-AND-RETENTION.md) before deployment.
+Configure a dedicated private printing bucket for the customer/environment through existing QQQ S3 metadata; no bucket credentials belong in printing forms. Admin retention defaults to 365 days after successful completion. Scheduled cleanup handles bounded batches every five minutes and preserves active, failed and uncertain work plus all receipts/history. Without a configured storage binding, legacy database documents remain supported; without a host scheduler, automatic cleanup does not run. Review [storage configuration, bucket isolation and S3 versioning](docs/STORAGE-AND-RETENTION.md) before deployment.
 
 Enrollment uses a named facility selector. Set `withFacilityPossibleValueSourceName("your_existing_facility_source")` to reuse an already registered host source and its record security. Without it, the standalone choice is **Default facility**. The backend validates the selection under the current user's permissions before issuing an enrollment code; typing or forging an unknown/foreign-tenant ID cannot bypass that check. Existing stored facility IDs are preserved; configure their original source to resolve their names.
 
@@ -143,31 +145,35 @@ String printJobId = job.getString("jobId");
 
 For terminal and web clients the QBit also offers ready-made print processes: `PrintingRecordProcesses.registerAll(instance)` (after all host tables are added) puts **Print** on every readable table, rendering a record sheet from the table's sections and child lists; `printingPrintTableList` prints a grid of any table (columns, filter, sort, page or all rows, paper and orientation); `printingPrintText` prints text such as a screen capture. Opt a table out with `PrintingTableSettings().withPrintable(false)`. Each returns the queued job id in `printingJobIds`. `printingRenderToPdf` (extension 2.2.0) renders the same documents to a PDF download for the caller instead ("Save as PDF"), and every document carries the app header and footer the client sends (`headerApp`, `headerTitle`, `headerServer`, `headerUser`, `headerPrintedAt`, `footerLeft`, `footerNote`).
 
-The returned ID identifies durable queue acceptance. Check job status asynchronously. The [protocol v1 specification](https://github.com/QRun-IO/qqq-print-protocol/blob/f977bd01b62ceb7539190fd2861809537fcf504c/README.md) defines HTTP endpoints, JSON fields, integrity checks and lifecycle semantics.
+The returned ID identifies durable queue acceptance. Check job status asynchronously. The [protocol v1 specification](https://git.kof22.com/QRun-IO/qqq-print-protocol/src/branch/main/README.md) defines HTTP endpoints, JSON fields, integrity checks and lifecycle semantics.
 
 For durable QQQ jobs register `PrintEnqueueEffectTarget` as an `IDEMPOTENT_EXTERNAL` target in `DurableJobsMetaData`, then emit the submit-request payload. The target replaces the payload idempotency key with the durable effect key. Its SENT result means accepted into the queue, not physical output. This implementation uses its own JDBC transaction; do not register it as LOCAL_TX. Authorize the destination in the emitting process before writing the effect. QQQ's durable dispatcher runs with a `QSystemUserSession` and does not propagate the user's tenant keys. For that trusted outbox path only, the target resolves the service configured on the dispatcher's current QQQ instance; that service fixes the tenant and rejects devices belonging to another tenant. The payload cannot choose a service or tenant. A cached target resolves the current instance on every call. Inline user calls retain the `printing_tenant` scope check, and native management processes (including enrollment) still require both administrator permission and matching tenant scope. Do not expose direct effect emission through an arbitrary user-supplied target/payload endpoint.
 
-## Deliberate first-version limits
+## Deployment boundaries
 
-The implemented path targets an explicit device/printer. Logical destination bindings, cancellation, reprint workflow, automatic reconciliation, clustered throughput optimization, retention and alerts are follow-ups. Documents are durably stored as base64 in the database for this first path; object-storage integration is deferred. Job paper (`paperWidthMm` and `paperHeightMm`, both positive, at most 2000, never with `mediaProfile`) is accepted; the built-in 4 x 1 and 4 x 2 in PDF test labels use it (101.6 x 25.4 / 50.8 mm) so Windows does not feed 4 x 6 stock. Only a client from the same unreleased 0.4 cohort applies it; older clients reject the job. Other jobs follow the Windows queue default. Received/submitting jobs are not automatically offered again. The queue records SPOOLED honestly and does not assert physical delivery.
+Jobs target an explicit device/printer. Logical destination routing and a distributed real-time bus belong to the integrating host. The release includes cancellation of queued jobs, explicit reprints, owned spool-cancellation commands, durable receipt reconciliation, S3 delivery storage and scheduled retention. Received/submitting jobs are not automatically offered again; `SPOOLED` never asserts physical delivery.
 
-The protocol demo and synthetic native UI preview are separate local hosts. Attaching the QBit to a deployed application and its real authentication/facility policy remains a host integration task. PostgreSQL behavior, production deployment, upgrades, cancellation/reprint and broad printer-driver coverage are not certified by the initial H2/laser tests.
+Job paper (`paperWidthMm` and `paperHeightMm`, both positive and at most 2000, never combined with `mediaProfile`) is supported by the matching Windows 1.0.1 connector. The built-in 4 × 1 and 4 × 2 PDF tests use 101.6 × 25.4 / 50.8 mm. Without explicit paper or a reported media selection, jobs follow the Windows queue default. See [media selection](docs/OPERATOR-CATALOG.md).
 
-## Verified initial path
+The protocol demo and synthetic native UI preview are separate local hosts. Attaching the QBit to a deployed application requires that host's real authentication, facility policy, database, storage and supervision. PostgreSQL and multiple QQQ nodes are not qualified by the local H2/MinIO fixture.
 
-On 2026-10-29, both the development Windows connector and the installed LocalSystem service printed a PDF to a local laser printer. The user confirmed both physical pages. MSI installation/start and temporary uninstall passed. Zebra hardware testing is deferred until a Zebra is connected. A SPOOLED status alone is never used as proof of physical output.
+## Physical output
+
+The user confirmed physical laser PDF and Zebra ZPL/PDF output during development, including a 4 × 1 test. A configured stock profile does not prove a physical result on another printer or stock; inspect the first output after changing media. Historical acceptance records remain in [session history](docs/SESSION-STATE.md).
 
 ## CI and releases
 
-Pull requests and `main` pushes run Java 21/Maven wrapper verification with the immutable sibling protocol checkout. A tag matching the POM version runs build/tests and the secrets, workflow, dependency and malicious-package security gates before publishing the tested JAR, POM and `SHA256SUMS` as GitHub release assets. Build verification enables the `ui-demo` profile used by the local host. Maven generates its selected compile/runtime graph as a CycloneDX SBOM, including frontend assets. Trivy and OSV scan that graph; a guard rejects missing or different package versions, missing frontend assets, and empty inventories. CI retains the resolved graph and scanner evidence. OSV uses `--all-packages`; its pinned 2.6.0 reporter [omits Maven groups](https://github.com/google/osv-scanner/issues/3099), so the guard checks every reported artifact/version and rejects ambiguous names while the verified input retains full package URLs. Hyphenated versions create prereleases. The packaged JAR includes the repository LICENSE and NOTICE under `META-INF`, alongside the existing font license and diagnostic assets. The workflow does not publish to Maven Central, deploy a QQQ application or print to hardware. The [0.1.0-rc.1 release](https://github.com/QRun-IO/qbit-printing/releases/tag/v0.1.0-rc.1) passed these hosted gates.
+Gitea is the source, pull-request, CI and release authority. The thin `.gitea/workflows/qrun-release.yaml` delegates to the protected `qrun-release-v1` channel with Java 21, the Maven wrapper, `ui-demo` and the immutable protocol fixture checkout. Required verify, secrets and gate checks precede merge; successful main builds capture the tested Maven reactor for the trusted registry publisher. Maintainers publish the corresponding tagged Gitea release from those verified bytes. See [release operations](docs/RELEASES.md#maintainer-release-path).
+
+GitHub is a shadow/archive. Its Actions were retired for this repository on 2026-11-04; checked-in `.github` workflows describe the former pipeline and do not publish current printing releases. The separate Windows repository retains its signing/update-feed workflow. The 1.0.0 server release does not claim GitHub attestations or Maven Central publication. The JAR includes LICENSE, NOTICE and font/diagnostic asset licenses; publication does not deploy a QQQ host or print to hardware.
 
 ## Printing home
 
 The admin-only Printing home uses stock QQQ widgets: a purpose/scope/help header, actionable exceptions, four health tiles, and a full-width pending/recent work list. Counts and record links use QQQ queries under the viewer's tenant. Device disconnection means no heartbeat for 90 seconds; job failure tiles cover jobs created in the past 24 hours. Older failures remain in Print jobs. An empty installation explains enrollment and printer setup.
 
-This RC implements the happy path of the [QQQ dashboard standard](https://github.com/QRun-IO/qqq/blob/main/docs/DASHBOARD-STANDARD.md), with explicit remaining gaps: RC.20 carries role/priority hints in widget default values; attention uses scoped database queries and 60-second refresh rather than the core live attention feed; dismiss/snooze, interactive URL-backed page scope, and stale/retry presentation depend on further core/frontend integration. It has not passed the standard's full responsive/accessibility audit. No custom frontend or HTML dashboard is used.
+The home uses the standard QQQ frontend widgets and scoped queries. Its timed dashboard refresh updates the visible summary; job delivery uses the independent real-time WebSocket and does not wait for a dashboard refresh. No custom frontend or HTML dashboard is required.
 
-### Operator actions (0.1.1-rc.1)
+### Operator actions
 
 The Windows companion can request test prints and explicit reprints through device-scoped authenticated routes. The same printer approval/exposure rules apply. Upgrade the QBit and connector together for these additive protocol features. Reprints create a new job; uncertain/spooled originals require duplicate-output consent and remain unchanged.
 
@@ -177,6 +183,6 @@ QQQ's **Print jobs** table and records expose **Print again** and **Cancel queue
 
 All built-in printer test actions share `PrintingTestDocuments`: QQQ branding, the official [Query dog mascot](https://qrun.io/query), large warehouse-style identifiers and embedded JetBrains Mono Bold with a dotted zero and distinct 1/I/l. Query's original artwork and aspect ratio are preserved in PDF and thermal output; [asset provenance](src/main/resources/com/kingsrook/qbits/printing/images/README.md) ships with the resource. The font is included under SIL OFL 1.1; its license and provenance ship in the JAR. PDF embeds a font subset. ZPL renders the same glyphs into document-local, row-aligned graphics below Zebra's 99,999-byte per-field limit; it does not download or save a printer font.
 
-Native record and selected-table actions expose a possible-value stock/resolution selector. Letter and A4 are PDF-only. Label profiles are 4 × 6 inches at 203, 300 or 600 dpi; PDF label output is always 101.6 × 152.4 mm. Select matching stock and printer resolution. Bulk actions apply the chosen profile to every selected destination, so group compatible printers. The document does not reconfigure Windows stock, calibrate the printer or save device configuration; ZPL width/length are transient format settings.
+Native record and selected-table actions expose a possible-value stock/resolution selector. Letter and A4 are PDF-only. Label profiles cover 4 × 1, 4 × 2 and 4 × 6 inches at 203, 300 or 600 dpi, with corresponding PDF dimensions of 101.6 × 25.4, 50.8 or 152.4 mm. Select matching loaded stock and printer resolution. Bulk actions apply the chosen profile to every selected destination, so group compatible printers. The document does not change the Windows queue defaults, calibrate the printer or save device configuration; ZPL width/length are transient format settings. Direct-thermal stock needs the driver's Direct Thermal setting, without a ribbon.
 
 The device test-print API accepts optional `testProfile` with the same choices. Existing clients default to Letter PDF or 203-dpi 4 × 6 ZPL. Invalid profiles fail before enqueueing. Test actions use the ordinary durable queue and existing printer exposure/approval rules; discovery never automatically prints. A ZPL barcode, glyph comparisons and size/alignment marks support physical inspection. Rendering previews and spool acceptance do not prove paper or scanner quality.

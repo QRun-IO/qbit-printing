@@ -1,6 +1,6 @@
-# Retained print acceptance (additive candidate)
+# Retained print acceptance
 
-This optional Java integration preserves the existing native generation print
+Included in QQQ Printing 1.0.0, this optional Java integration preserves the existing native generation print
 process and the existing printing queue. It adds no device wire fields or REST
 routes. It is disabled until the host supplies
 `PrintingQBitConfig.withRetainedSourceAuthority`. Current `printing_operator`
@@ -108,7 +108,7 @@ Coverage includes commit-then-throw acknowledgment loss, concurrent exact
 replay, held-admission-lock lookup, mutation ceilings, owner observation
 refusal, callback revocation, exact content hash/length, configured document
 bounds, title upgrade/replay, read-only historical lookup and original-error
-preservation when rollback fails. Qualification of this adopted source is
-recorded in the session notes; the older peer candidate's test result is not
-evidence for this revision. Cross-QBit integration remains a separate gate. No
-release, install, shared-cache substitution or runtime migration has occurred.
+preservation when rollback fails. The library is released; [release evidence](RELEASES.md) identifies its source
+and artifacts. Configuring and qualifying a cross-QBit source authority remains
+the integrating host's responsibility. Merely upgrading the library does not
+enable an adapter, migrate stored source bindings or grant source access.

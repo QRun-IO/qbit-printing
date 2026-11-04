@@ -24,7 +24,7 @@ Normal progression is QUEUED → CLAIMED → RECEIVED → SUBMITTING → SPOOLED
 
 Use a stable business idempotency key for retries of the same request. A changed target/document/options with the same key is a conflict. A deliberately new print requires a new key. The initial implementation does not automatically reclaim RECEIVED/SUBMITTING jobs or resend ambiguous output; inspect the queue and physical result before deciding to print again.
 
-The pending 0.1.4 implementation stores new documents through the host's configured dedicated QQQ S3 storage table; existing inline database content remains readable. Administration defaults to 365 days after server-observed successful completion, with bounded scheduled cleanup when a host scheduler is configured. Active, failed, uncertain and unknown-completion legacy jobs remain protected. See [storage and retention](STORAGE-AND-RETENTION.md) for bucket separation, recovery and versioning details. No live storage migration or cleanup is implied by a source upgrade.
+Version 1.0.0 stores new documents through the host's configured dedicated QQQ S3 storage table; existing inline database content remains readable. Administration defaults to 365 days after server-observed successful completion, with bounded scheduled cleanup when a host scheduler is configured. Active, failed, uncertain and unknown-completion legacy jobs remain protected. See [storage and retention](STORAGE-AND-RETENTION.md) for bucket separation, recovery and versioning details. No live storage migration or cleanup is implied by a source upgrade.
 
 ## Admission capacity and inventory history
 
@@ -49,16 +49,17 @@ Inventory snapshots remain limited to 200 entries. Rotating IDs cannot bypass cu
 ## Device controls and durable action receipts
 
 The native client API is the registered `printing` extension, semantic version
-`1.0.0`, under `/qqq/v1/qbit/printing`. Discover it through QQQ's version endpoint;
+`2.3.0`, under `/qqq/v1/qbit/printing`. Discover it through QQQ's version endpoint;
 its generated OpenAPI fragment is `src/main/resources/openapi/qqq-v1/printing.yaml`.
 The contract test checks this fragment against the registered endpoint specs and
 the initial semantic compatibility baseline. Core QQQ session authentication and
 credential scopes run before printing operations; the application does not issue
 another kind of user login token.
 
-Every native operation requires the authenticated QQQ principal, `printing_admin`,
-the configured tenant security key, and applicable native table, process and row
-access. Device operations additionally require `X-QQQ-Device-Id` and
+Native administration and device operations require the authenticated QQQ principal,
+`printing_admin`, the configured tenant security key, and applicable native table,
+process and row access. The separate [operator catalog and submission API](OPERATOR-CATALOG.md)
+also permits `printing_operator`, with its narrower destination/process checks. Device operations additionally require `X-QQQ-Device-Id` and
 `X-QQQ-Device-Token` as secondary proof. Enrollment at `/devices/enroll` validates
 the user's facility access before consuming the enrollment code and atomically
 binds the device to the core user's stable identity. A legacy unbound device can
@@ -94,7 +95,7 @@ reach that context; printing does not assert that an upstream cached session is
 fresh. Cookie-authenticated unsafe calls must also satisfy the host's Origin/CSRF
 policy. The local host requires its canonical same-origin authority.
 
-In the qualified QQQ 4.1.0-RC.20 runtime, OAuth2 `sessionStoreEnabled` defaults
+In the recorded RC.20 authentication qualification, OAuth2 `sessionStoreEnabled` defaults
 to `false`. Ordinary requests and session resume rerun the configured
 `QAuthenticationModuleCustomizerInterface` hooks; the host can load current
 permissions, tenant keys, and account status from its authoritative directory.
@@ -151,7 +152,8 @@ seven days; an unchanged old request still expires after its receipt is removed.
 
 Remote inventory refresh and owned spool cancellation require advertised agent
 capabilities, expire after 15 minutes, and have a limit of 100 pending commands
-per device. Polls deliver at most 20 commands. The retained action history is
+per device. Control delivery is bounded to 20 commands per batch over the real-time
+channel; there is no timed job/control polling fallback. The retained action history is
 limited to 1,000 records per device, with one additional reserved revocation;
 eligible old terminal records are reclaimed before admission. Capacity returns
 429 explicitly. History pages contain at most 200 records and use the preceding
@@ -180,4 +182,6 @@ cancellation request, not that paper was withdrawn or a physical print was undon
 
 ## Release qualification
 
-Prior released checks include user-confirmed laser PDF and Zebra ZPL/PDF output with correct machine driver settings. Audit source checks cover H2, native processes, host HTTP registration, synthetic storage and small real connection pools. Follow-up qualification includes live S3/IAM, PostgreSQL, production host authentication, upgrade/migration paths, multiple QQQ nodes, prolonged disconnects and a broader printer/driver set. Current prerelease artifacts must not be described as certifying those scenarios.
+The stable 1.0.0 library and its matching release/registry bytes are published; see [release evidence](RELEASES.md). Local checks cover H2 persistence, native QQQ operations, real HTTP/WebSocket transport, S3-compatible storage and bounded job histories. User-confirmed physical output includes laser PDF and Zebra ZPL/PDF.
+
+A deployment still supplies and validates its own database, S3/IAM, authentication mapping, supervision and printer drivers. PostgreSQL and multiple-node operation are not qualified by the local H2/MinIO fixture. The default real-time bus is in-process; consult [host integration](REALTIME.md) before scaling hosts. These are deployment boundaries, not pending 1.0 publication tasks.

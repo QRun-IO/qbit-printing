@@ -19,7 +19,7 @@ Run the usual quality gate:
 ./mvnw -B -ntp -Pui-demo verify
 ```
 
-CI also runs the bounded compiler-configuration guard:
+For a compiler-configuration change, also run the existing bounded guard locally:
 
 ```sh
 python3 .github/scripts/check-java-compiler.py
@@ -30,7 +30,7 @@ under `target/compiler-guard`. Both main and test sources have a positive
 probe and negative probes for NullAway, Error Prone's `DeadException`, and a
 deprecated call rejected by warnings-as-errors. A random Maven failure does
 not satisfy a negative probe: the expected diagnostic must be present.
-Logs and a result manifest are retained in the normal CI test evidence.
+Logs and a result manifest are written under `target/compiler-guard`. The former GitHub workflow ran this probe explicitly; primary Gitea verification enforces the POM compiler checks during the Maven build.
 No artifact is installed or published. Optional `--maven`, `--settings`,
 `--local-repository` and `--offline` arguments support an isolated local cache.
 

@@ -1,14 +1,16 @@
-# Session state — 2026-10-31
+# Session state — 2026-11-04
 
-## CURRENT checkpoint — 1.0.0 release preparation (2026-11-03)
+## Current — 1.0.0 released
 
-The release branch includes the primary head `a583f91` and the prepared 1.0.0 version. Windows connector 1.0.1
-and protocol 1.0.0 are published. The QQQ pin is now the published `4.1.0-RC.21` candidate that provides native
-session login; its BOM was independently retrieved from Maven Central. The existing `-Pui-demo verify` gate
-passed against that dependency on 2026-11-03: 193 tests reported, zero failures or errors, one existing opt-in
-workload skip and zero Checkstyle violations. Main and test sources compile under the existing Error Prone,
-NullAway and warnings-as-errors checks. Printing 1.0.0 publication remains pending its normal CI and release
-process. Every checklist below is historical.
+[QQQ Printing 1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0) is published on primary Gitea and its Maven registry. Source `2906c2bd5049924abd2114c8ef51a0ac9aac325e` passed main run `3594`; reactor artifact `2741`, release `1356` and both registry files were verified against the captured bytes by authenticated readback. Gitea requires sign-in. See [release operations and hashes](RELEASES.md).
+
+Windows connector 1.0.1 and protocol 1.0.0 are published. The server uses QQQ 4.1.0-RC.21, native printing 2.3.0, wire v1 and client-initiated WebSocket control with separate HTTPS documents. The release preparation's existing `-Pui-demo verify` reported 193 tests, zero failures/errors, one opt-in workload skip and zero Checkstyle violations; the normal hosted main checks subsequently passed.
+
+GitHub is a shadow/archive; server and protocol Actions were retired on 2026-11-04. Windows signing/update-feed workflows remain separate. Current setup, operator, storage and release documentation now describe this released state. This documentation closeout changes no application code or workflows and performs no new hardware/provider qualification. No server 1.0 publication task remains open.
+
+## Historical checkpoints
+
+The entries below are dated development evidence, including superseded pending tasks and older versions. They are not the current release status; use the section above and [current tasks](TODO.md).
 
 ## Standards and small-label release cohort — 2026-11-01
 

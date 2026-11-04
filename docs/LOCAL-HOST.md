@@ -10,7 +10,7 @@
 | `PrintingUiDemo` | Isolated in-memory synthetic data, mock administrator, no device routes | Native UI demonstration only |
 | `PrintingLocalHost` | Durable H2 shared by native QQQ and device routes, real password/session authentication | Authenticated local application |
 
-The local host adds its own `printing_admin_user` and `printing_admin_session` tables. It preserves existing printing tables, device credential hashes, receipt history and tenant identity. Physical table/column names are mapped to the existing H2 case convention; it does not rename an uppercase database or change `DATABASE_TO_UPPER`. Every host instance uses a distinct internal backend name to avoid cross-instance provider-cache collisions in QQQ RC20.
+The local host adds its own `printing_admin_user` and `printing_admin_session` tables. It preserves existing printing tables, device credential hashes, receipt history and tenant identity. Physical table/column names are mapped to the existing H2 case convention; it does not rename an uppercase database or change `DATABASE_TO_UPPER`. Every host instance uses a distinct internal backend name to avoid cross-instance provider-cache collisions observed during RC.20 development.
 
 ## Required configuration
 
@@ -36,7 +36,7 @@ $dependencies = (Get-Content target/local-host-classpath.txt -Raw).Trim()
 & "$env:JAVA_HOME/bin/java.exe" -cp "target/classes;$dependencies" com.kingsrook.qbits.printing.PrintingLocalHost
 ```
 
-Set the required environment values securely before launch. Maven contract tests require the documented sibling protocol fixture checkout or `printing.protocol.fixtures` override. Browse to `http://localhost:18081/` (or the configured port) and use the native username/password screen. The existing Windows connector continues using the same server origin and device token; it does not receive the browser password or management token.
+Set the required environment values securely before launch. Maven contract tests require the documented sibling protocol fixture checkout or `printing.protocol.fixtures` override. Browse to `http://localhost:18081/` (or the configured port) and use the native username/password screen. Configure that origin in the Windows connector Connection settings and sign in through the discovered QQQ authentication flow. Preserve an existing pairing when upgrading; the native path requires the current user session as well as device proof. The connector does not receive the management token.
 
 This command runs the host in the foreground. `QApplicationLauncher` owns graceful HTTP/scheduler shutdown. It does not install an operating-system service or auto-start registration; the deploying operator must provide supervision, protected credential loading, logs and backups for unattended use.
 
@@ -60,7 +60,7 @@ Existing facility IDs are retained. The standalone enrollment form offers the na
 
 QQQ supplies password verification, failed-sign-in throttling, HttpOnly sessions, session expiry and logout. The local authorization subclass calls native verification first and maps only the configured account to printing permissions. Other valid accounts cannot gain those permissions. Native QQQ permission and tenant checks still apply to every table/process.
 
-The host rejects non-loopback Host headers, cross-origin Origin headers and cross-site browser requests. Cookie-authenticated unsafe requests require an exact same-origin Origin header, including logout and native process actions. Explicit bearer/device API calls without ambient cookies remain usable from the connector. Use one loopback hostname consistently in the browser; `localhost` and `127.0.0.1` are different browser origins. These controls do not turn a local HTTP host into an Internet-facing service.
+The host rejects non-loopback Host headers, cross-origin Origin headers and cross-site browser requests. Cookie-authenticated unsafe requests require an exact same-origin Origin header, including logout and native process actions. Explicit API calls without ambient cookies still require their normal route credentials; native bound devices use QQQ session authentication plus device proof. Use one loopback hostname consistently in the browser; `localhost` and `127.0.0.1` are different browser origins. These controls do not turn a local HTTP host into an Internet-facing service.
 
 ## Retention, storage and remaining deployment work
 
@@ -68,4 +68,4 @@ The native Quartz scheduler runs the existing bounded cleanup process every five
 
 This local host deliberately leaves the S3 binding unconfigured. Native settings report legacy database storage. New and existing documents therefore remain in the database; merely running this host does not move documents to S3. A deployed application must supply its existing dedicated `printing_*` S3 table/backend and scheduler configuration, with bucket/IAM/tenant separation described in [storage and retention](STORAGE-AND-RETENTION.md). The host must retain historical storage bindings when changing configuration.
 
-Remote HTTPS deployment, real S3/IAM, production OAuth roles, PostgreSQL and operating-system supervision remain separate qualification work. Record Files source-version/actor integration remains pending its concrete public contract; standalone printing delivery storage must not own or delete canonical attachments.
+Remote HTTPS deployment, real S3/IAM, production OAuth roles, PostgreSQL and operating-system supervision remain separate qualification work. The optional [retained-source facade](RETAINED-PRINT-FACADE.md) requires a host-supplied source authority; standalone printing delivery storage must not own or delete canonical attachments.

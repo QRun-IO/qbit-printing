@@ -1,10 +1,17 @@
 # Follow-up
 
-## CURRENT — 1.0.0 (everything below this section is historical)
+## Current — release closeout (2026-11-04)
 
-- [x] Adopt the published QQQ `4.1.0-RC.21` candidate in `pom.xml` and the active release documentation; the BOM resolves from Maven Central.
-- [x] Complete the existing normal verification (`./mvnw -Pui-demo verify`) against RC.21: 193 tests reported, zero failures/errors, one existing opt-in workload skip and zero Checkstyle violations.
-- [ ] Complete the existing normal publication of `1.0.0` after its required CI checks.
+- [x] Adopt published QQQ 4.1.0-RC.21 and complete the existing local verification.
+- [x] Pass normal primary CI, publish qbit-printing 1.0.0 and verify the release/registry bytes.
+- [x] Publish protocol 1.0.0 and Windows connector 1.0.1; keep their distinct API/product versions documented.
+- [x] Update active setup, operating, security and release documentation for Gitea and the released features.
+
+No server 1.0 release task remains open. Deployment-specific database, IAM/provider policy and optional cross-QBit adapters remain the integrating application's responsibilities, described in the operating guides. The legacy optional Authentik diagnostic is documented as an RC.20-era fixture; updating it is not part of this release closeout.
+
+## Historical checklists
+
+Everything below records earlier development checkpoints. Unchecked historical items do not reopen completed or excluded release work.
 
 ## Echo integration candidate
 

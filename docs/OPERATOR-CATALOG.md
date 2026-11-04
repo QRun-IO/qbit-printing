@@ -1,7 +1,7 @@
 # Operator catalog and queue media
 
-This source adds native printing extension 2.3.0 (2.2.0 is the rendering extension and carries no media negotiation). Publication and Windows media
-agent qualification are pending. Existing administrator and device routes keep
+QQQ Printing 1.0.0 includes native printing extension 2.3.0, paired with Windows
+connector 1.0.1. Extension 2.2.0 introduced rendering; 2.3.0 adds this operator/media API. Existing administrator and device routes keep
 their permissions; this is an additive operator API, not a device bearer API.
 
 Hosts grant `printing_operator` and the `printing_tenant` security key. The native
@@ -55,8 +55,11 @@ replays remain accepted. The capable Windows agent rechecks its actual current
 default before spooling. Selected-media dispatch requires the current agent
 capability `printer-media-v1`, including after reconnect/downgrade. Legacy
 inventory without profiles clears stale media facts. Omitted selection preserves
-ordinary existing queue behavior. Paper-width/height overrides remain unsupported,
-including when a media selection is supplied.
+ordinary existing queue behavior. An explicit job paper size instead uses both
+`paperWidthMm` and `paperHeightMm` (positive, at most 2000 mm); it cannot be
+combined with `mediaProfile`. The matching connector applies that job paper
+without changing the machine-wide queue defaults. Select media matching the
+loaded stock and calibrate the physical printer after changing label sizes.
 
 Generated/retained source authorization belongs to the configured source owner.
 The retained facade shares this operator permission and destination boundary; it
