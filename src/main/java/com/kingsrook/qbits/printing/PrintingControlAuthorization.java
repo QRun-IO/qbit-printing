@@ -133,7 +133,8 @@ public final class PrintingControlAuthorization
       PrintingDeviceProcesses.Action selected = null;
       for(PrintingDeviceProcesses.Action action : PrintingDeviceProcesses.Action.values())
       {
-         if(action.wire.equals(request.optString("action")))
+         // The first action owning a wire value is its control process; Remove device reuses REVOKE's wire without owning it.
+         if(selected == null && action.wire.equals(request.optString("action")))
          {
             selected = action;
          }

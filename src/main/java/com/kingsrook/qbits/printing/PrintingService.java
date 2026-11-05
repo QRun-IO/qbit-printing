@@ -37,10 +37,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import com.kingsrook.qqq.backend.core.logging.QLogger;
 import com.uber.nullaway.annotations.EnsuresNonNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jspecify.annotations.Nullable;
+import static com.kingsrook.qqq.backend.core.logging.LogUtils.logPair;
 
 
 /*******************************************************************************
@@ -50,6 +52,7 @@ import org.jspecify.annotations.Nullable;
 public class PrintingService
 {
    static final String CANCELED_BEFORE_DISPATCH = "Canceled by operator before dispatch";
+   private static final QLogger LOG = QLogger.getLogger(PrintingService.class);
    private static final String JOB_COLUMNS = "id, tenant_id, device_id, printer_id, title, format, content_hash, content_length, options_json, idempotency_key, created_at, status, message, spooler_job_id, printer_row_id";
    private final DataSource dataSource;
    private final String tenantId;
@@ -281,6 +284,8 @@ public class PrintingService
          "CREATE TABLE IF NOT EXISTS printing_printer (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, device_id VARCHAR(36) NOT NULL REFERENCES printing_device(id), printer_id VARCHAR(200) NOT NULL, name VARCHAR(300) NOT NULL, driver_name VARCHAR(300), port_name VARCHAR(300), status VARCHAR(40) NOT NULL, formats VARCHAR(100) NOT NULL, enabled INTEGER NOT NULL, last_seen_at VARCHAR(40) NOT NULL, UNIQUE(device_id, printer_id))",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS available INTEGER DEFAULT 0 NOT NULL",
          "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS media_profiles_json TEXT DEFAULT '[]' NOT NULL",
+         "ALTER TABLE printing_printer ADD COLUMN IF NOT EXISTS removed_at VARCHAR(40)",
+         "ALTER TABLE printing_device ADD COLUMN IF NOT EXISTS removed_at VARCHAR(40)",
          "CREATE TABLE IF NOT EXISTS printing_job (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(200) NOT NULL, device_id VARCHAR(36) NOT NULL REFERENCES printing_device(id), printer_id VARCHAR(200) NOT NULL, title VARCHAR(300) NOT NULL, format VARCHAR(10) NOT NULL, content_hash VARCHAR(64) NOT NULL, content_base64 TEXT NOT NULL, content_length INTEGER NOT NULL, options_json VARCHAR(2000) NOT NULL, idempotency_key VARCHAR(300) NOT NULL, created_at VARCHAR(40) NOT NULL, status VARCHAR(40) NOT NULL, message VARCHAR(2000), spooler_job_id VARCHAR(100), UNIQUE(tenant_id, idempotency_key))",
          "CREATE TABLE IF NOT EXISTS printing_event (id VARCHAR(100) PRIMARY KEY, job_id VARCHAR(36) NOT NULL REFERENCES printing_job(id), status VARCHAR(40) NOT NULL, event_json VARCHAR(4000) NOT NULL, created_at VARCHAR(40) NOT NULL)",
          "ALTER TABLE printing_job ADD COLUMN IF NOT EXISTS printer_row_id VARCHAR(36)",
@@ -782,6 +787,11 @@ public class PrintingService
                String now = Instant.now().toString();
                String driver = optionalText(printer.optString("driverName"), "driverName", 1024);
                String port = optionalText(printer.optString("portName"), "portName", 1024);
+               if(update(connection, "UPDATE printing_printer SET removed_at=NULL, enabled=0 WHERE device_id=? AND printer_id=? AND removed_at IS NOT NULL", deviceId, printerId) > 0)
+               {
+                  // A removed queue shared again re-enters the inventory as it was first discovered: exposed, awaiting approval, history intact.
+                  LOG.info("A removed printer re-appeared in the device inventory and awaits approval again", logPair("deviceId", deviceId), logPair("printerId", printerId));
+               }
                int changed = update(connection, "UPDATE printing_printer SET queue_name=?, name=COALESCE(NULLIF(display_name,''),?), driver_name=?, port_name=?, status=?, formats=?, last_seen_at=?, available=1 WHERE device_id=? AND printer_id=?", name, name, driver, port, status, formats, now, deviceId, printerId);
                if(changed == 0)
                {
@@ -808,7 +818,7 @@ public class PrintingService
     ** Approval of every printer in the device's latest accepted inventory, for
     ** the realtime PRINTERS frame: printerId and enabled per available queue,
     ** nothing else. A withdrawn queue is not listed even though its approval and
-    ** history are retained.
+    ** history are retained; a removed queue is never listed.
     ***************************************************************************/
    public JSONArray printerApprovals(String deviceId) throws SQLException
    {
@@ -816,7 +826,7 @@ public class PrintingService
       {
          requireDevice(connection, deviceId);
          JSONArray result = new JSONArray();
-         for(JSONObject row : query(connection, "SELECT printer_id, enabled FROM printing_printer WHERE tenant_id=? AND device_id=? AND available=1 ORDER BY printer_id LIMIT 200", tenantId, deviceId))
+         for(JSONObject row : query(connection, "SELECT printer_id, enabled FROM printing_printer WHERE tenant_id=? AND device_id=? AND available=1 AND removed_at IS NULL ORDER BY printer_id LIMIT 200", tenantId, deviceId))
          {
             result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("enabled", row.getInt("enabled") == 1));
          }
@@ -836,12 +846,79 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
-         if(update(connection, "UPDATE printing_printer SET enabled=? WHERE device_id=? AND printer_id=?", enabled ? 1 : 0, deviceId, printerId) == 0)
+         if(update(connection, "UPDATE printing_printer SET enabled=? WHERE device_id=? AND printer_id=? AND removed_at IS NULL", enabled ? 1 : 0, deviceId, printerId) == 0)
+         {
+            if(!query(connection, "SELECT id FROM printing_printer WHERE device_id=? AND printer_id=?", deviceId, printerId).isEmpty())
+            {
+               throw new PrintingException(409, "Printer was removed; share it from the device again before changing its approval");
+            }
+            throw new PrintingException(404, "Printer not found");
+         }
+      }
+      realtimeBus.publish(tenantId, deviceId);
+   }
+
+
+
+   /***************************************************************************
+    ** Archive a printer: it leaves the Printers view, the operator catalog, claims
+    ** and the PRINTERS frame, but its row and job history stay. A later inventory
+    ** that shares the same queue again brings it back exposed and not approved.
+    ** Removing an already removed printer changes nothing.
+    ***************************************************************************/
+   public void removePrinter(String deviceId, String printerId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDeviceRow(connection, deviceId);
+         if(update(connection, "UPDATE printing_printer SET removed_at=?, enabled=0, available=0 WHERE tenant_id=? AND device_id=? AND printer_id=? AND removed_at IS NULL", Instant.now().toString(), tenantId, deviceId, printerId) == 0
+            && query(connection, "SELECT id FROM printing_printer WHERE tenant_id=? AND device_id=? AND printer_id=?", tenantId, deviceId, printerId).isEmpty())
          {
             throw new PrintingException(404, "Printer not found");
          }
       }
       realtimeBus.publish(tenantId, deviceId);
+   }
+
+
+
+   /***************************************************************************
+    ** Archive a device whose access has already been revoked: the device and all
+    ** of its printers leave the default views and every dispatch path, while job
+    ** history stays readable. Revocation is the existing REVOKE control action
+    ** (credential rotation, disconnect, pending-command outcome); this method
+    ** never performs it and refuses a device that still holds a live credential.
+    ** A removed device cannot be restored; a new enrollment creates a new device.
+    ***************************************************************************/
+   public void removeDevice(String deviceId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         JSONObject device = requireDeviceRow(connection, deviceId);
+         if(!device.has("revoked_at"))
+         {
+            throw new PrintingException(409, "Revoke the device's access before removing it");
+         }
+         String now = Instant.now().toString();
+         update(connection, "UPDATE printing_device SET removed_at=? WHERE tenant_id=? AND id=? AND removed_at IS NULL", now, tenantId, deviceId);
+         update(connection, "UPDATE printing_printer SET removed_at=?, enabled=0, available=0 WHERE tenant_id=? AND device_id=? AND removed_at IS NULL", now, tenantId, deviceId);
+      }
+      realtimeBus.publish(tenantId, deviceId);
+   }
+
+
+
+   /***************************************************************************
+    ** Tenant ownership of a device row regardless of its revoked or removed state.
+    ***************************************************************************/
+   private JSONObject requireDeviceRow(Connection connection, String deviceId) throws SQLException
+   {
+      List<JSONObject> rows = query(connection, "SELECT id, revoked_at, removed_at FROM printing_device WHERE id=? AND tenant_id=?", deviceId, tenantId);
+      if(rows.isEmpty())
+      {
+         throw new PrintingException(404, "Device not found");
+      }
+      return rows.getFirst();
    }
 
 
@@ -1095,7 +1172,7 @@ public class PrintingService
                   throw new SQLException("Interrupted while waiting for the existing submission", exception);
                }
             }
-            List<JSONObject> printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
+            List<JSONObject> printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1 AND removed_at IS NULL", deviceId, printerId);
             if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
             {
                throw new PrintingException(400, "Printer is not enabled for this format");
@@ -1123,7 +1200,7 @@ public class PrintingService
                requireDevice(connection, deviceId);
                query(connection, "SELECT id FROM printing_device WHERE id=? FOR UPDATE", deviceId);
                requireDevice(connection, deviceId);
-               printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1", deviceId, printerId);
+               printers = query(connection, "SELECT * FROM printing_printer WHERE device_id=? AND printer_id=? AND enabled=1 AND available=1 AND removed_at IS NULL", deviceId, printerId);
                if(printers.isEmpty() || !new JSONArray(printers.getFirst().getString("formats")).toList().contains(format))
                {
                   throw new PrintingException(400, "Printer is not enabled for this format");
@@ -1404,7 +1481,7 @@ public class PrintingService
                connection.commit();
                return new JSONObject().put("job", JSONObject.NULL);
             }
-            List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND j.status IN ('QUEUED','CLAIMED') AND ((j.format='PDF' AND p.formats LIKE '%\"PDF\"%') OR (j.format='ZPL' AND p.formats LIKE '%\"ZPL\"%'))" + (authorizedJobId == null ? "" : " AND j.id=?") + " ORDER BY j.created_at, j.id LIMIT 1", authorizedJobId == null ? new Object[] { tenantId, deviceId } : new Object[] { tenantId, deviceId, authorizedJobId });
+            List<JSONObject> candidates = query(connection, "SELECT j." + JOB_COLUMNS.replace(", ", ", j.") + " FROM printing_job j JOIN printing_printer p ON p.device_id=j.device_id AND p.printer_id=j.printer_id WHERE j.tenant_id=? AND j.device_id=? AND p.enabled=1 AND p.available=1 AND p.removed_at IS NULL AND j.status IN ('QUEUED','CLAIMED') AND ((j.format='PDF' AND p.formats LIKE '%\"PDF\"%') OR (j.format='ZPL' AND p.formats LIKE '%\"ZPL\"%'))" + (authorizedJobId == null ? "" : " AND j.id=?") + " ORDER BY j.created_at, j.id LIMIT 1", authorizedJobId == null ? new Object[] { tenantId, deviceId } : new Object[] { tenantId, deviceId, authorizedJobId });
             if(candidates.isEmpty())
             {
                connection.commit();
@@ -1564,7 +1641,7 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          JSONArray result = new JSONArray();
-         for(JSONObject row : query(connection, "SELECT * FROM printing_device WHERE tenant_id=? ORDER BY name", tenantId))
+         for(JSONObject row : query(connection, "SELECT * FROM printing_device WHERE tenant_id=? AND removed_at IS NULL ORDER BY name", tenantId))
          {
             result.put(new JSONObject().put("deviceId", row.getString("id")).put("facilityId", row.getString("facility_id")).put("deviceName", row.getString("name")).put("computerName", row.getString("computer_name"))
                .put("profile", new JSONObject().put("name", row.optString("display_name")).put("description", row.optString("description")).put("location", row.optString("location")))
@@ -1607,7 +1684,7 @@ public class PrintingService
       try(Connection connection = dataSource.getConnection())
       {
          requireDevice(connection, deviceId);
-         String sql = "SELECT * FROM printing_printer WHERE tenant_id=? AND device_id=?";
+         String sql = "SELECT * FROM printing_printer WHERE tenant_id=? AND device_id=? AND removed_at IS NULL";
          List<JSONObject> rows = name == null ? query(connection, sql + " ORDER BY name,id LIMIT ?", tenantId, deviceId, limit + 1)
             : query(connection, sql + " AND (name>? OR (name=? AND id>?)) ORDER BY name,id LIMIT ?", tenantId, deviceId, name, name, id, limit + 1);
          JSONArray result = new JSONArray();
@@ -1971,7 +2048,7 @@ public class PrintingService
     ***************************************************************************/
    private void requireDevice(Connection connection, String deviceId) throws SQLException
    {
-      if(query(connection, "SELECT id FROM printing_device WHERE id=? AND tenant_id=? AND enabled=1 AND revoked_at IS NULL", deviceId, tenantId).isEmpty())
+      if(query(connection, "SELECT id FROM printing_device WHERE id=? AND tenant_id=? AND enabled=1 AND revoked_at IS NULL AND removed_at IS NULL", deviceId, tenantId).isEmpty())
       {
          throw new PrintingException(404, "Device not found");
       }
@@ -2086,6 +2163,7 @@ public class PrintingService
                   renewRetentionLease(connection, token);
                   progress[0] += cleanupOrphan(connection, orphan.getString("id"));
                }
+               progress[0] += purgeRemoved(connection, Math.max(0, policy.batchSize() - progress[0]), token);
             }
             update(connection, "UPDATE printing_settings SET last_run_at=?, last_run_count=?, last_run_error='', lease_token=NULL, lease_expires_at=NULL WHERE tenant_id=? AND lease_token=?", Instant.now().toString(), progress[0], tenantId, token);
             connection.commit();
@@ -2099,6 +2177,48 @@ public class PrintingService
             throw exception;
          }
       }
+   }
+
+
+
+   /***************************************************************************
+    ** Hard-delete removed printers that no job references (by printer row or by
+    ** device and queue identity) and removed devices that have no jobs and no
+    ** printers left, at most `limit` rows per run. Anything a job references is
+    ** never deleted, so history stays queryable for as long as the job exists.
+    ** A removed device's control receipts go with it; its jobs would have kept it.
+    ***************************************************************************/
+   private int purgeRemoved(Connection connection, int limit, String token) throws SQLException
+   {
+      if(limit < 1)
+      {
+         return 0;
+      }
+      int printers = 0;
+      int devices = 0;
+      String unreferencedPrinter = " AND NOT EXISTS (SELECT 1 FROM printing_job j WHERE j.printer_row_id=printing_printer.id OR (j.device_id=printing_printer.device_id AND j.printer_id=printing_printer.printer_id))";
+      for(JSONObject row : query(connection, "SELECT id FROM printing_printer WHERE tenant_id=? AND removed_at IS NOT NULL" + unreferencedPrinter + " ORDER BY removed_at, id LIMIT ?", tenantId, limit))
+      {
+         renewRetentionLease(connection, token);
+         printers += update(connection, "DELETE FROM printing_printer WHERE tenant_id=? AND id=? AND removed_at IS NOT NULL" + unreferencedPrinter, tenantId, row.getString("id"));
+      }
+      String unreferencedDevice = " AND NOT EXISTS (SELECT 1 FROM printing_job j WHERE j.device_id=printing_device.id) AND NOT EXISTS (SELECT 1 FROM printing_printer p WHERE p.device_id=printing_device.id)";
+      for(JSONObject row : query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND removed_at IS NOT NULL" + unreferencedDevice + " ORDER BY removed_at, id LIMIT ?", tenantId, Math.max(0, limit - printers)))
+      {
+         renewRetentionLease(connection, token);
+         if(query(connection, "SELECT id FROM printing_device WHERE tenant_id=? AND id=? AND removed_at IS NOT NULL" + unreferencedDevice, tenantId, row.getString("id")).isEmpty())
+         {
+            continue;
+         }
+         update(connection, "DELETE FROM printing_device_command WHERE tenant_id=? AND device_id=?", tenantId, row.getString("id"));
+         update(connection, "DELETE FROM printing_resource_usage WHERE tenant_id=? AND device_id=?", tenantId, row.getString("id"));
+         devices += update(connection, "DELETE FROM printing_device WHERE tenant_id=? AND id=?", tenantId, row.getString("id"));
+      }
+      if(printers > 0 || devices > 0)
+      {
+         LOG.info("Purged removed printing rows that no job references", logPair("tenantId", tenantId), logPair("printers", printers), logPair("devices", devices));
+      }
+      return printers + devices;
    }
 
 

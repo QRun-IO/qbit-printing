@@ -167,6 +167,7 @@ public final class PrintingRecordProcesses
    {
       QQueryFilter filter = new QQueryFilter(new QFilterCriteria("enabled", QCriteriaOperator.EQUALS, 1))
          .withCriteria(new QFilterCriteria("available", QCriteriaOperator.EQUALS, 1))
+         .withCriteria(new QFilterCriteria("removed_at", QCriteriaOperator.IS_BLANK))
          .withCriteria(new QFilterCriteria("formats", QCriteriaOperator.CONTAINS, "PDF"));
       return new QFieldMetaData(PRINTER_FIELD, QFieldType.STRING).withLabel("Printer").withIsRequired(true)
          .withPossibleValueSourceName(PrintingTables.PRINTER).withPossibleValueSourceFilter(filter);
