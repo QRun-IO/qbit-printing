@@ -96,7 +96,7 @@ public class PrintingQBitProducer implements QBitProducer
       config.getService().configureStorage(instance, config.getStorageTableName());
       instance.addQBit(new QBitMetaData().withGroupId("com.kingsrook.qbits").withArtifactId("qbit-printing").withVersion(version()).withNamespace("printing").withConfig(config));
       instance.addSecurityKeyType(new QSecurityKeyType().withName("printing_tenant"));
-      QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "display_name", "computer_name", "description", "location", "agent_version", "last_seen_at"));
+      QTableMetaData devices = table(PrintingTables.DEVICE, "Print devices", List.of("id", "tenant_id", "facility_id", "name", "display_name", "computer_name", "description", "location", "agent_version", "last_seen_at", "removed_at"));
       devices.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Enabled").withPossibleValueSourceName("printing_enabled"));
       devices.withField(new QFieldMetaData("dispatch_paused", QFieldType.INTEGER).withLabel("Printing paused").withPossibleValueSourceName("printing_paused"));
       devices.withField(new QFieldMetaData("connection_state", QFieldType.STRING).withLabel("Requested connection").withPossibleValueSourceName("printing_connectionState"));
@@ -110,7 +110,7 @@ public class PrintingQBitProducer implements QBitProducer
       devices.withVirtualField(new QVirtualFieldMetaData("control_status", QFieldType.STRING).withLabel("Control application").withPossibleValueSourceName("printing_controlApplication").withIsQuerySelectable(true));
       devices.withCustomizer(TableCustomizers.POST_QUERY_RECORD, new QCodeReference(PrintingDeviceStatus.class));
       devices.getField("facility_id").withLabel("Facility").withPossibleValueSourceName(PrintingFacilities.register(instance, config));
-      QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at"));
+      QTableMetaData printers = table(PrintingTables.PRINTER, "Printers", List.of("id", "tenant_id", "device_id", "printer_id", "name", "display_name", "queue_name", "description", "location", "driver_name", "port_name", "status", "formats", "last_seen_at", "removed_at"));
       printers.withField(new QFieldMetaData("enabled", QFieldType.INTEGER).withLabel("Approved for printing").withPossibleValueSourceName("printing_approved"));
       printers.withField(new QFieldMetaData("available", QFieldType.INTEGER).withLabel("Exposed by device").withPossibleValueSourceName("printing_available"));
       printers.withField(new QFieldMetaData("media_profiles_json", QFieldType.STRING).withLabel("Reported queue default media"));

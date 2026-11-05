@@ -82,6 +82,8 @@ public final class PrintingDeviceProcesses
          "Connected agents will be asked to resume normal traffic. An offline computer cannot be reached immediately."),
       REVOKE("printingRevokeDevices", "Revoke device access", "REVOKE", true, false,
          "Access will be revoked permanently. The old credential cannot be restored; local re-enrollment is required."),
+      REMOVE("printingRemoveDevices", "Remove device", "REVOKE", true, false,
+         "Access will be revoked permanently and the device and its printers will be hidden from the printing views. Job history is kept. A removed device cannot be restored; a new enrollment creates a new device."),
       REFRESH("printingRefreshDevices", "Refresh printer inventory", "REFRESH_INVENTORY", false, false,
          "A bounded refresh request will wait for a compatible agent. Acceptance does not mean it has executed."),
       CLEAR("printingClearDeviceQueues", "Cancel queued jobs", "CLEAR_QUEUE", true, false,
@@ -326,8 +328,17 @@ public final class PrintingDeviceProcesses
             }
             try
             {
-               JSONObject result = PrintingControlAuthorization.deviceAction(deviceId, request);
-               String status = result.getString("status");
+               String status;
+               if(action == Action.REMOVE)
+               {
+                  // Removal reuses the REVOKE control for the credential; an already revoked device only needs archiving.
+                  status = current.getValueString("revoked_at") == null ? PrintingControlAuthorization.deviceAction(deviceId, request).getString("status") : "SUCCEEDED";
+                  PrintingProcesses.currentService().removeDevice(deviceId);
+               }
+               else
+               {
+                  status = PrintingControlAuthorization.deviceAction(deviceId, request).getString("status");
+               }
                ProcessSummaryLine summary = "PENDING".equals(status) ? pending : ("SUCCEEDED".equals(status) ? applied : unresolved);
                summary.incrementCountAndAddPrimaryKey(current.getValue("id"));
                output.getRecords().add(current);

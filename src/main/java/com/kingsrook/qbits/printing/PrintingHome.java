@@ -157,9 +157,10 @@ public class PrintingHome extends AbstractWidgetRenderer
          .withBlock(text("Printing queue and storage limits").withLink(new BlockLink("/app/printingAdmissionSettings/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Run retention cleanup").withLink(new BlockLink("/app/printingRunRetention/?returnTo=%2Fapp%2Fprinting%2F")))
          .withBlock(text("Printing setup and help").withLink(new BlockLink("https://github.com/QRun-IO/qbit-printing/blob/main/docs/OPERATIONS.md")));
-      if(count(DEVICE, new QQueryFilter()) == 0)
+      QQueryFilter present = new QQueryFilter().withCriteria("removed_at", QCriteriaOperator.IS_BLANK);
+      if(count(DEVICE, present) == 0)
       {
-         data.withBlock(text("No print devices are connected. Open Print devices and use Enroll a print device; then connect the Windows agent and expose its printers.").withLink(new BlockLink(tableUrl(DEVICE, new QQueryFilter()))));
+         data.withBlock(text("No print devices are connected. Open Print devices and use Enroll a print device; then connect the Windows agent and expose its printers.").withLink(new BlockLink(tableUrl(DEVICE, present))));
       }
       return data;
    }

@@ -237,6 +237,62 @@ class PrintingServiceTest
 
 
    /***************************************************************************
+    ** Cleanup purges removed printers and devices only when no job references
+    ** them; a removed device must already be revoked, and its history survives.
+    ***************************************************************************/
+   @Test
+   void purgeDeletesOnlyUnreferencedRemovedRows() throws Exception
+   {
+      DriverDataSource source = source();
+      PrintingService service = new PrintingService(source, "tenant-a");
+      service.initialize();
+      String device = enroll(service);
+      service.inventory(device, inventory().put(new JSONObject().put("printerId", "spare").put("name", "Spare").put("formats", new JSONArray(List.of("PDF")))));
+      service.enablePrinter(device, "zebra", true);
+      String job = service.submit(request(device)).getString("jobId");
+      service.removePrinter(device, "zebra");
+      service.removePrinter(device, "spare");
+      service.removePrinter(device, "spare");
+      assertEquals(404, assertThrows(PrintingException.class, () -> service.removePrinter(device, "missing")).getStatus());
+      assertEquals(0, service.printers(device).length());
+      assertEquals(409, assertThrows(PrintingException.class, () -> service.removeDevice(device)).getStatus());
+      String other = enroll(service);
+      service.inventory(other, inventory());
+      service.deviceAction(other, new JSONObject().put("requestId", "revoke-other").put("issuedAt", java.time.Instant.now().toString()).put("action", "REVOKE"), "tester");
+      service.removeDevice(other);
+      service.removeDevice(other);
+      assertEquals(1, service.devices().length());
+      assertEquals(2, count(source, "SELECT COUNT(*) FROM printing_device"));
+      assertEquals(3, count(source, "SELECT COUNT(*) FROM printing_printer"));
+      // Two unreferenced printers (spare, the removed device's zebra) and the removed device itself.
+      assertEquals(3, service.runRetention());
+      assertEquals(1, count(source, "SELECT COUNT(*) FROM printing_device"));
+      assertEquals(1, count(source, "SELECT COUNT(*) FROM printing_printer"));
+      assertEquals(1, count(source, "SELECT COUNT(*) FROM printing_printer WHERE printer_id='zebra' AND removed_at IS NOT NULL"));
+      assertEquals(0, count(source, "SELECT COUNT(*) FROM printing_printer WHERE printer_id='spare'"));
+      assertEquals(0, count(source, "SELECT COUNT(*) FROM printing_device_command"));
+      assertEquals("QUEUED", service.getJob(job).getString("status"));
+      assertEquals(0, service.runRetention());
+      assertEquals(404, assertThrows(PrintingException.class, () -> service.printers(other)).getStatus());
+   }
+
+
+
+   /***************************************************************************
+    ** Direct row counts; the service deliberately hides archived rows.
+    ***************************************************************************/
+   private static long count(DriverDataSource source, String sql) throws Exception
+   {
+      try(var connection = source.getConnection(); var statement = connection.prepareStatement(sql); var result = statement.executeQuery())
+      {
+         result.next();
+         return result.getLong(1);
+      }
+   }
+
+
+
+   /***************************************************************************
     ** QBit metadata exposes safe fields and real setup/test-print processes.
     ***************************************************************************/
    @Test
