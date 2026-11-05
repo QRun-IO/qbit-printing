@@ -49,11 +49,11 @@ public final class PrintingUiApi
       MiddlewareSpecExtensionsMetaData.ofOrWithNew(instance).withExtension(extension());
    }
 
-   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims; 2.1.0 adds the record, table-list and text print processes; 2.2.0 adds printingRenderToPdf, the header/footer values and content sections; 2.3.0 adds authorized operator submission, reported queue-default media and the retained-source facade. */
+   /** Semantic extension 2.0.0 requires authenticated realtime delivery for native claims; 2.1.0 adds the record, table-list and text print processes; 2.2.0 adds printingRenderToPdf, the header/footer values and content sections; 2.3.0 adds authorized operator submission, reported queue-default media and the retained-source facade; 2.4.0 adds the printer-approval-v1 capability and the realtime PRINTERS frame carrying each exposed printer's approval. */
    public static MiddlewareSpecExtension extension()
    {
-      return new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.3.0")
-         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes; render to PDF with the app header and footer; least-privilege operator catalog and printer-media-v1.")
+      return new MiddlewareSpecExtension().withName("printing").withSemanticVersion("2.4.0")
+         .withDescription("Native current-user printing with secondary device proof, device-control-v1 and realtime-v1; record, table-list and text printing processes; render to PDF with the app header and footer; least-privilege operator catalog and printer-media-v1; printer-approval-v1 and the realtime PRINTERS approval frame.")
          .withSpec(Session.class)
          .withSpec(Bind.class)
          .withSpec(Enroll.class)

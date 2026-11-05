@@ -49,7 +49,7 @@ Inventory snapshots remain limited to 200 entries. Rotating IDs cannot bypass cu
 ## Device controls and durable action receipts
 
 The native client API is the registered `printing` extension, semantic version
-`2.3.0`, under `/qqq/v1/qbit/printing`. Discover it through QQQ's version endpoint;
+`2.4.0`, under `/qqq/v1/qbit/printing`. Discover it through QQQ's version endpoint;
 its generated OpenAPI fragment is `src/main/resources/openapi/qqq-v1/printing.yaml`.
 The contract test checks this fragment against the registered endpoint specs and
 the initial semantic compatibility baseline. Core QQQ session authentication and

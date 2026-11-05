@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0
+
+Native printing extension **2.4.0** (additive; wire payload v1 and the agent
+subprotocol `qqq-printing.v1` are unchanged). Pairs with protocol 1.1.0 and Windows
+connector 1.2.0; 1.0.x connectors keep working unchanged.
+
+- New HELLO and HTTP control-poll capability `printer-approval-v1` (HELLO accepts up to
+  five capabilities, the control poll up to four; it is stored in the device's control
+  capabilities like the others).
+- New server-to-client realtime frame `PRINTERS`: `{ "printers": [ { "printerId", "enabled" } ] }`,
+  the complete approval state of every printer in the device's latest accepted inventory.
+  Sent only to connections that advertised the capability, after each accepted INVENTORY's
+  ACK and whenever a printer's approval changes through any path (admin route, native
+  approve/disable/set-approval processes, `PrintingService.enablePrinter`). An empty
+  inventory yields an empty list; other connections never receive the frame.
+- `PrintingService.printerApprovals(deviceId)` exposes the same list to host code.
+- Regenerated OpenAPI fragment (`printing.yaml`): semantic version 2.4.0 and the extended
+  `ControlPollRequest` capability enumeration. No authorization, queue, replay or document
+  behavior changed.
+
 ## 1.0.0
 
 Product version 1.0.0 includes record, table-list and text print processes,
