@@ -177,7 +177,7 @@ public class PrintingRetentionProcesses implements BackendStep
          else if("execute".equals(input.getStepName()) && (RUN_NOW.equals(input.getProcessName()) || scheduled))
          {
             int removed = service.runRetention();
-            output.addValue("result", "Removed " + removed + " eligible documents or abandoned uploads. Job receipts and uncertain or active work were preserved. Cleanup processes one bounded batch per run.");
+            output.addValue("result", "Removed " + removed + " eligible documents, abandoned uploads or purged removed printers and devices that no job references. Job receipts and uncertain or active work were preserved. Cleanup processes one bounded batch per run.");
          }
          else
          {
@@ -212,7 +212,7 @@ public class PrintingRetentionProcesses implements BackendStep
       output.addValue("progress", "Eligible documents waiting: " + settings.optLong("eligibleBacklog", 0)
          + "; last run: " + (lastRun.isBlank() ? "Not run yet" : lastRun) + "; removed: " + settings.optInt("lastRunCount", 0)
          + (settings.optString("lastRunError", "").isBlank() ? "" : "; last run problem: " + settings.optString("lastRunError")));
-      output.addValue("safety", "Cleanup removes only old successful-terminal document content. Active, failed and uncertain jobs, receipt metadata and deduplication records remain. Removed documents cannot be reprinted from history. Continue to edit the policy or run the selected cleanup action.");
+      output.addValue("safety", "Cleanup removes only old successful-terminal document content, and purges removed printers and devices that no job references. Active, failed and uncertain jobs, receipt metadata and deduplication records remain. Removed documents cannot be reprinted from history. Continue to edit the policy or run the selected cleanup action.");
    }
 
 

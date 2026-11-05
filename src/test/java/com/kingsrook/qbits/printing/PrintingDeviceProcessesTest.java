@@ -133,6 +133,58 @@ class PrintingDeviceProcessesTest
 
 
    /***************************************************************************
+    ** Remove device revokes through the existing control, archives the device and
+    ** its printers, keeps job history readable, and replays without a new command.
+    ***************************************************************************/
+   @Test
+   void removeDeviceRevokesArchivesAndKeepsHistory() throws Exception
+   {
+      var fixture = PrintingProcessesTest.fixture();
+      var process = fixture.instance().getProcess(PrintingDeviceProcesses.Action.REMOVE.process);
+      assertEquals("Remove device", process.getLabel());
+      assertTrue(process.getStep("confirmControl") instanceof com.kingsrook.qqq.backend.core.model.metadata.processes.QFrontendStepMetaData);
+      assertTrue(PrintingDeviceProcesses.Action.REMOVE.preview.contains("history is kept"));
+      String job = submit(fixture.service(), fixture.device());
+      RunBackendStepInput input = prepared(PrintingDeviceProcesses.Action.REMOVE, fixture.device());
+      assertThrows(QException.class, () -> new PrintingDeviceProcesses.Load().runOnePage(input, new RunBackendStepOutput()));
+      assertEquals(2, fixture.service().devices().length());
+      input.addValue(PrintingDeviceProcesses.CONFIRM, true);
+      new PrintingDeviceProcesses.Load().runOnePage(input, new RunBackendStepOutput());
+      QRecord device = get(PrintingTables.DEVICE, fixture.device());
+      assertFalse(device.getValueString("revoked_at").isBlank());
+      assertFalse(device.getValueString("removed_at").isBlank());
+      assertEquals(0, device.getValueInteger("enabled"));
+      assertEquals(List.of(fixture.otherDevice()), fixture.service().devices().toList().stream().map(row -> ((Map<?, ?>) row).get("deviceId")).toList());
+      QRecord printer = get(PrintingTables.PRINTER, fixture.printerId());
+      assertFalse(printer.getValueString("removed_at").isBlank());
+      assertEquals(0, printer.getValueInteger("enabled"));
+      assertEquals(0, printer.getValueInteger("available"));
+      assertEquals(404, assertThrows(PrintingException.class, () -> fixture.service().printers(fixture.device())).getStatus());
+      assertEquals(404, assertThrows(PrintingException.class, () -> fixture.service().claim(fixture.device())).getStatus());
+      assertEquals("QUEUED", fixture.service().getJob(job).getString("status"));
+      assertEquals(job, get(PrintingTables.JOB, job).getValueString("id"));
+      var commands = fixture.service().deviceCommandsPage(fixture.device(), 50, null).getJSONArray("commands");
+      assertEquals(1, commands.length());
+      assertEquals("REVOKE", commands.getJSONObject(0).getString("action"));
+      new PrintingDeviceProcesses.Load().runOnePage(input, new RunBackendStepOutput());
+      assertEquals(1, fixture.service().deviceCommandsPage(fixture.device(), 50, null).getJSONArray("commands").length());
+      assertEquals(device.getValueString("removed_at"), get(PrintingTables.DEVICE, fixture.device()).getValueString("removed_at"));
+      QueryInput visible = new QueryInput().withTableName(PrintingTables.DEVICE).withFilter(new QQueryFilter().withCriteria("removed_at", QCriteriaOperator.IS_BLANK));
+      assertEquals(List.of(fixture.otherDevice()), new QueryAction().execute(visible).getRecords().stream().map(row -> row.getValueString("id")).toList());
+      RunBackendStepInput revokedOnly = prepared(PrintingDeviceProcesses.Action.REVOKE, fixture.otherDevice());
+      revokedOnly.addValue(PrintingDeviceProcesses.CONFIRM, true);
+      new PrintingDeviceProcesses.Load().runOnePage(revokedOnly, new RunBackendStepOutput());
+      assertEquals(1, fixture.service().devices().length());
+      RunBackendStepInput removeRevoked = prepared(PrintingDeviceProcesses.Action.REMOVE, fixture.otherDevice());
+      removeRevoked.addValue(PrintingDeviceProcesses.CONFIRM, true);
+      new PrintingDeviceProcesses.Load().runOnePage(removeRevoked, new RunBackendStepOutput());
+      assertEquals(0, fixture.service().devices().length());
+      assertEquals(1, fixture.service().deviceCommandsPage(fixture.otherDevice(), 50, null).getJSONArray("commands").length());
+   }
+
+
+
+   /***************************************************************************
     ** Selected late jobs produce valid, stable wire request IDs and one command.
     ***************************************************************************/
    @Test

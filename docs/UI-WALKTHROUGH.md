@@ -18,7 +18,13 @@ Open **Printers** in QQQ. The operational columns show the printer name, named p
 
 ## Act on one printer or a selection
 
-Select one or more printer rows and open **Actions**, or open an individual printer record and use its actions. Available operations include **Approve printers**, **Disable printers**, **Print a test page**, and **Print a test label**. The standard QQQ review screen describes the selection; reviewing does not print. Submitting a test action queues one job per selected eligible printer.
+Select one or more printer rows and open **Actions**, or open an individual printer record and use its actions. Available operations include **Approve printers**, **Disable printers**, **Remove printers**, **Print a test page**, and **Print a test label**. The standard QQQ review screen describes the selection; reviewing does not print. Submitting a test action queues one job per selected eligible printer.
+
+**Remove printers** archives the selection: each printer gets a **Removed at** time, loses approval and exposure, and disappears from the operator catalog, the connector's approval frame and the device/printer choices in the setup and test-print forms. Its record and job history stay. The Printers table has no server-side default filter, so add **Removed at is empty** to the Printers view you keep (the screenshots above predate this field) to hide archived rows; clear it to audit them. If the Windows companion shares the same queue again, the next inventory brings the printer back as exposed but not approved, so approve it again before it can print.
+
+## Remove a device
+
+Open a Print devices record or select rows and choose **Remove device**. The action requires the confirmation checkbox. It revokes the device's access permanently through the same control as **Revoke device access**, then marks the device and all of its printers removed. The device drops out of the Print devices view (add **Removed at is empty** there too), the setup and test-print device choices and every enrollment, claim and control path; its jobs remain in Print jobs and its control history keeps the REVOKE receipt. A removed device cannot be un-removed; enroll the computer again to create a new device. Retention cleanup eventually hard-deletes removed devices and printers that no job references.
 
 ![Actions on the selected printer](screenshots/printer-actions.png)
 

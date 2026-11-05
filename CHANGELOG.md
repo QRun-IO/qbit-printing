@@ -16,6 +16,19 @@ connector 1.2.0; 1.0.x connectors keep working unchanged.
   approve/disable/set-approval processes, `PrintingService.enablePrinter`). An empty
   inventory yields an empty list; other connections never receive the frame.
 - `PrintingService.printerApprovals(deviceId)` exposes the same list to host code.
+- Remove printers and devices without losing history. New nullable `removed_at` columns on
+  `printing_printer` and `printing_device` (read-only field **Removed at** on both tables, added
+  by the idempotent migration). **Remove printers** (`printingRemoveSelectedPrinters`, on a
+  printer record or a selection) and `PrintingService.removePrinter(deviceId, printerId)` set
+  `removed_at`, clear approval and exposure, and drop the printer from the Printers default
+  view (add the **Removed at is empty** filter), the operator catalog, claims and submissions,
+  the device/printer selectors and the `PRINTERS` frame, which is pushed again on removal. A
+  queue that the device shares again returns exposed but not approved. **Remove device**
+  (`printingRemoveDevices`, confirmation required) revokes access through the existing REVOKE
+  control, then `PrintingService.removeDevice(deviceId)` archives the device and all of its
+  printers; an already revoked device is archived without a new command, and a removed device
+  cannot be restored. Retention cleanup hard-deletes removed printers that no job references
+  and removed devices with no jobs and no printers, bounded by the run's batch size.
 - Regenerated OpenAPI fragment (`printing.yaml`): semantic version 2.4.0 and the extended
   `ControlPollRequest` capability enumeration. No authorization, queue, replay or document
   behavior changed.
