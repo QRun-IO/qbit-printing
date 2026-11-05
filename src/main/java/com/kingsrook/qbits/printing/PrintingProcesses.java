@@ -89,6 +89,7 @@ public class PrintingProcesses implements BackendStep
       selected(instance, "printingTestSelectedZpl", "Print a test label", "Each selected ZPL printer will receive one test label after you continue.");
       selected(instance, "printingEnableSelectedPrinters", "Approve printers", "The selected printers will be approved for printing after you continue.");
       selected(instance, "printingDisableSelectedPrinters", "Disable printers", "The selected printers will stop receiving new print jobs after you continue.");
+      selected(instance, "printingRemoveSelectedPrinters", "Remove printers", "The selected printers will be removed from Printers, the operator catalog and their connectors after you continue. Job history is kept; sharing a queue again from its device brings it back awaiting approval.");
    }
 
 
@@ -154,7 +155,8 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData deviceField()
    {
-      return field("deviceId", "Print device").withPossibleValueSourceName(PrintingTables.DEVICE);
+      return field("deviceId", "Print device").withPossibleValueSourceName(PrintingTables.DEVICE)
+         .withPossibleValueSourceFilter(new QQueryFilter(new QFilterCriteria("removed_at", QCriteriaOperator.IS_BLANK)));
    }
 
 
@@ -164,7 +166,8 @@ public class PrintingProcesses implements BackendStep
     ***************************************************************************/
    private static QFieldMetaData printerField(@Nullable String format)
    {
-      QQueryFilter filter = new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, "${input.deviceId}"));
+      QQueryFilter filter = new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, "${input.deviceId}"))
+         .withCriteria(new QFilterCriteria("removed_at", QCriteriaOperator.IS_BLANK));
       if(format != null)
       {
          filter.withCriteria(new QFilterCriteria("enabled", QCriteriaOperator.EQUALS, 1));
@@ -532,6 +535,7 @@ public class PrintingProcesses implements BackendStep
                   case "printingTestSelectedPdf" -> submitTest(printer, true, input.getValueString("testProfile"), testRequestKey(input, printer));
                   case "printingTestSelectedZpl" -> submitTest(printer, false, input.getValueString("testProfile"), testRequestKey(input, printer));
                   case "printingEnableSelectedPrinters", "printingDisableSelectedPrinters" -> currentService().enablePrinter(printer.getValueString("device_id"), printer.getValueString("printer_id"), "printingEnableSelectedPrinters".equals(input.getProcessName()));
+                  case "printingRemoveSelectedPrinters" -> currentService().removePrinter(printer.getValueString("device_id"), printer.getValueString("printer_id"));
                   default -> throw new QException("Unknown selected printing action");
                }
                done.incrementCountAndAddPrimaryKey(printer.getValue("id"));

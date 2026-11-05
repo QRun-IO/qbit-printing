@@ -159,6 +159,9 @@ public class PrintingRealtimeTest
             capable.take("JOB_AVAILABLE");
             assertFalse(drain(capable).stream().anyMatch(frame -> "PRINTERS".equals(frame.getString("type"))), "An unrelated commit wakeup must not resend PRINTERS");
             service.cancel(device, job);
+            service.removePrinter(device, "queue");
+            assertEquals(new JSONArray().put(new JSONObject().put("printerId", "laser").put("enabled", true)).toString(),
+               capable.take("PRINTERS").getJSONObject("payload").getJSONArray("printers").toString(), "A removed printer leaves the approval frame");
             capable.received.clear();
             capable.send("INVENTORY", "approval-empty-inventory", new JSONObject().put("printers", new JSONArray()));
             capable.take("ACK");
@@ -174,7 +177,9 @@ public class PrintingRealtimeTest
             assertEquals("legacy-inventory", legacy.take("ACK").getJSONObject("payload").getString("acknowledgedMessageId"));
             service.enablePrinter(device, "laser", false);
             assertFalse(drain(legacy).stream().anyMatch(frame -> "PRINTERS".equals(frame.getString("type"))), "A connection without printer-approval-v1 never receives PRINTERS");
-            assertEquals(1, service.printerApprovals(device).toList().stream().filter(value -> Boolean.TRUE.equals(((java.util.Map<?, ?>) value).get("enabled"))).count());
+            // The re-shared queue came back awaiting approval, so with laser disabled nothing is approved.
+            assertEquals(new JSONArray().put(new JSONObject().put("printerId", "laser").put("enabled", false)).put(new JSONObject().put("printerId", "queue").put("enabled", false)).toString(),
+               service.printerApprovals(device).toString());
          }
       }
       finally

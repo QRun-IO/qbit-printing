@@ -120,7 +120,7 @@ class PrintingExtractTest
             checked++;
          }
       }
-      assertEquals(14, checked);
+      assertEquals(16, checked);
    }
 
 

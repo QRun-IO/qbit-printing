@@ -175,6 +175,7 @@ public final class PrintingOperatorAuthorization
       }
       QQueryFilter filter = new QQueryFilter(new QFilterCriteria("enabled", QCriteriaOperator.EQUALS, 1))
          .withCriteria(new QFilterCriteria("available", QCriteriaOperator.EQUALS, 1))
+         .withCriteria(new QFilterCriteria("removed_at", QCriteriaOperator.IS_BLANK))
          .withCriteria(new QFilterCriteria("tenant_id", QCriteriaOperator.EQUALS, PrintingProcesses.currentService().getTenantId()))
          .withOrderBy(new QFilterOrderBy("id", true)).withLimit(limit + 1);
       if(after != null)

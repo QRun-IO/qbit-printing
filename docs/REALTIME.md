@@ -125,5 +125,7 @@ processes or application code calling `enablePrinter`). Every approval path
 publishes the existing commit wakeup; the connection's serialized writer compares
 the current state with the last frame it sent and resends only on a change, so an
 unrelated job wakeup does not repeat it. An empty inventory yields
-`{ "printers": [] }`. The client does not acknowledge the frame; it carries no job
+`{ "printers": [] }`. A printer removed in QQQ (`removed_at` set) is left out and
+the frame is pushed again; it reappears, not approved, once the device shares the
+queue again. The client does not acknowledge the frame; it carries no job
 or document data. Connections without the capability never receive it.

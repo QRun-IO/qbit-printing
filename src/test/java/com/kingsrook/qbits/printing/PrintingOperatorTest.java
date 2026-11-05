@@ -111,6 +111,26 @@ class PrintingOperatorTest
 
 
    /***************************************************************************
+    ** A removed printer leaves the operator catalog and refuses submissions until
+    ** its device shares it again and an administrator approves it.
+    ***************************************************************************/
+   @Test
+   void removedPrintersLeaveTheCatalog() throws Exception
+   {
+      var f = PrintingProcessesTest.fixture();
+      f.service().removePrinter(f.device(), "laser");
+      QContext.getQSession().setPermissions(Set.of("printing_operator"));
+      assertEquals(List.of(f.otherPrinterId()), PrintingOperatorAuthorization.catalog(50, null).getJSONArray("printers").toList().stream().map(row -> ((Map<?, ?>) row).get("printerRowId")).toList());
+      assertThrows(QException.class, () -> PrintingOperatorAuthorization.submit(request(f.printerId(), "removed")));
+      f.service().inventory(f.device(), new JSONArray().put(new JSONObject().put("printerId", "laser").put("name", "Packing laser").put("formats", new JSONArray(List.of("PDF")))));
+      assertEquals(1, PrintingOperatorAuthorization.catalog(50, null).getJSONArray("printers").length());
+      f.service().enablePrinter(f.device(), "laser", true);
+      assertEquals(2, PrintingOperatorAuthorization.catalog(50, null).getJSONArray("printers").length());
+   }
+
+
+
+   /***************************************************************************
     ** Tenant and parent device locks apply to catalog, submit and replay reads.
     ***************************************************************************/
    @Test

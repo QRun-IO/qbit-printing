@@ -507,6 +507,66 @@ class PrintingProcessesTest
 
 
    /***************************************************************************
+    ** Remove printers archives the selection: hidden from the list, the approval
+    ** frame, claims and the selectors, history kept; a re-shared queue returns
+    ** exposed but awaiting approval again.
+    ***************************************************************************/
+   @Test
+   void removedPrintersAreArchivedUntilTheDeviceSharesThemAgain() throws Exception
+   {
+      Fixture fixture = fixture();
+      var process = fixture.instance().getProcess("printingRemoveSelectedPrinters");
+      assertEquals("Remove printers", process.getLabel());
+      assertEquals(PrintingTables.PRINTER, process.getTableName());
+      assertEquals(1, process.getMinInputRecords());
+      assertEquals(PrintingAdminPermission.class.getName(), process.getPermissionRules().getCustomPermissionChecker().getName());
+      assertEquals("Removed at", fixture.instance().getTable(PrintingTables.PRINTER).getField("removed_at").getLabel());
+      assertEquals("Removed at", fixture.instance().getTable(PrintingTables.DEVICE).getField("removed_at").getLabel());
+      String queued = PrintingProcesses.submitTest(PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()), true);
+      RunBackendStepOutput preview = new RunBackendStepOutput();
+      new PrintingProcesses.SelectedTransform().runOnePage(new RunBackendStepInput().withProcessName(process.getName())
+         .withRecords(List.of(new QRecord().withValue("id", fixture.printerId()))), preview);
+      assertEquals(1, preview.getRecords().size());
+      assertEquals(1, fixture.service().printers(fixture.device()).length());
+      var result = new RunProcessAction().execute(new RunProcessInput().withProcessName(process.getName())
+         .withValue("recordIds", fixture.printerId()).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+      assertFalse(result.getException().isPresent(), () -> result.getException().toString());
+      assertEquals(0, fixture.service().printers(fixture.device()).length());
+      assertEquals(0, fixture.service().printerApprovals(fixture.device()).length());
+      assertTrue(fixture.service().claim(fixture.device()).isNull("job"));
+      assertEquals("QUEUED", fixture.service().getJob(queued).getString("status"));
+      assertEquals(409, assertThrows(PrintingException.class, () -> fixture.service().enablePrinter(fixture.device(), "laser", true)).getStatus());
+      assertThrows(PrintingException.class, () -> fixture.service().submit(new JSONObject().put("deviceId", fixture.device()).put("printerId", "laser").put("title", "after removal")
+         .put("format", "PDF").put("contentBase64", java.util.Base64.getEncoder().encodeToString(PrintingTestDocuments.pdf())).put("idempotencyKey", "after-removal")));
+      QueryInput visible = new QueryInput().withTableName(PrintingTables.PRINTER)
+         .withFilter(new com.kingsrook.qqq.backend.core.model.actions.tables.query.QQueryFilter().withCriteria("removed_at", com.kingsrook.qqq.backend.core.model.actions.tables.query.QCriteriaOperator.IS_BLANK));
+      assertEquals(List.of(fixture.otherPrinterId()), new QueryAction().execute(visible).getRecords().stream().map(row -> row.getValueString("id")).toList());
+      QRecord archived = PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device());
+      assertFalse(archived.getValueString("removed_at").isBlank());
+      assertEquals(0, archived.getValueInteger("enabled"));
+      assertEquals(0, archived.getValueInteger("available"));
+      QFieldMetaData selector = ((QFrontendStepMetaData) fixture.instance().getProcess("printingTestPdf").getStep("details")).getFormField("printerId");
+      var filter = selector.getPossibleValueSourceFilter().clone();
+      filter.interpretValues(Map.of("input", Map.of("deviceId", fixture.device())), PossibleValueSearchFilterUseCase.FORM);
+      assertTrue(new SearchPossibleValueSourceAction().execute(new SearchPossibleValueSourceInput().withPossibleValueSourceName(PrintingTables.PRINTER).withDefaultQueryFilter(filter)).getResults().isEmpty());
+      var replay = new RunProcessAction().execute(new RunProcessInput().withProcessName(process.getName())
+         .withValue("recordIds", fixture.printerId()).withFrontendStepBehavior(RunProcessInput.FrontendStepBehavior.SKIP));
+      assertFalse(replay.getException().isPresent(), () -> replay.getException().toString());
+      fixture.service().inventory(fixture.device(), new JSONArray().put(new JSONObject().put("printerId", "laser").put("name", "Packing laser").put("formats", new JSONArray(List.of("PDF")))));
+      JSONObject shared = fixture.service().printers(fixture.device()).getJSONObject(0);
+      assertTrue(shared.getBoolean("available"));
+      assertFalse(shared.getBoolean("enabled"));
+      assertEquals("[{\"printerId\":\"laser\",\"enabled\":false}]", fixture.service().printerApprovals(fixture.device()).toString());
+      assertEquals(fixture.printerId(), PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()).getValueString("id"));
+      assertEquals(null, PrintingProcesses.resolvePrinter(fixture.printerId(), fixture.device()).getValueString("removed_at"));
+      assertTrue(fixture.service().claim(fixture.device()).isNull("job"));
+      fixture.service().enablePrinter(fixture.device(), "laser", true);
+      assertEquals(queued, fixture.service().claim(fixture.device()).getJSONObject("job").getString("jobId"));
+   }
+
+
+
+   /***************************************************************************
     ** An altered record payload cannot select another tenant's queue.
     ***************************************************************************/
    @Test

@@ -93,6 +93,16 @@ public final class PrintingAgentAuthorization
          cursor = page.isNull("nextCursor") ? null : page.getString("nextCursor");
       }
       while(cursor != null);
+      // Removed printers are hidden from the page but still belong to the device's row set: a re-shared queue reactivates one.
+      for(var removed : PrintingControlAuthorization.query(new QueryInput().withTableName(PrintingTables.PRINTER)
+         .withFilter(new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, device)).withCriteria(new QFilterCriteria("removed_at", QCriteriaOperator.IS_NOT_BLANK)).withLimit(10001))).getRecords())
+      {
+         authorized.add(removed.getValueString("id"));
+         if(authorized.size() > 10000)
+         {
+            throw new PrintingException(429, "Inventory exceeds the bounded native review limit");
+         }
+      }
       // Even an empty inventory must have native table READ access.
       PrintingControlAuthorization.query(new QueryInput().withTableName(PrintingTables.PRINTER)
          .withFilter(new QQueryFilter(new QFilterCriteria("device_id", QCriteriaOperator.EQUALS, device)).withLimit(1)));
