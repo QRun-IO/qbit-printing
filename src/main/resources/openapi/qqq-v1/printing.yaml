@@ -208,6 +208,7 @@ components:
             - "REFRESH_INVENTORY"
             - "CANCEL_SPOOL"
             - "printer-media-v1"
+            - "printer-approval-v1"
             type: "string"
           type: "array"
         lastAppliedRevision:
@@ -752,9 +753,10 @@ info:
     email: "contact@kingsrook.com"
   description: "Native current-user printing with secondary device proof, device-control-v1\
     \ and realtime-v1; record, table-list and text printing processes; render to PDF\
-    \ with the app header and footer; least-privilege operator catalog and printer-media-v1."
+    \ with the app header and footer; least-privilege operator catalog and printer-media-v1;\
+    \ printer-approval-v1 and the realtime PRINTERS approval frame."
   title: "QQQ Middleware API extension: printing"
-  version: "2.3.0"
+  version: "2.4.0"
 openapi: "3.0.3"
 paths:
   /qqq/v1/qbit/printing/session:

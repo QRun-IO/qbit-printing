@@ -319,6 +319,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       private long appliedSettings = -1;
       private long sentState = -1;
       private long sentSettings = -1;
+      private @Nullable String sentPrinters;
 
 
       /** Bind one mailbox to its authenticated socket. */
@@ -482,8 +483,8 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
             {
                if(hello != null || !payload.keySet().equals(Set.of("agentVersion", "capabilities", "lastAppliedRevision", "lastSettingsRevision", "limits"))
                   || !payload.getJSONArray("capabilities").toList().contains("realtime-v1")
-                  || payload.getJSONArray("capabilities").length() > 4
-                  || !Set.of("realtime-v1", "REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1").containsAll(payload.getJSONArray("capabilities").toList()))
+                  || payload.getJSONArray("capabilities").length() > 5
+                  || !Set.of("realtime-v1", "REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1", "printer-approval-v1").containsAll(payload.getJSONArray("capabilities").toList()))
                {
                   throw new PrintingException(409, "Realtime capability is required");
                }
@@ -523,7 +524,13 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                changed();
             }
             case "HEARTBEAT" -> service.heartbeat(device, payload);
-            case "INVENTORY" -> service.inventory(device, payload.getJSONArray("printers"), PrintingAgentAuthorization.inventory(device));
+            case "INVENTORY" ->
+            {
+               service.inventory(device, payload.getJSONArray("printers"), PrintingAgentAuthorization.inventory(device));
+               send("ACK", new JSONObject().put("acknowledgedMessageId", messageId));
+               printers(true, true);
+               return;
+            }
             case "PING" ->
             {
                service.realtimeContact(device);
@@ -606,7 +613,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
          JSONArray capabilities = new JSONArray();
          for(Object value : hello.getJSONArray("capabilities"))
          {
-            if(Set.of("REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1").contains(value))
+            if(Set.of("REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1", "printer-approval-v1").contains(value))
             {
                capabilities.put(value);
             }
@@ -660,6 +667,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
                send("DESIRED_STATE", desired);
             }
          }
+         printers(!initial, false);
          if(!ready(sentSettings))
          {
             return;
@@ -671,6 +679,34 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
             send("COMMAND", command);
          }
          send("JOB_AVAILABLE", new JSONObject());
+      }
+
+
+      /***************************************************************************
+       ** Push the complete approval state of the device's current inventory to a
+       ** connection that advertised printer-approval-v1. An accepted INVENTORY
+       ** always sends it; a commit wakeup sends it only when approval changed since
+       ** the last frame, and the initial snapshot only records the baseline so an
+       ** unrelated wakeup never produces a frame. Other connections never receive it.
+       ***************************************************************************/
+      private void printers(boolean push, boolean always) throws Exception
+      {
+         if(!helloPayload().getJSONArray("capabilities").toList().contains("printer-approval-v1"))
+         {
+            return;
+         }
+         JSONObject payload = new JSONObject().put("printers", service.printerApprovals(device));
+         String current = payload.toString();
+         boolean changed;
+         synchronized(this)
+         {
+            changed = always || (sentPrinters != null && !current.equals(sentPrinters));
+            sentPrinters = current;
+         }
+         if(push && changed)
+         {
+            send("PRINTERS", payload);
+         }
       }
 
 

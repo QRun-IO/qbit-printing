@@ -274,6 +274,21 @@ class PrintingDeviceControlsTest
    }
 
 
+   /** The HTTP control poll stores printer-approval-v1 like the other capabilities and still bounds the list. */
+   @Test
+   void pollAcceptsAndStoresPrinterApprovalCapability() throws Exception
+   {
+      Fixture f = new Fixture();
+      JSONArray capabilities = new JSONArray(List.of("REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1", "printer-approval-v1"));
+      f.service.deviceControlPoll(f.device, poll().put("capabilities", capabilities));
+      JSONObject control = f.service.devices().getJSONObject(0).getJSONObject("control");
+      assertEquals(capabilities.toString(), control.getJSONArray("capabilities").toString());
+      assertEquals(400, assertThrows(PrintingException.class, () -> f.service.deviceControlPoll(f.device, poll().put("capabilities", new JSONArray(List.of("REFRESH_INVENTORY", "CANCEL_SPOOL", "printer-media-v1", "printer-approval-v1", "REFRESH_INVENTORY"))))).getStatus());
+      assertEquals(400, assertThrows(PrintingException.class, () -> f.service.deviceControlPoll(f.device, poll().put("capabilities", new JSONArray(List.of("printer-approval-v2"))))).getStatus());
+      assertEquals(capabilities.toString(), f.service.devices().getJSONObject(0).getJSONObject("control").getJSONArray("capabilities").toString());
+   }
+
+
    /** Explicit fresh action identity, retained unchanged by callers when retrying. */
    private static JSONObject action(String action)
    {

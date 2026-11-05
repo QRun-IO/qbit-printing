@@ -1,8 +1,8 @@
 # Real-time printing host integration
 
-[QQQ Printing 1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0)
-implements native printing extension **2.3.0** (wire envelope v1), paired with Windows
-connector **1.0.1**. Upgrade the server before the connector; a real-time connector
+QQQ Printing 1.1.0 (the released library is [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0))
+implements native printing extension **2.4.0** (wire envelope v1), paired with Windows
+connector **1.2.0**; connector 1.0.1 remains compatible. Upgrade the server before the connector; a real-time connector
 rejects a server that advertises only extension 1.x. There is no timed job/control
 polling fallback.
 
@@ -108,5 +108,22 @@ this is a breaking behavior change even though request bodies remain wire v1.
 The QQQ framework API `/qqq/v1`, extension path `/qbit/printing` and WebSocket
 subprotocol `qqq-printing.v1` remain unchanged. Upgrade server and client together;
 an incompatible older client must report upgrade-required instead of using polling fallback.
-Current extension 2.3.0 retains that requirement and adds operator/media support.
-The product/library version is independently 1.0.0.
+Extension 2.3.0 retained that requirement and added operator/media support; 2.4.0
+adds printer approval over the socket (below). The product/library version is
+independently 1.1.0.
+
+## Printer approval (extension 2.4.0)
+
+A HELLO may carry up to five capabilities; the fifth, `printer-approval-v1`, is
+also accepted and stored by the HTTP control poll. Only on a connection that
+advertised it, the server sends a `PRINTERS` frame
+(`{ "printers": [ { "printerId", "enabled" } ] }`) with the complete approval
+state of every printer in the device's latest accepted inventory: after the ACK
+of each accepted INVENTORY, and whenever a printer's `enabled` changes for that
+device through any path (the admin route, the native approve/disable/set-approval
+processes or application code calling `enablePrinter`). Every approval path
+publishes the existing commit wakeup; the connection's serialized writer compares
+the current state with the last frame it sent and resends only on a change, so an
+unrelated job wakeup does not repeat it. An empty inventory yields
+`{ "printers": [] }`. The client does not acknowledge the frame; it carries no job
+or document data. Connections without the capability never receive it.

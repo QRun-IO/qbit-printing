@@ -1,4 +1,10 @@
-# Session state — 2026-11-04
+# Session state — 2026-11-05
+
+## In progress — 2026-11-05: printer approval over realtime (1.1.0 / extension 2.4.0)
+
+Branch `feat/printer-approval-20261105` adds the `printer-approval-v1` capability and the `PRINTERS` frame
+(see [CHANGELOG](../CHANGELOG.md) 1.1.0 and [real-time integration](REALTIME.md)). Product version is bumped to
+1.1.0 in the POM; nothing is tagged, released or published, and the released state below is unchanged.
 
 ## Current — 1.0.0 released
 

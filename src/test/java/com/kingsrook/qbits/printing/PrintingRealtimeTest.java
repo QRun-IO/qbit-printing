@@ -106,6 +106,98 @@ public class PrintingRealtimeTest
    }
 
 
+   /** PRINTERS follows each accepted inventory and every approval change, only on a connection that advertised printer-approval-v1. */
+   @Test
+   void printerApprovalIsPushedOnlyToCapableConnections() throws Exception
+   {
+      String jdbc = "jdbc:h2:file:" + directory.resolve("approval-realtime").toString().replace('\\', '/');
+      PrintingLocalHost host = new PrintingLocalHost(new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, "synthetic-management-token-long-enough", "operator", "synthetic-realtime-password-1234"));
+      AtomicReference<Javalin> app = new AtomicReference<>();
+      QApplicationLauncher launcher = QApplicationLauncher.run(host, new QApplicationLauncherConfig().withRegisterShutdownHook(false).withServerCustomizer(server ->
+      {
+         host.configure(server, false);
+         server.withJavalinConfigurationCustomizer(app::set);
+      }));
+      PrintingService service = Objects.requireNonNull(launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
+         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService(), "The printing service was not configured");
+      String base = "http://127.0.0.1:" + Objects.requireNonNull(app.get(), "Test HTTP server was not started").port();
+      JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Approval fixture").put("deviceName", "Approval fixture").put("agentVersion", "test"), "operator");
+      String device = enrolled.getString("deviceId");
+      String proof = enrolled.getString("deviceToken");
+      JSONArray approval = new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL").put("printer-media-v1").put("printer-approval-v1");
+      JSONArray inventory = new JSONArray()
+         .put(new JSONObject().put("printerId", "laser").put("name", "Synthetic laser").put("status", "READY").put("formats", new JSONArray().put("PDF")))
+         .put(new JSONObject().put("printerId", "queue").put("name", "Synthetic queue").put("status", "READY").put("formats", new JSONArray().put("ZPL")));
+      try(HttpClient http = HttpClient.newHttpClient())
+      {
+         String cookie = login(http, base);
+         try(PrintingSocketFixture capable = PrintingSocketFixture.open(http, base, cookie, device, proof))
+         {
+            capable.initialize(approval);
+            capable.take("JOB_AVAILABLE");
+            assertTrue(deviceSnapshot(service, device).getJSONObject("control").getJSONArray("capabilities").toList().contains("printer-approval-v1"));
+            capable.received.clear();
+            capable.send("INVENTORY", "approval-inventory", new JSONObject().put("printers", inventory));
+            JSONObject ack = Objects.requireNonNull(capable.received.poll(10, TimeUnit.SECONDS), "Expected ACK");
+            assertEquals("ACK", ack.getString("type"));
+            assertEquals("approval-inventory", ack.getJSONObject("payload").getString("acknowledgedMessageId"));
+            JSONObject printers = Objects.requireNonNull(capable.received.poll(10, TimeUnit.SECONDS), "Expected PRINTERS after ACK");
+            assertEquals("PRINTERS", printers.getString("type"));
+            assertEquals(new JSONArray().put(new JSONObject().put("printerId", "laser").put("enabled", false)).put(new JSONObject().put("printerId", "queue").put("enabled", false)).toString(),
+               printers.getJSONObject("payload").getJSONArray("printers").toString());
+            assertEquals(java.util.Set.of("printers"), printers.getJSONObject("payload").keySet());
+            HttpResponse<String> approved = http.send(HttpRequest.newBuilder(URI.create(base + PrintingRoutes.BASE + "/admin/devices/" + device + "/printers/laser"))
+               .header("Authorization", "Bearer synthetic-management-token-long-enough").header("Content-Type", "application/json")
+               .PUT(HttpRequest.BodyPublishers.ofString(new JSONObject().put("enabled", true).toString())).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, approved.statusCode(), approved.body());
+            assertEquals(new JSONArray().put(new JSONObject().put("printerId", "laser").put("enabled", true)).put(new JSONObject().put("printerId", "queue").put("enabled", false)).toString(),
+               capable.take("PRINTERS").getJSONObject("payload").getJSONArray("printers").toString());
+            service.enablePrinter(device, "queue", true);
+            assertTrue(capable.take("PRINTERS").getJSONObject("payload").getJSONArray("printers").getJSONObject(1).getBoolean("enabled"));
+            capable.received.clear();
+            String job = service.submit(request(device, "approval-unrelated-wakeup")).getString("jobId");
+            capable.take("JOB_AVAILABLE");
+            assertFalse(drain(capable).stream().anyMatch(frame -> "PRINTERS".equals(frame.getString("type"))), "An unrelated commit wakeup must not resend PRINTERS");
+            service.cancel(device, job);
+            capable.received.clear();
+            capable.send("INVENTORY", "approval-empty-inventory", new JSONObject().put("printers", new JSONArray()));
+            capable.take("ACK");
+            assertEquals("[]", capable.take("PRINTERS").getJSONObject("payload").getJSONArray("printers").toString());
+         }
+         try(PrintingSocketFixture legacy = PrintingSocketFixture.open(http, base, cookie, device, proof))
+         {
+            legacy.initialize(new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL").put("printer-media-v1"));
+            legacy.take("JOB_AVAILABLE");
+            assertFalse(deviceSnapshot(service, device).getJSONObject("control").getJSONArray("capabilities").toList().contains("printer-approval-v1"));
+            legacy.received.clear();
+            legacy.send("INVENTORY", "legacy-inventory", new JSONObject().put("printers", inventory));
+            assertEquals("legacy-inventory", legacy.take("ACK").getJSONObject("payload").getString("acknowledgedMessageId"));
+            service.enablePrinter(device, "laser", false);
+            assertFalse(drain(legacy).stream().anyMatch(frame -> "PRINTERS".equals(frame.getString("type"))), "A connection without printer-approval-v1 never receives PRINTERS");
+            assertEquals(1, service.printerApprovals(device).toList().stream().filter(value -> Boolean.TRUE.equals(((java.util.Map<?, ?>) value).get("enabled"))).count());
+         }
+      }
+      finally
+      {
+         launcher.stop();
+      }
+   }
+
+
+   /** Collect whatever the server pushes in a short bounded window; this is an absence check, not a polling loop. */
+   private static java.util.List<JSONObject> drain(PrintingSocketFixture socket) throws Exception
+   {
+      java.util.List<JSONObject> frames = new java.util.ArrayList<>();
+      JSONObject next = socket.received.poll(500, TimeUnit.MILLISECONDS);
+      while(next != null)
+      {
+         frames.add(next);
+         next = socket.received.poll(200, TimeUnit.MILLISECONDS);
+      }
+      return frames;
+   }
+
+
    /**
     * Closing the routes waits for a channel worker that is already running. A drain that outlived the host could query a stopped file
     * database and recreate it empty, which previously left a test's temporary directory populated after cleanup.

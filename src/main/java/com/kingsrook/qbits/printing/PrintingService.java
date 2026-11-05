@@ -805,7 +805,31 @@ public class PrintingService
 
 
    /***************************************************************************
+    ** Approval of every printer in the device's latest accepted inventory, for
+    ** the realtime PRINTERS frame: printerId and enabled per available queue,
+    ** nothing else. A withdrawn queue is not listed even though its approval and
+    ** history are retained.
+    ***************************************************************************/
+   public JSONArray printerApprovals(String deviceId) throws SQLException
+   {
+      try(Connection connection = dataSource.getConnection())
+      {
+         requireDevice(connection, deviceId);
+         JSONArray result = new JSONArray();
+         for(JSONObject row : query(connection, "SELECT printer_id, enabled FROM printing_printer WHERE tenant_id=? AND device_id=? AND available=1 ORDER BY printer_id LIMIT 200", tenantId, deviceId))
+         {
+            result.put(new JSONObject().put("printerId", row.getString("printer_id")).put("enabled", row.getInt("enabled") == 1));
+         }
+         return result;
+      }
+   }
+
+
+
+   /***************************************************************************
     ** Enable a queue explicitly; discovery alone never grants print access.
+    ** Every approval path (admin route, native processes, application code)
+    ** converges here, so the commit wakeup reaches the device's live connection.
     ***************************************************************************/
    public void enablePrinter(String deviceId, String printerId, boolean enabled) throws SQLException
    {
