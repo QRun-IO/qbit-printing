@@ -29,7 +29,7 @@ Java/.NET WebSocket jobs and S3 checks without an installed connector or printer
 
 ## Build and verify
 
-Install Java 21. Clone this repository and `qqq-print-protocol` as siblings from Gitea. Check out protocol commit `42c0d249f81395f00408ec0f92638dcbbf5deb03`, the immutable fixture ref in `.gitea/workflows/qrun-release.yaml`. Use the checked-in wrapper (Maven 3.9.11).
+Install Java 21. Clone this repository and `qqq-print-protocol` as siblings from Gitea. Check out protocol commit `5005f3c9e27053b6c327bb923695012832c0fdcc`, the immutable fixture ref in `.gitea/workflows/qrun-release.yaml`. Use the checked-in wrapper (Maven 3.9.11).
 
 ```powershell
 .\mvnw.cmd -Pui-demo verify
