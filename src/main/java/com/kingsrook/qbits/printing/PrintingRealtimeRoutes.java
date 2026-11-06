@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +60,8 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
 {
    public static final String PATH = "/qqq/v1/qbit/printing/device/realtime";
    public static final String SUBPROTOCOL = "qqq-printing.v1";
+   /** Device identifier resolved on the authorized HTTP upgrade and carried to the WebSocket callbacks. */
+   static final String DEVICE_ATTRIBUTE = "printingRealtimeDevice";
    private final PrintingService service;
    private final Map<String, Channel> channels = new ConcurrentHashMap<>();
    private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
@@ -97,6 +100,10 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
          {
             validateUpgrade(context);
             authorize(context);
+            // The HTTP upgrade context resolves header names case-insensitively; the WebSocket context does not, and an ingress
+            // that lowercases header names would otherwise leave the device null on connect. Resolve it once here, after
+            // authorization, and carry it on the connection.
+            context.attribute(DEVICE_ATTRIBUTE, Objects.requireNonNull(context.header(PrintingAgentAuthorization.DEVICE_HEADER), "authorized upgrade without a device header"));
             String cookieName = context.cookie("sessionId") != null && !context.cookie("sessionId").isBlank() ? "sessionId" : "sessionUUID";
             context.attribute("printingRealtimeCredential", new Credential(cookieName, context.cookie(cookieName), context.header(PrintingAgentAuthorization.TOKEN_HEADER), context.header("X-QQQ-Client")));
          }
@@ -113,7 +120,7 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
       {
          socket.onConnect(context ->
          {
-            String device = context.header(PrintingAgentAuthorization.DEVICE_HEADER);
+            String device = Objects.requireNonNull(context.attribute(DEVICE_ATTRIBUTE), "WebSocket connected without the authorized device attribute");
             Channel next = new Channel(context, device, context.attribute("printingRealtimeCredential"));
             next.policy = service.realtimePolicy();
             Channel previous = channels.put(device, next);
@@ -149,7 +156,8 @@ public final class PrintingRealtimeRoutes implements QJavalinRouteProviderInterf
    @SuppressWarnings("ReferenceEquality")
    private @Nullable Channel current(WsContext context)
    {
-      Channel channel = channels.get(context.header(PrintingAgentAuthorization.DEVICE_HEADER));
+      String device = context.attribute(DEVICE_ATTRIBUTE);
+      Channel channel = device == null ? null : channels.get(device);
       return channel != null && channel.socket.session == context.session ? channel : null;
    }
 

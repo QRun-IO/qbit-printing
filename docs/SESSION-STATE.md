@@ -1,4 +1,8 @@
-# Session state — 2026-11-05
+# Session state — 2026-11-06
+
+## In progress — 1.1.1: realtime upgrade header-case fix
+
+Forge's adoption qualification of released 1.1.0 (`~/.cache/gg-forge-printing-cohort-20261106/HANDOFF.md`) reproduced a connection failure before WELCOME when the WebSocket upgrade headers arrive lowercase: the socket callbacks read `X-QQQ-Device-Id` from the WebSocket context, whose header lookup is case-sensitive, so the device was null and `channels.put` threw. Forge had carried a local patch on 1.0.0. 1.1.1 resolves the device once on the authorized HTTP upgrade (case-insensitive) and carries it as a connection attribute; `PrintingRealtimeTest.lowercaseUpgradeHeadersReachWelcomeAndFrames` fails on the old code (same NullPointerException) and passes on the fix. No contract change. Release 1.1.1 follows the usual path; 1.1.0 must not be adopted.
 
 ## Current — 1.1.0 released (2026-11-05)
 

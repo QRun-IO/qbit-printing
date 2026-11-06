@@ -56,10 +56,19 @@ final class PrintingSocketFixture implements WebSocket.Listener, AutoCloseable
    /** Separate upgrade from HELLO so a commit in that interval can be tested deterministically. */
    static PrintingSocketFixture open(HttpClient client, String base, String cookie, String device, String proof) throws Exception
    {
+      return open(client, base, cookie, device, proof, false);
+   }
+
+
+   /** Lowercase header names model an ingress that normalizes them, which the device lookup must survive. */
+   static PrintingSocketFixture open(HttpClient client, String base, String cookie, String device, String proof, boolean lowercaseHeaders) throws Exception
+   {
       PrintingSocketFixture fixture = new PrintingSocketFixture();
+      String deviceHeader = lowercaseHeaders ? PrintingAgentAuthorization.DEVICE_HEADER.toLowerCase(java.util.Locale.ROOT) : PrintingAgentAuthorization.DEVICE_HEADER;
+      String tokenHeader = lowercaseHeaders ? PrintingAgentAuthorization.TOKEN_HEADER.toLowerCase(java.util.Locale.ROOT) : PrintingAgentAuthorization.TOKEN_HEADER;
       fixture.socket = client.newWebSocketBuilder().subprotocols(PrintingRealtimeRoutes.SUBPROTOCOL).header("Origin", base)
-         .header("X-QQQ-Client", "api/qqq-print-agent")
-         .header("Cookie", cookie).header(PrintingAgentAuthorization.DEVICE_HEADER, device).header(PrintingAgentAuthorization.TOKEN_HEADER, proof)
+         .header(lowercaseHeaders ? "x-qqq-client" : "X-QQQ-Client", "api/qqq-print-agent")
+         .header("Cookie", cookie).header(deviceHeader, device).header(tokenHeader, proof)
          .buildAsync(URI.create(base.replace("http:", "ws:") + PrintingRealtimeRoutes.PATH), fixture).get(10, TimeUnit.SECONDS);
       return fixture;
    }
