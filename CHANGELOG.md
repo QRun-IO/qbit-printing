@@ -4,7 +4,7 @@
 
 Native printing extension **2.4.0** (additive; wire payload v1 and the agent
 subprotocol `qqq-printing.v1` are unchanged). Pairs with protocol 1.1.0 and Windows
-connector 1.2.0; 1.0.x connectors keep working unchanged.
+connector 1.2.1; 1.0.x connectors keep working unchanged.
 
 - New HELLO and HTTP control-poll capability `printer-approval-v1` (HELLO accepts up to
   five capabilities, the control poll up to four; it is stored in the device's control

@@ -1,6 +1,6 @@
 # Installation and release operations
 
-The stable server library is [QQQ Printing 1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0), paired with protocol 1.1.0 and Windows connector 1.2.0 (1.0.x/1.1.x connectors keep working on the unchanged 2.3 behaviour). It requires Java 21 and the QQQ 4.1.0-RC.21 dependency tuple. Its native printing extension is 2.4.0; the WebSocket subprotocol remains `qqq-printing.v1`. The previous stable library, [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), remains available for rollback.
+The stable server library is [QQQ Printing 1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0), paired with protocol 1.1.0 and Windows connector 1.2.1 (1.0.x/1.1.x connectors keep working on the unchanged 2.3 behaviour). It requires Java 21 and the QQQ 4.1.0-RC.21 dependency tuple. Its native printing extension is 2.4.0; the WebSocket subprotocol remains `qqq-printing.v1`. The previous stable library, [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), remains available for rollback.
 
 Gitea is primary for source, pull requests, CI, packages and server releases. This forge requires sign-in even for download links on public repositories. An HTML sign-in page is not an artifact. Use your existing approved forge identity; never commit its token or put it in a command line.
 

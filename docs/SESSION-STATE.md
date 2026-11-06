@@ -2,7 +2,7 @@
 
 ## Current — 1.1.0 released (2026-11-05)
 
-[QQQ Printing 1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0) is published on primary Gitea and its Maven registry: native printing extension **2.4.0** (`printer-approval-v1` capability and the `PRINTERS` frame) and the Remove printers / Remove device archives purged by retention. Source `eb2c16785d0723a47d4a22c68b8b04503108fc58`, main run `5473`, reactor artifact `4306`; JAR/POM hashes in [release operations](RELEASES.md). Pairs with [protocol 1.1.0](https://git.kof22.com/QRun-IO/qqq-print-protocol/releases/tag/v1.1.0); the Windows connector 1.2.0 release is pending its repository's PR 10. The CI fixture pin now follows protocol 1.1.0 source `5005f3c9e27053b6c327bb923695012832c0fdcc`. Forge adoption is a separate, coordinated step; 1.0.0 stays available for rollback.
+[QQQ Printing 1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0) is published on primary Gitea and its Maven registry: native printing extension **2.4.0** (`printer-approval-v1` capability and the `PRINTERS` frame) and the Remove printers / Remove device archives purged by retention. Source `eb2c16785d0723a47d4a22c68b8b04503108fc58`, main run `5473`, reactor artifact `4306`; JAR/POM hashes in [release operations](RELEASES.md). Pairs with [protocol 1.1.0](https://git.kof22.com/QRun-IO/qqq-print-protocol/releases/tag/v1.1.0); the Windows connector 1.2.1 is published (https://git.kof22.com/QRun-IO/qqq-print-agent/releases/tag/v1.2.1). The CI fixture pin now follows protocol 1.1.0 source `5005f3c9e27053b6c327bb923695012832c0fdcc`. Forge adoption is a separate, coordinated step; 1.0.0 stays available for rollback.
 
 ## Current — 1.0.0 released
 
