@@ -1,6 +1,6 @@
 # Installation and release operations
 
-The stable server library is [QQQ Printing 1.1.1](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.1) (1.1.0 is superseded: its realtime upgrade fails behind an ingress that lowercases header names), paired with protocol 1.1.0 and Windows connector 1.2.1 (1.0.x/1.1.x connectors keep working on the unchanged 2.3 behaviour). It requires Java 21 and the QQQ 4.1.0-RC.21 dependency tuple. Its native printing extension is 2.4.0; the WebSocket subprotocol remains `qqq-printing.v1`. The previous stable library, [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), remains available for rollback.
+The stable server library is [QQQ Printing 1.1.1](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.1) (1.1.0 is superseded: its realtime upgrade fails behind an ingress that lowercases header names), paired with protocol 1.1.0 and Windows connector 1.2.1 (1.0.x/1.1.x connectors keep working on the unchanged 2.3 behaviour). It requires Java 21 and the QQQ 4.1.0-RC.22 dependency tuple, which is published only in the QRun-IO Gitea Maven registry. Its native printing extension is 2.4.0; the WebSocket subprotocol remains `qqq-printing.v1`. The previous stable library, [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), remains available for rollback.
 
 Gitea is primary for source, pull requests, CI, packages and server releases. This forge requires sign-in even for download links on public repositories. An HTML sign-in page is not an artifact. Use your existing approved forge identity; never commit its token or put it in a command line.
 
@@ -18,7 +18,7 @@ Configure the consuming application's existing Maven repository setup with repos
 </servers>
 ```
 
-Merge this entry into the existing settings; preserve other servers, mirrors and profiles. Supply the environment through your approved credential loader. The credential needs package read access. Add `com.kingsrook.qbits:qbit-printing:1.1.1` as shown in the [README](../README.md#add-to-a-qqq-application). QQQ's RC.21 dependencies resolve from Maven Central; the printing 1.0.0 library resolves from Gitea.
+Merge this entry into the existing settings; preserve other servers, mirrors and profiles. Supply the environment through your approved credential loader. The credential needs package read access. Add `com.kingsrook.qbits:qbit-printing:1.1.1` as shown in the [README](../README.md#add-to-a-qqq-application). QQQ 4.1.0-RC.22 and the printing library both resolve from this registry; third-party dependencies still come from the Maven Central mirror until the registry proxies them.
 
 ## Download and verify release files
 
@@ -37,11 +37,13 @@ On Linux, use `sha256sum -c SHA256SUMS`; on macOS, use `shasum -a 256 -c SHA256S
 
 ## Maintainer release path
 
-1. Update the POM version and active documentation on a branch in Gitea. Keep the immutable protocol fixture ref in `.gitea/workflows/qrun-release.yaml` aligned with the reviewed contract.
-2. Open a normal pull request and satisfy required CI checks. The caller delegates to the protected `qrun-release-v1` channel; shared CI changes belong to its owner, not an application-specific bypass.
-3. Merge normally and wait for the successful main run. Its `maven-reactor` artifact contains tested JAR/POM bytes, a source commit, manifest and checksums. The trusted publisher verifies that evidence before publishing immutable Maven packages. A passing build alone does not prove registry publication.
-4. Verify the exact version's registry JAR/POM against the captured bytes. Create `v<POM version>` at the qualified source without moving an existing tag. Create a draft Gitea release, attach the same JAR/POM and a flat `SHA256SUMS`, read them back with the approved forge identity, then publish. Reconcile identical existing artifacts; never replace different bytes under a released version.
-5. Record the source, successful run, artifact, release and verified hashes. Publication is separate from installing a host or accepting physical printer output.
+Since 1.1.2 the repository builds on the shared `KofTwentyTwo/ci-workflows` Maven workflow (`.gitea/workflows/build.yaml`, pinned to `@v1`): every push runs `-Pui-demo verify`; a `vX.Y.Z` tag runs the same tests once and deploys the JAR/POM to the QRun-IO Gitea Maven registry under exactly that version. The former caller's pinned protocol checkout is gone; `PrintingContractTest` reads the vendored copy in `src/test/resources/protocol-fixtures` (kept byte-identical to the reviewed protocol commit named in its README), which is also what local `verify` uses. Earlier releases (1.0.0, 1.1.0, 1.1.1) went through the protected `qrun-release-v1` channel and the trusted publisher; their evidence below stands.
+
+1. Update the POM version (the tag must equal it), `qqq.version` if the runtime moves, and active documentation on a branch in Gitea. Open a normal pull request; the push build must be green.
+2. Merge normally and wait for the green main build (verify only; main never publishes).
+3. Create `v<POM version>` at the qualified main commit without moving an existing tag and push it. The tag build tests and deploys `com.kingsrook.qbits:qbit-printing:<version>` to the registry; a tag build that fails publishes nothing and the next attempt is the next patch version (tags are immutable).
+4. Read the registry JAR/POM back with the approved forge identity, create the Gitea release on the tag, attach the same JAR/POM and a flat `SHA256SUMS`, read them back, then publish. Never replace different bytes under a released version.
+5. Record the source, tag build, release and verified hashes here. Publication is separate from installing a host or accepting physical printer output.
 
 For 1.1.1, source `2a561815fcec8b7c95e76bb4b36fba314f512027` (main; merge of PR 30, the realtime upgrade header-case fix), main run `5976` (verify, secrets scan, gate and post-publish succeeded), reactor artifact `4426`. The trusted publisher first refused the run because the 1.1.0 documentation merge had re-pinned the protocol fixture in `qrun-release.yaml`, changing the caller hash its enrollment verifies; the enrollment was re-reviewed in cluster-gitops (PRs 283 and 285) and the capture was then published unchanged. Registry files and release assets match the capture byte-for-byte. The JAR SHA-256 is `156720da6928f62d77101521a2953f6e1026d58d02e7fc7815a8c8fcbcedaefa`; the POM SHA-256 is `2fa451260a26f5b5ede30800d46c78050e223694d3d8dda640f9ca875d120ab0`.
 

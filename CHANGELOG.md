@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.2
+
+Runtime and publication move to the QRun-IO Gitea Maven registry; no printing contract
+change (extension 2.4.0, wire v1, subprotocol unchanged). The server now runs on QQQ
+**4.1.0-RC.22**, published only in the Gitea registry (it carries the session-logout,
+process-identity and scoped-session fixes the Forge cohort depends on). CI moves from the
+`qrun-release` caller and trusted publisher to the shared `ci-workflows` Maven workflow,
+which resolves QQQ from the Gitea registry with the job token and publishes `vX.Y.Z` tags
+straight to it; third-party dependencies still resolve through the Maven Central mirror
+until the registry proxies them. Same test gate (`-Pui-demo verify`).
+
 ## 1.1.1
 
 Realtime upgrade fix; no contract change. The WebSocket callbacks read the device

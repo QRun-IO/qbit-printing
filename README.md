@@ -4,7 +4,7 @@ Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://
 
 **Released:** [QQQ Printing 1.1.1](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.1), with a library JAR, matching POM and `SHA256SUMS` ([1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0) is superseded by the realtime upgrade fix; [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0) remains available for rollback). The same JAR/POM are published in the QRun-IO Gitea Maven registry. Gitea requires sign-in for downloads. The QBit itself is not published to Maven Central and is not a standalone executable/fat JAR. See [installation and release access](docs/RELEASES.md).
 
-**Runtime:** Java 21 and QQQ **4.1.0-RC.21**, published on Maven Central with native session login. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. Product version 1.1.1, native extension 2.4.0 and wire payload v1 are separate version contracts.
+**Runtime:** Java 21 and QQQ **4.1.0-RC.22**, published in the QRun-IO Gitea Maven registry (not on Maven Central) with native session login. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. Product version 1.1.2, native extension 2.4.0 and wire payload v1 are separate version contracts.
 
 Implemented: single-use enrollment, device credentials, inventory/approval, PDF/ZPL submission, durable JDBC queue, idempotency, claim/content/events, native QQQ setup/test-print processes, read-only device/printer/job tables and a durable enqueue effect target.
 
@@ -79,7 +79,7 @@ The local setup uses the same native authorization and transport paths as an int
 Use the [authenticated Gitea Maven registry](docs/RELEASES.md#use-the-maven-registry), or download the release JAR, matching POM and `SHA256SUMS` and verify both files. For a local installation of the downloaded artifacts:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-1.1.0.jar' '-DpomFile=qbit-printing-1.1.0.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-1.1.2.jar' '-DpomFile=qbit-printing-1.1.2.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -88,7 +88,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>1.1.0</version>
+   <version>1.1.2</version>
 </dependency>
 ```
 

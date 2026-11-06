@@ -1,0 +1,11 @@
+# Shared QRun Maven CI/CD (KofTwentyTwo/ci-workflows): every push verifies; vX.Y.Z tags publish the
+# tested JAR/POM to the QRun-IO Gitea Maven registry. QQQ resolves from that registry with the job token.
+name: build
+on:
+  push:
+jobs:
+  maven:
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/maven.yaml@v1
+    with:
+      maven-args: -Pui-demo
+    secrets: inherit
