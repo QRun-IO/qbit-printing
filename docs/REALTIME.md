@@ -2,7 +2,7 @@
 
 QQQ Printing 1.1.0 (the released library is [1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0))
 implements native printing extension **2.4.0** (wire envelope v1), paired with Windows
-connector **1.2.0**; connector 1.0.1 remains compatible. Upgrade the server before the connector; a real-time connector
+connector **1.2.1**; connector 1.0.1 remains compatible. Upgrade the server before the connector; a real-time connector
 rejects a server that advertises only extension 1.x. There is no timed job/control
 polling fallback.
 

@@ -13,7 +13,7 @@ jobs:
       runner: linux-small
       maven-profiles: ui-demo
       fixture-repository: QRun-IO/qqq-print-protocol
-      fixture-ref: 42c0d249f81395f00408ec0f92638dcbbf5deb03
+      fixture-ref: 5005f3c9e27053b6c327bb923695012832c0fdcc
       fixture-path: qqq-print-protocol
   postpublish:
     if: ${{ needs.release.outputs.capture == 'true' }}
