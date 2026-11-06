@@ -5,7 +5,7 @@
 # Protocol fixtures used by PrintingContractTest
 
 Unaltered copies of files from the `fixtures/` directory of the canonical `qqq-print-protocol` repository
-at commit `42c0d249f81395f00408ec0f92638dcbbf5deb03` (the commit this source pins), so the contract tests run
+at commit `5005f3c9e27053b6c327bb923695012832c0fdcc` (protocol 1.1.0, the commit this source pins; the files below are unchanged since `42c0d249f81395f00408ec0f92638dcbbf5deb03`), so the contract tests run
 without a sibling checkout. Only the files the test reads are copied:
 
 - `action-refresh-inventory.request.json`
