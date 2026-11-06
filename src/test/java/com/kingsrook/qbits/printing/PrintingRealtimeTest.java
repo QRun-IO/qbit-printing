@@ -57,6 +57,55 @@ public class PrintingRealtimeTest
    Path directory;
 
 
+   /** Lowercase upgrade header names (an ingress that normalizes them) must still resolve the device for every socket callback. */
+   @Test
+   void lowercaseUpgradeHeadersReachWelcomeAndFrames() throws Exception
+   {
+      String jdbc = "jdbc:h2:file:" + directory.resolve("lowercase-realtime").toString().replace('\\', '/');
+      PrintingLocalHost host = new PrintingLocalHost(new PrintingLocalSettings(jdbc, "sa", "", "demo", 0, "synthetic-management-token-long-enough", "operator", "synthetic-realtime-password-1234"));
+      AtomicReference<Javalin> app = new AtomicReference<>();
+      QApplicationLauncher launcher = QApplicationLauncher.run(host, new QApplicationLauncherConfig().withRegisterShutdownHook(false).withServerCustomizer(server ->
+      {
+         host.configure(server, false);
+         server.withJavalinConfigurationCustomizer(app::set);
+      }));
+      PrintingService service = Objects.requireNonNull(launcher.getQInstance().getQBits().values().stream().map(value -> value.getConfig()).filter(PrintingQBitConfig.class::isInstance)
+         .map(PrintingQBitConfig.class::cast).findFirst().orElseThrow().getService(), "The printing service was not configured");
+      String base = "http://127.0.0.1:" + Objects.requireNonNull(app.get(), "Test HTTP server was not started").port();
+      JSONObject enrolled = service.enrollForUser(service.createEnrollment("default", "Lowercase fixture").put("deviceName", "Lowercase fixture").put("agentVersion", "test"), "operator");
+      String device = enrolled.getString("deviceId");
+      String proof = enrolled.getString("deviceToken");
+      try(HttpClient http = HttpClient.newHttpClient())
+      {
+         String cookie = login(http, base);
+         // An ingress that lowercases header names must not leave the device unresolved on connect: WELCOME, an acknowledged
+         // inventory and the capability-gated PRINTERS push all work exactly as with the canonical spelling.
+         try(PrintingSocketFixture lowercase = PrintingSocketFixture.open(http, base, cookie, device, proof, true))
+         {
+            lowercase.initialize(new JSONArray().put("realtime-v1").put("REFRESH_INVENTORY").put("CANCEL_SPOOL").put("printer-approval-v1"));
+            lowercase.send("INVENTORY", "inventory-lower", new JSONObject().put("printers", new JSONArray().put(new JSONObject().put("printerId", "queue").put("name", "Synthetic queue")
+               .put("driverName", "Synthetic").put("portName", "SYNTHETIC").put("status", "READY").put("formats", new JSONArray().put("PDF")))));
+            assertEquals("inventory-lower", lowercase.take("ACK").getJSONObject("payload").getString("acknowledgedMessageId"));
+            JSONObject printers = lowercase.take("PRINTERS").getJSONObject("payload");
+            assertEquals("queue", printers.getJSONArray("printers").getJSONObject(0).getString("printerId"));
+            assertFalse(printers.getJSONArray("printers").getJSONObject(0).getBoolean("enabled"));
+            // A replacement socket with canonical spelling supersedes the lowercase one through the same device key.
+            try(PrintingSocketFixture canonical = PrintingSocketFixture.connect(http, base, cookie, device, proof))
+            {
+               assertTrue(lowercase.closed.get(10, TimeUnit.SECONDS) > 0);
+               canonical.send("PING", "ping-1", new JSONObject());
+               canonical.take("PONG");
+            }
+         }
+      }
+      finally
+      {
+         launcher.stop();
+      }
+   }
+
+
+
    /** An old client cannot ignore media intent, including after replacing a capable connection. */
    @Test
    void mediaCapabilityIsReplacedOnEveryAuthenticatedHello() throws Exception

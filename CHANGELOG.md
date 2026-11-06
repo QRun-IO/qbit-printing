@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+Realtime upgrade fix; no contract change. The WebSocket callbacks read the device
+identifier from the socket context's headers, which are matched case-sensitively, while the
+HTTP upgrade matches them case-insensitively. Behind an ingress that lowercases header names
+the device resolved to null on connect and the connection failed before WELCOME (Forge had
+carried a local patch for this on 1.0.0). The device is now resolved once on the authorized
+upgrade and carried on the connection; a regression test connects with lowercase header
+names and verifies WELCOME, an acknowledged inventory, the PRINTERS push and socket replacement.
+
 ## 1.1.0
 
 Native printing extension **2.4.0** (additive; wire payload v1 and the agent
