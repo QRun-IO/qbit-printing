@@ -1,8 +1,8 @@
 # QQQ Printing
 
-Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://git.kof22.com/QRun-IO/qqq-print-agent) 1.2.0 and the [shared protocol](https://git.kof22.com/QRun-IO/qqq-print-protocol) 1.1.0 (1.0.1 / 1.0.0 remain compatible). The Windows connector opens an outbound, authenticated two-way WebSocket; documents download separately over HTTPS. The cloud needs no inbound route into the facility. Version **1.1.0** supports native printing **2.4**, wire payload v1, real-time jobs and controls, native browser sign-in through QQQ, and pushes each exposed printer's approval to connectors that advertise `printer-approval-v1`. Upgrade the server before the matching Windows connector.
+Cloud printing for QQQ 4.1+, paired with the [Windows AppKit connector](https://git.kof22.com/QRun-IO/qqq-print-agent) 1.2.1 and the [shared protocol](https://git.kof22.com/QRun-IO/qqq-print-protocol) 1.1.0 (1.0.1 / 1.0.0 remain compatible). The Windows connector opens an outbound, authenticated two-way WebSocket; documents download separately over HTTPS. The cloud needs no inbound route into the facility. Version **1.1.0** supports native printing **2.4**, wire payload v1, real-time jobs and controls, native browser sign-in through QQQ, and pushes each exposed printer's approval to connectors that advertise `printer-approval-v1`. Upgrade the server before the matching Windows connector.
 
-**Released:** [QQQ Printing 1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0), with a library JAR, matching POM and `SHA256SUMS`. The same JAR/POM are published in the QRun-IO Gitea Maven registry. Gitea requires sign-in for downloads. The QBit itself is not published to Maven Central and is not a standalone executable/fat JAR. See [installation and release access](docs/RELEASES.md).
+**Released:** [QQQ Printing 1.1.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.1.0), with a library JAR, matching POM and `SHA256SUMS` ([1.0.0](https://git.kof22.com/QRun-IO/qbit-printing/releases/tag/v1.0.0) remains available for rollback). The same JAR/POM are published in the QRun-IO Gitea Maven registry. Gitea requires sign-in for downloads. The QBit itself is not published to Maven Central and is not a standalone executable/fat JAR. See [installation and release access](docs/RELEASES.md).
 
 **Runtime:** Java 21 and QQQ **4.1.0-RC.21**, published on Maven Central with native session login. The optional native UI demo uses QQQ frontend **1.0.0-RC.37**. Product version 1.1.0, native extension 2.4.0 and wire payload v1 are separate version contracts.
 
@@ -79,7 +79,7 @@ The local setup uses the same native authorization and transport paths as an int
 Use the [authenticated Gitea Maven registry](docs/RELEASES.md#use-the-maven-registry), or download the release JAR, matching POM and `SHA256SUMS` and verify both files. For a local installation of the downloaded artifacts:
 
 ```powershell
-.\mvnw.cmd install:install-file '-Dfile=qbit-printing-1.0.0.jar' '-DpomFile=qbit-printing-1.0.0.pom'
+.\mvnw.cmd install:install-file '-Dfile=qbit-printing-1.1.0.jar' '-DpomFile=qbit-printing-1.1.0.pom'
 ```
 
 After the artifact is available in your configured repository, add:
@@ -88,7 +88,7 @@ After the artifact is available in your configured repository, add:
 <dependency>
    <groupId>com.kingsrook.qbits</groupId>
    <artifactId>qbit-printing</artifactId>
-   <version>1.0.0</version>
+   <version>1.1.0</version>
 </dependency>
 ```
 
@@ -167,7 +167,7 @@ The user confirmed physical laser PDF and Zebra ZPL/PDF output during developmen
 
 Gitea is the source, pull-request, CI and release authority. The thin `.gitea/workflows/qrun-release.yaml` delegates to the protected `qrun-release-v1` channel with Java 21, the Maven wrapper, `ui-demo` and the immutable protocol fixture checkout. Required verify, secrets and gate checks precede merge; successful main builds capture the tested Maven reactor for the trusted registry publisher. Maintainers publish the corresponding tagged Gitea release from those verified bytes. See [release operations](docs/RELEASES.md#maintainer-release-path).
 
-GitHub is a shadow/archive. Its Actions were retired for this repository on 2026-11-04; checked-in `.github` workflows describe the former pipeline and do not publish current printing releases. The separate Windows repository retains its signing/update-feed workflow. The 1.0.0 server release does not claim GitHub attestations or Maven Central publication. The JAR includes LICENSE, NOTICE and font/diagnostic asset licenses; publication does not deploy a QQQ host or print to hardware.
+GitHub is a shadow/archive. Its Actions were retired for this repository on 2026-11-04; checked-in `.github` workflows describe the former pipeline and do not publish current printing releases. The separate Windows repository retains its signing/update-feed workflow. The 1.0.0 and 1.1.0 server releases do not claim GitHub attestations or Maven Central publication. The JAR includes LICENSE, NOTICE and font/diagnostic asset licenses; publication does not deploy a QQQ host or print to hardware.
 
 ## Printing home
 
